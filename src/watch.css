@@ -1,0 +1,88 @@
+.watch-page {
+  background-color: black;
+  color: white;
+  padding-bottom: 50px;
+}
+
+.watch-hero {
+  position: relative;
+  width: 100%;
+  height: 60vh;
+  overflow: hidden;
+}
+
+.watch-bg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.5);
+}
+
+.watch-overlay {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  max-width: 700px;
+}
+
+.watch-overlay h1 {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.watch-meta {
+  margin-top: 0.5rem;
+  font-size: 0.95rem;
+  color: #ccc;
+}
+
+.watch-player {
+  margin: 30px 0;
+}
+
+.watch-trailer {
+  margin: 20px 0;
+}
+
+.trailer-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: red;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 5px;
+  transition: background 0.3s ease;
+}
+
+.trailer-toggle:hover {
+  background-color: darkred;
+}
+
+.trailer-iframe {
+  margin-top: 15px;
+  border-radius: 8px;
+}
+
+@media (max-width: 768px) {
+  .watch-overlay h1 {
+    font-size: 1.8rem;
+  }
+  .watch-player iframe,
+  .trailer-iframe {
+    height: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .watch-hero {
+    height: 40vh;
+  }
+  .watch-player iframe,
+  .trailer-iframe {
+    height: 220px;
+  }
+}
