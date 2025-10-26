@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import logo from "../assets/logo.png";
+import logo from "../assets/Logo.png";
 
 const Loader = () => {
   const [fadeOut, setFadeOut] = useState(false);
