@@ -86,6 +86,7 @@ export default function Navbar() {
               <Link to="/genres/action" onClick={() => handleNavClick("/genres/action")}>Action</Link>
               <Link to="/genres/comedy" onClick={() => handleNavClick("/genres/comedy")}>Comedy</Link>
               <Link to="/genres/animation" onClick={() => handleNavClick("/genres/animation")}>Animation</Link>
+              <Link to="/genres/anime" onClick={() => handleNavClick("/genres/anime")}>Anime</Link>
               <Link to="/genres/drama" onClick={() => handleNavClick("/genres/drama")}>Drama</Link>
               <Link to="/genres/horror" onClick={() => handleNavClick("/genres/horror")}>Horror</Link>
             </div>

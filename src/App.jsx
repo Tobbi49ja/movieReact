@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
-import ScrollProgress from "./components/ScrollProgress"; // ✅ NEW
+// import ScrollProgress from "./components/ScrollProgress";
 
 
 // Pages
@@ -14,6 +14,7 @@ import Action from "./pages/Genres/Action";
 import Comedy from "./pages/Genres/Comedy";
 import Drama from "./pages/Genres/Drama";
 import Horror from "./pages/Genres/Horror";
+import Anime from "./pages/Genres/Anime";
 import SearchResults from "./pages/SearchResults";
 import WatchPage from "./pages/WatchPage";
 import Sitemap from "./pages/Sitemap";
@@ -41,6 +42,7 @@ function App() {
         <Route path="/genres/drama" element={<Drama />} />
         <Route path="/genres/horror" element={<Horror />} />
 
+        <Route path="/genres/anime" element={<Anime />} />
         <Route path="/sitemap" element={<Sitemap />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/contact" element={<Contact />} />

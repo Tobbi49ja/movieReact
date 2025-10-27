@@ -44,7 +44,6 @@
     width: 95px;
     height: 75px;
   }
-
   .logo {
     object-fit: fill;
     width: 100%;
@@ -278,7 +277,7 @@
     margin-top: 10px;
     background: red;
     color: white;
-    padding: 0.3rem 1rem;
+    padding: 0.3rem 0.3rem;
     /* border-radius: 6px; */
     font-weight: 600;
     text-decoration: none;
@@ -518,14 +517,14 @@
     border-radius: 50%;
   }
 /* Sticky info at top when scrolling */
-.watch-sticky-info {
+/* .watch-sticky-info { */
   /* position: sticky;
   bottom: 8px;
   background-color: rgba(0, 0, 0, 0.85);
   padding: 15px 20px;
   z-index: 1000;
   border-bottom: 1px solid red; */
-}
+/* } */
 
 /* .watch-sticky-info h1 {
   font-size: 2rem;
@@ -1157,12 +1156,12 @@
 @media (max-width: 768px) {
   .hero-slider,
   .hero-slide {
-    height: 95vh; /* smaller height for mobile */
+    height: 95vh; 
   }
 
   .hero-image {
     object-fit: contain;
-    object-position: center center; /* keeps the image balanced */
+    object-position: center center; 
     height: 100%;
     width: 100%;
   }
@@ -1197,8 +1196,6 @@
     display: inline-block;
     margin-top: 1rem;
   }
-
-  /* Hide navigation arrows on mobile */
   .swiper-button-next,
   .swiper-button-prev {
     display: none;
@@ -1208,7 +1205,7 @@
 @media (max-width: 480px) {
   .hero-slider,
   .hero-slide {
-    height: 55vh; /* even smaller for small phones */
+    height: 55vh; 
   }
 
   .hero-overlay h2 {

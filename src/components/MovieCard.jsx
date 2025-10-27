@@ -18,7 +18,7 @@ export default function MovieCard({ id, title, year, image, quality }) {
           {truncateTitle(title, 20)}
         </h3>
         <p className="movie-info">{year}</p>
-        <button className="movie-btn">movie</button>
+        <button className="movie-btn">watch</button>
       </div>
     </Link>
   );
