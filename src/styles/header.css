@@ -1,0 +1,114 @@
+  @import url("https://fonts.googleapis.com/css2?family=Bungee+Spice&family=New+Rocker&family=Poppins:wght@400;600;700&display=swap");
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+    header {
+    width: 100%;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: rgb(0 0 0 / 70%);
+    backdrop-filter: blur(15px);
+    position: fixed;
+    top: 0;
+    z-index: 1000;
+  }
+   .pulldown{
+    padding-top: 12rem;
+  }
+  .pulldown2{
+    padding-top: 5rem;
+  }
+  .logo-container {
+    width: 95px;
+    height: 75px;
+  }
+
+  .logo {
+    object-fit: fill;
+    width: 100%;
+    height: 100%;
+  }
+
+  nav {
+    flex: 1;
+    margin-left: 40px;
+  }
+
+  nav ul {
+    display: flex;
+    gap: 60px;
+    list-style: none;
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  nav ul li a {
+    font-weight: 600;
+    text-decoration: none;
+    text-transform: capitalize;
+    color: aliceblue;
+    font-size: 1.1rem;
+  }
+
+  .search-box {
+    margin-right: 20px;
+  }
+
+  .input-search {
+    width: 150px;
+    height: 30px;
+    padding-left: 12px;
+    font-weight: 600;
+    border-radius: 8px;
+    color: white;
+    background: transparent;
+    border: 2px solid red;
+  }
+
+  .input-search:focus {
+    outline: none;
+  }
+
+  .hamburger {
+    display: none;
+    flex-direction: column;
+    cursor: pointer;
+  }
+
+  .hamburger span {
+    height: 3px;
+    width: 25px;
+    background: white;
+    margin: 4px 0;
+    border-radius: 5px;
+  }
+
+  .genre-dropdown {
+    display: none;
+    position: absolute;
+    top: 60px;
+    background-color: rgba(0, 0, 0, 0.9);
+    border: 1px solid red;
+    border-radius: 8px;
+    padding: 10px;
+  }
+
+  .genre-dropdown a {
+    display: block;
+    padding: 5px 10px;
+    color: white;
+    text-decoration: none;
+  }
+
+  .genre-dropdown a:hover {
+    background-color: red;
+  }
+
+  .relative {
+    position: relative;
+  }

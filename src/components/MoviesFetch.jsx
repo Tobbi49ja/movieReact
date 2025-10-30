@@ -52,6 +52,7 @@ export default function MoviesFetch({ title, apiUrl }) {
               "N/A"
             }
             image={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
+            mediaType={movie.media_type || (movie.title ? "movie" : "tv")}
           />
         ))}
       </div>

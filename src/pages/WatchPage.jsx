@@ -1,3 +1,4 @@
+// src/pages/WatchPage.jsx
 import { useParams } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import Loader from "../components/Loader";
@@ -13,17 +14,16 @@ export default function WatchPage() {
   const [movie, setMovie] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showTrailer, setShowTrailer] = useState(false);
+  const [trailerKey, setTrailerKey] = useState(null);
   const [likes, setLikes] = useState(0);
   const [dislikes, setDislikes] = useState(0);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [currentSource, setCurrentSource] = useState("");
-  const [trailerKey, setTrailerKey] = useState(null);
 
   const trailerRef = useRef(null);
   const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
-  // Available streaming sources
   const sources = {
     VidSrc: `https://vidsrc.to/embed/movie/${id}`,
     AutoEmbed: `https://autoembed.cc/embed/movie/${id}`,
@@ -31,11 +31,10 @@ export default function WatchPage() {
     MovieAPI: `https://movieapi.club/embed/movie/${id}`,
   };
 
-  // Fetch movie details and trailer
   useEffect(() => {
     const fetchMovie = async () => {
       try {
-        const [movieRes, videoRes] = await Promise.all([
+        const [res, videosRes] = await Promise.all([
           fetch(
             `https://api.themoviedb.org/3/movie/${id}?api_key=${TMDB_KEY}&language=en-US`
           ),
@@ -44,41 +43,28 @@ export default function WatchPage() {
           ),
         ]);
 
-        const movieData = await movieRes.json();
-        const videoData = await videoRes.json();
+        const data = await res.json();
+        const videos = await videosRes.json();
 
-        setMovie(movieData);
-        setCurrentSource(Object.values(sources)[0]); // default source
+        setMovie(data);
 
-        // Find official YouTube trailer
-        const trailer = videoData.results?.find(
-          (vid) =>
-            vid.type === "Trailer" &&
-            vid.site === "YouTube" &&
-            vid.official === true
+        const trailer = videos.results?.find(
+          (vid) => vid.type === "Trailer" && vid.site === "YouTube"
         );
         if (trailer) setTrailerKey(trailer.key);
 
-        setLoading(false);
+        setCurrentSource(Object.values(sources)[0]);
       } catch (err) {
         console.error("Error fetching movie:", err);
+      } finally {
         setLoading(false);
       }
     };
-
     fetchMovie();
   }, [id, TMDB_KEY]);
 
-  const handleTrailerToggle = () => {
-    setShowTrailer((prev) => !prev);
-    if (!showTrailer && trailerRef.current) {
-      trailerRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  };
-
   const handleLike = () => setLikes((prev) => prev + 1);
   const handleDislike = () => setDislikes((prev) => prev + 1);
-
   const handleCommentSubmit = (e) => {
     e.preventDefault();
     if (newComment.trim()) {
@@ -87,11 +73,19 @@ export default function WatchPage() {
     }
   };
 
+  const handleTrailerToggle = () => {
+    setShowTrailer((prev) => !prev);
+    if (!showTrailer && trailerRef.current) {
+      trailerRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   if (loading) return <Loader />;
   if (!movie) return <p className="loading">Movie not found.</p>;
 
   return (
     <main className="watch-page pulldown2">
+      {/* 🎬 Sticky Header Info */}
       <div className="watch-sticky-info">
         <h1>{movie.title}</h1>
         <p className="watch-meta">
@@ -100,7 +94,7 @@ export default function WatchPage() {
         </p>
       </div>
 
-      {/* 🎥 Hero Image */}
+      {/* 🎥 Hero Section */}
       <div className="watch-hero">
         <img
           src={`https://image.tmdb.org/t/p/original${movie.backdrop_path}`}
@@ -112,7 +106,7 @@ export default function WatchPage() {
         </div>
       </div>
 
-      {/* 🎬 Streaming Player */}
+      {/* 🎞 Player Section */}
       <div className="watch-player">
         <h2>Now Playing</h2>
 
@@ -131,18 +125,15 @@ export default function WatchPage() {
           ))}
         </div>
 
-        {currentSource ? (
-          <iframe
-            src={currentSource}
-            width="100%"
-            height="500"
-            frameBorder="0"
-            allowFullScreen
-            title="Movie Player"
-          ></iframe>
-        ) : (
-          <p className="error-msg">Select a streaming source to start watching.</p>
-        )}
+        {/* Main Player */}
+        <iframe
+          src={currentSource}
+          width="100%"
+          height="500"
+          frameBorder="0"
+          allowFullScreen
+          title="Movie Player"
+        ></iframe>
       </div>
 
       {/* 👍 Reactions */}
@@ -155,7 +146,7 @@ export default function WatchPage() {
         </button>
       </div>
 
-      {/* 🎞 Trailer */}
+      {/* 🎬 Trailer Section */}
       <div className="watch-trailer" ref={trailerRef}>
         <button className="trailer-toggle" onClick={handleTrailerToggle}>
           {showTrailer ? (
@@ -180,11 +171,11 @@ export default function WatchPage() {
           ></iframe>
         )}
         {showTrailer && !trailerKey && (
-          <p className="no-trailer">Trailer not available for this movie.</p>
+          <p className="no-trailer">Trailer not available.</p>
         )}
       </div>
 
-      {/* 💬 Comments */}
+      {/* 💬 Comments Section */}
       <div className="comment-section">
         <h2>Comments</h2>
         <form onSubmit={handleCommentSubmit} className="comment-form">

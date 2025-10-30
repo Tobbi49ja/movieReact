@@ -2,8 +2,6 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
-// import ScrollProgress from "./components/ScrollProgress";
-
 
 // Pages
 import Home from "./pages/Home";
@@ -17,18 +15,16 @@ import Horror from "./pages/Genres/Horror";
 import Anime from "./pages/Genres/Anime";
 import SearchResults from "./pages/SearchResults";
 import WatchPage from "./pages/WatchPage";
+import TVShowWatchPage from "./pages/TVShowWatchPage"; // ✅ import TV show watch page
 import Sitemap from "./pages/Sitemap";
 import Terms from "./pages/Terms";
 import Contact from "./pages/Contact";
 import About from "./pages/About";
 import ErrorPage from "./pages/ErrorPage";
 
-
-
 function App() {
   return (
     <Router>
-      {/* <ScrollProgress /> ✅ Always visible at top */}
       <ScrollToTop />
       <Navbar />
       <Routes>
@@ -41,13 +37,15 @@ function App() {
         <Route path="/genres/comedy" element={<Comedy />} />
         <Route path="/genres/drama" element={<Drama />} />
         <Route path="/genres/horror" element={<Horror />} />
-
         <Route path="/genres/anime" element={<Anime />} />
         <Route path="/sitemap" element={<Sitemap />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/contact" element={<Contact />} />
-        <Route path="/watch/:id" element={<WatchPage />} />
         <Route path="/about" element={<About />} />
+
+        {/* ✅ Corrected routes */}
+        <Route path="/watch/:id" element={<WatchPage />} /> {/* For movies */}
+        <Route path="/tv/:id" element={<TVShowWatchPage />} /> {/* For TV shows */}
 
         <Route path="*" element={<ErrorPage />} />
       </Routes>
