@@ -6,21 +6,55 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-.env
 
-node_modules
-dist
-dist-ssr
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Node modules
+node_modules/
+
+# Build outputs
+dist/
+dist-ssr/
 *.local
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-src/assets/video/slider2.mp4
+
+# OS generated files
+Desktop.ini
+
+# Local assets (optional)
+src/assets/video/*.mp4
+src/assets/video/*.mov
+src/assets/video/*.avi
+src/assets/audio/*.mp3
+src/assets/audio/*.wav
+
+# Coverage / test output
+coverage/
+*.lcov
+
+# Dependency directories
+jspm_packages/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional: ignore lock files if you prefer
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
