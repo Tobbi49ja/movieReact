@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import SEOHelmet from "../components/seo/SEOHelmet";
 
 export default function Contact() {
   const [form, setForm] = useState({ name: "", email: "", message: "" });
@@ -14,6 +15,15 @@ export default function Contact() {
 
   return (
     <div className="pulldown contact-page">
+      {/* SEO Meta Tags */}
+      <SEOHelmet
+        title="Contact TobbiHub"
+        description="Reach out to TobbiHub with your questions, feedback, or business inquiries. We're here to help with anything related to movies, TV shows, and animations."
+        name="TobbiHub"
+        type="website"
+      />
+
+      {/* Page Content */}
       <section className="page-container">
         <h1>Contact Us</h1>
         <p className="intro-text">
@@ -44,7 +54,7 @@ export default function Contact() {
             value={form.message}
             onChange={handleChange}
             required
-          ></textarea>
+          />
           <button type="submit" className="submit-btn">
             Send Message
           </button>

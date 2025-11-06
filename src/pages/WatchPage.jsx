@@ -8,6 +8,7 @@ import {
   FiThumbsUp,
   FiThumbsDown,
 } from "react-icons/fi";
+import SEOHelmet from "../components/seo/SEOHelmet"; // ✅ Import SEO
 
 export default function WatchPage() {
   const { id } = useParams();
@@ -83,8 +84,33 @@ export default function WatchPage() {
   if (loading) return <Loader />;
   if (!movie) return <p className="loading">Movie not found.</p>;
 
+  // ✅ SEO structured data for movie
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "Movie",
+    name: movie.title,
+    image: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
+    description: movie.overview,
+    datePublished: movie.release_date,
+    aggregateRating: {
+      "@type": "AggregateRating",
+      ratingValue: movie.vote_average?.toFixed(1),
+      ratingCount: movie.vote_count,
+    },
+  };
+
   return (
     <main className="watch-page pulldown2">
+      {/* ✅ SEO */}
+      <SEOHelmet
+        title={`${movie.title} | TobbiHub`}
+        description={movie.overview || "Watch the latest movies on TobbiHub"}
+        keywords={`watch ${movie.title}, ${movie.title} full movie, TobbiHub movies`}
+        image={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
+        url={`https://tobbihub.vercel.app/watch/${id}`}
+        schema={structuredData}
+      />
+
       {/* 🎬 Sticky Header Info */}
       <div className="watch-sticky-info">
         <h1>{movie.title}</h1>

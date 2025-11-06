@@ -1,9 +1,19 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import SEOHelmet from "../components/seo/SEOHelmet";
 
 export default function Sitemap() {
   return (
     <div className="pulldown sitemap-page">
+      {/* SEO Meta Tags */}
+      <SEOHelmet
+        title="Sitemap - TobbiHub"
+        description="Browse the TobbiHub sitemap to quickly find movies, TV shows, and essential pages like About, Contact, and Terms of Service."
+        name="TobbiHub"
+        type="website"
+      />
+
+      {/* Page Content */}
       <section className="page-container">
         <h1>Sitemap</h1>
         <p className="intro-text">
@@ -11,8 +21,9 @@ export default function Sitemap() {
         </p>
 
         <div className="sitemap-links">
+          {/* Movies & TV */}
           <div className="sitemap-group">
-            <h2>Movies</h2>
+            <h2>Movies & TV Shows</h2>
             <ul>
               <li><Link to="/movies">All Movies</Link></li>
               <li><Link to="/tvshows">TV Shows</Link></li>
@@ -20,6 +31,7 @@ export default function Sitemap() {
             </ul>
           </div>
 
+          {/* Information */}
           <div className="sitemap-group">
             <h2>Information</h2>
             <ul>
@@ -28,8 +40,9 @@ export default function Sitemap() {
             </ul>
           </div>
 
+          {/* More Pages */}
           <div className="sitemap-group">
-            <h2>More</h2>
+            <h2>Other Pages</h2>
             <ul>
               <li><Link to="/">Home</Link></li>
               <li><Link to="/about">About</Link></li>

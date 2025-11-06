@@ -1,0 +1,28 @@
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #e50914, #8000ff, #00ffff);
+  border-radius: 10px;
+  box-shadow: 0 0 var(--scroll-glow, 10px) rgba(255, 0, 79, 0.5);
+  transition: all 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 calc(var(--scroll-glow, 10px) * 1.5) rgba(255, 0, 79, 0.8);
+}
+
+/* Firefox fallback */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #e50914 #0a0a0a;
+}

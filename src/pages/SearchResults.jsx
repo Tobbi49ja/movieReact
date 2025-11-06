@@ -1,16 +1,15 @@
 import { useLocation, useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import MovieCard from "../components/MovieCard";
+import SEOHelmet from "../components/seo/SEOHelmet";
 
 export default function SearchResult() {
   const location = useLocation();
   const { query: routeQuery } = useParams();
   const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
-  // 🔹 Use query from Navbar state or URL params
-  const [query, setQuery] = useState(
-    location.state?.query || routeQuery || ""
-  );
+  // 🔹 Query state
+  const [query, setQuery] = useState(location.state?.query || routeQuery || "");
   const [results, setResults] = useState(location.state?.results || []);
   const [loading, setLoading] = useState(false);
 
@@ -50,7 +49,6 @@ export default function SearchResult() {
         const movieData = await movieRes.json();
         const tvData = await tvRes.json();
 
-        // Combine and sort by release/air date
         const combined = [
           ...(movieData.results || []).map((m) => ({
             ...m,
@@ -77,8 +75,26 @@ export default function SearchResult() {
     fetchResults();
   }, [query, TMDB_KEY]);
 
+  // ✅ Dynamic SEO text
+  const seoTitle = query
+    ? `Search results for “${query}” | Tobbihub`
+    : "Search Movies and TV Shows | Tobbihub";
+
+  const seoDescription = query
+    ? `Find movies and TV shows matching “${query}” on Tobbihub. Stream HD titles instantly and explore trending films.`
+    : "Search your favorite movies and TV shows on Tobbihub. Fast, accurate, and always updated.";
+
   return (
     <main className="search-page pulldown2">
+      {/* ✅ SEOHelmet Integration */}
+      <SEOHelmet
+        title={seoTitle}
+        description={seoDescription}
+        keywords={`Tobbihub, search ${query}, movies, tv shows, HD streaming`}
+        image="/assets/favicon/favicon.ico"
+        url={`https://tobbihub.com/search/${encodeURIComponent(query)}`}
+      />
+
       <div className="search-container">
         <input
           type="text"

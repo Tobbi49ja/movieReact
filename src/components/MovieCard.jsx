@@ -3,20 +3,23 @@ import { Link } from "react-router-dom";
 export default function MovieCard({ id, title, name, year, image, quality, mediaType }) {
   const displayTitle = title || name || "Untitled";
 
-  const truncateTitle = (text, maxLength = 20) => {
-    if (!text) return "";
-    return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
-  };
+  const truncateTitle = (text, maxLength = 20) =>
+    text?.length > maxLength ? text.substring(0, maxLength) + "..." : text;
 
-  // Auto-detect type safely
-  const type = mediaType || (title ? "movie" : name ? "tv" : "movie");
+  // Detect the type automatically
+  const type = mediaType || (title ? "movie" : "tv");
+
+  // Dynamic link and button label
   const linkPath = type === "tv" ? `/tv/${id}` : `/watch/${id}`;
+  const buttonLabel = type === "tv" ? "TV Show" : "Movie";
 
   return (
-    <Link to={linkPath} className="movie-card">
+    <div className="movie-card">
       <div className="img-card">
-        <img src={image} alt={displayTitle} className="card" />
-        {quality && <span className="quality-tag">{quality}</span>}
+        <Link to={linkPath}>
+          <img src={image} alt={displayTitle} className="card" />
+          {quality && <span className="quality-tag">{quality}</span>}
+        </Link>
       </div>
 
       <div className="title-info">
@@ -24,8 +27,11 @@ export default function MovieCard({ id, title, name, year, image, quality, media
           {truncateTitle(displayTitle, 20)}
         </h3>
         <p className="movie-info">{year || "Unknown"}</p>
-        <button className="movie-btn">Watch</button>
+
+        <Link to={linkPath} className="movie-btn">
+          {buttonLabel}
+        </Link>
       </div>
-    </Link>
+    </div>
   );
 }

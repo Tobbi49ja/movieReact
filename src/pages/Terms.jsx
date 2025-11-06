@@ -1,8 +1,18 @@
 import React from "react";
+import SEOHelmet from "../components/seo/SEOHelmet";
 
 export default function TermsOfService() {
   return (
     <div className="pulldown terms-page">
+      {/* SEO Meta Tags */}
+      <SEOHelmet
+        title="Terms of Service - TobbiHub"
+        description="Review TobbiHub's Terms of Service to understand our policies, content ownership, and usage guidelines."
+        name="TobbiHub"
+        type="website"
+      />
+
+      {/* Page Content */}
       <section className="page-container">
         <h1>Terms of Service</h1>
         <p className="intro-text">
@@ -14,13 +24,13 @@ export default function TermsOfService() {
           <h2>1. Content Ownership</h2>
           <p>
             TobbiHub does not host any media files on its servers. All videos and
-            images are provided through third-party APIs. We respect all copyright
+            images are provided through third-party APIs. We respect copyright
             laws and do not claim ownership of the content displayed.
           </p>
 
           <h2>2. User Responsibilities</h2>
           <p>
-            You agree to use TobbiHub solely for personal and non-commercial
+            You agree to use TobbiHub solely for personal, non-commercial
             entertainment purposes. Redistribution, re-uploading, or downloading
             content from third-party sources may violate copyright laws.
           </p>

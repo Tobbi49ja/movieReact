@@ -2,6 +2,7 @@ import React from "react";
 
 export default function About() {
   return (
+    
     <div className="pulldown about-page">
       <section className="page-container">
         <h1>About TobbiHub</h1>

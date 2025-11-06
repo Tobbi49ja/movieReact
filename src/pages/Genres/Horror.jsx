@@ -1,10 +1,17 @@
 import MoviesFetch from "../../components/MoviesFetch";
+import SEOHelmet from "../../components/seo/SEOHelmet";
 
 export default function Horror() {
   const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
   return (
     <main className="pulldown">
+      <SEOHelmet
+        title="Horror Movies | TobbiHub"
+        description="Get ready for chills and screams. Explore the scariest horror movies and terrifying thrillers available on TobbiHub."
+        url="https://tobbihub.com/genres/horror"
+      />
+
       <h1>Horror</h1>
 
       <MoviesFetch

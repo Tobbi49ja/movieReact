@@ -1,193 +1,150 @@
-  @import url("https://fonts.googleapis.com/css2?family=Bungee+Spice&family=New+Rocker&family=Poppins:wght@400;600;700&display=swap");
 
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-    @media (min-width: 1600px) {
-    body {
-      transform: scale(1.05);
-      transform-origin: top center;
-    }
-  }
-  @media (max-width: 768px) {
-  .watch-sticky-info h1 {
-    font-size: 1.5rem;
-  }
-  .watch-player iframe,
-  .trailer-iframe {
-    height: 300px;
+
+@import url("https://fonts.googleapis.com/css2?family=Bungee+Spice&family=New+Rocker&family=Poppins:wght@400;600;700&display=swap");
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ========================================
+   DESKTOP SCALING (1600px+)
+   ======================================== */
+
+@media (min-width: 1600px) {
+  body {
+    transform: scale(1.05);
+    transform-origin: top center;
   }
 }
 
-@media (max-width: 480px) {
-  .watch-player iframe,
-  .trailer-iframe {
-    height: 220px;
-  }
-}
-/* 📱 MOBILE RESPONSIVE */
+/* ========================================
+   TABLET RESPONSIVE (768px)
+   ======================================== */
+
 @media (max-width: 768px) {
-  .watch-hero {
-    height: 35vh;
+  /* Header */
+  header {
+    flex-wrap: wrap;
   }
 
-  .watch-sticky-info h1 {
-    font-size: 1.4rem;
+  /* Navigation */
+  nav {
+    position: fixed;
+    top: 0;
+    left: -100%;
+    width: 50%;
+    background-color: rgba(0, 0, 0, 0.8);
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 20px;
+    transition: left 0.4s ease;
+    z-index: 1001;
   }
 
-  .watch-player iframe,
-  .trailer-iframe {
-    height: 260px;
+  nav ul {
+    flex-direction: column;
+    gap: 30px;
+    width: 100%;
   }
 
-  .comment-section {
-    padding: 1rem;
-  }
-}
-
-  /* ========= RESPONSIVE ========= */
-  @media (max-width: 768px) {
-    nav {
-      position: fixed;
-      top: 0;
-      left: -100%;
-      width: 50%;
-      background-color: rgba(0, 0, 0, 0.8);
-      flex-direction: column;
-      justify-content: center;
-      align-items: flex-start;
-      padding: 20px;
-      transition: left 0.4s ease;
-      z-index: 1001;
-    }
-
-    nav ul {
-      flex-direction: column;
-      gap: 30px;
-      width: 100%;
-    }
-
-    nav ul li a {
-      font-size: 1.3rem;
-      color: white;
-      text-transform: capitalize;
-      width: 100%;
-      display: block;
-      padding: 10px 0;
-      font-weight: 600;
-    }
-
-    nav ul li a:hover {
-      color: red;
-      transition: 0.3s ease;
-    }
-
-    nav.active {
-      left: 0;
-    }
-
-    body::before {
-      content: "";
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100vh;
-      background-color: rgba(0, 0, 0, 0);
-      transition: background-color 0.4s ease;
-      pointer-events: none;
-      z-index: 1000;
-    }
-
-    nav.active ~ body::before {
-      background-color: rgba(0, 0, 0, 0.5);
-      pointer-events: all;
-    }
-
-    .hamburger {
-      display: flex;
-      flex-direction: column;
-      cursor: pointer;
-      z-index: 1100;
-      position: relative;
-    }
-
-    .hamburger span {
-      height: 3px;
-      width: 25px;
-      background: white;
-      margin: 4px 0;
-      border-radius: 5px;
-      transition: all 0.3s ease;
-    }
-
-    .hamburger.active span:nth-child(1) {
-      transform: rotate(45deg) translateY(8px);
-    }
-
-    .hamburger.active span:nth-child(2) {
-      opacity: 0;
-    }
-
-    .hamburger.active span:nth-child(3) {
-      transform: rotate(-45deg) translateY(-8px);
-    }
-
-    .search-box {
-      display: none;
-    }
-    .logo-container2{
-      width: 20%;
-    }
+  nav ul li a {
+    font-size: 1.3rem;
+    color: white;
+    text-transform: capitalize;
+    width: 100%;
+    display: block;
+    padding: 10px 0;
+    font-weight: 600;
   }
 
-  @media (max-width: 425px) {
-    .movie-card {
-      width: 215px;
-    }
-
-    .preview-section {
-      height: 50vh;
-    }
-
-    video {
-      object-fit: fill;
-    }
+  nav ul li a:hover {
+    color: red;
+    transition: 0.3s ease;
   }
 
-  @media (max-width: 375px) {
-    .movies-grid{
-      /* border: 1px solid red; */
-      display: flex;
-      flex-wrap: wrap;
-
-    }
-    .movie-section {
-      border: 1px solid red;
-      display: flex;
-      flex-wrap: wrap;
-    }
-
-    .movie-card {
-      flex-grow: 1;
-    }
-
-    .card {
-      object-fit: fill;
-    }
+  nav.active {
+    left: 0;
   }
-  /* ===== HERO RESPONSIVENESS ===== */
-@media (max-width: 768px) {
+
+  /* Overlay for active nav */
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0);
+    transition: background-color 0.4s ease;
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  nav.active ~ body::before {
+    background-color: rgba(0, 0, 0, 0.5);
+    pointer-events: all;
+  }
+
+  /* Hamburger Menu */
+  .hamburger {
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    z-index: 1100;
+    position: relative;
+  }
+
+  .hamburger span {
+    height: 3px;
+    width: 25px;
+    background: white;
+    margin: 4px 0;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+  }
+
+  .hamburger.active span:nth-child(1) {
+    transform: rotate(45deg) translateY(8px);
+  }
+
+  .hamburger.active span:nth-child(2) {
+    opacity: 0;
+  }
+
+  .hamburger.active span:nth-child(3) {
+    transform: rotate(-45deg) translateY(-8px);
+  }
+
+  /* Search */
+  .search-box {
+    display: none;
+  }
+
+  .logo-container2 {
+    width: 20%;
+  }
+
+  #nav-menu.active .mobile-search {
+    display: block;
+    padding: 0.5rem 1rem;
+  }
+
+  .mobile-search .input-search {
+    width: 100%;
+  }
+
+  /* Hero Section */
   .hero-slider,
   .hero-slide {
-    height: 95vh; 
+    height: 95vh;
   }
 
   .hero-image {
     object-fit: contain;
-    object-position: center center; 
+    object-position: center center;
     height: 100%;
     width: 100%;
   }
@@ -215,23 +172,66 @@
   }
 
   .movie-btn {
-    padding: 8px 14px;
-    font-size: 0.9rem;
+    /* padding: 8px 14px;
+    font-size: 0.9rem; */
     bottom: unset;
     position: relative;
-    display: inline-block;
-    margin-top: 1rem;
+    float: right;
   }
+
   .swiper-button-next,
   .swiper-button-prev {
     display: none;
   }
+  .movies-section{
+    width: 100%;
+  }
+  .movies-grid {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .movie-card{
+    flex-grow: 1;
+    margin-bottom: 2rem;
+  }
+  /* Watch Page */
+  .watch-hero {
+    height: 35vh;
+  }
+
+  .watch-sticky-info h1 {
+    font-size: 1.4rem;
+  }
+
+  .watch-player iframe,
+  .trailer-iframe {
+    height: 260px;
+  }
+
+  /* Comments */
+  .comment-section {
+    padding: 1rem;
+  }
+
+  /* TV Shows */
+  .tvshow-player {
+    height: 300px;
+  }
+
+  .tvshow-title {
+    font-size: 1.5rem;
+  }
 }
 
+/* ========================================
+   MOBILE RESPONSIVE (480px)
+   ======================================== */
+
 @media (max-width: 480px) {
+  /* Hero Section */
   .hero-slider,
   .hero-slide {
-    height: 55vh; 
+    height: 55vh;
   }
 
   .hero-overlay h2 {
@@ -242,17 +242,49 @@
     font-size: 0.85rem;
   }
 
-  .movie-btn {
-    font-size: 0.8rem;
-    padding: 6px 12px;
+  /* Watch Page */
+  .watch-player iframe,
+  .trailer-iframe {
+    height: 220px;
   }
 }
-/* Responsive */
-@media (max-width: 768px) {
-  .tvshow-player {
-    height: 300px;
+
+/* ========================================
+   MOBILE RESPONSIVE (425px)
+   ======================================== */
+
+@media (max-width: 425px) {
+  .movie-card {
+    width: 40%;
   }
-  .tvshow-title {
-    font-size: 1.5rem;
+
+  .preview-section {
+    height: 50vh;
+  }
+
+  video {
+    object-fit: fill;
+  }
+}
+
+/* ========================================
+   MOBILE RESPONSIVE (375px)
+   ======================================== */
+
+@media (max-width: 375px) {
+
+
+  .movie-section {
+    border: 1px solid red;
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .movie-card {
+    flex-grow: 1;
+  }
+
+  .card {
+    object-fit: fill;
   }
 }

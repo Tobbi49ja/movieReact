@@ -1,11 +1,21 @@
 import MoviesFetch from "../components/MoviesFetch";
 import Loader from "../components/Loader";
+import SEOHelmet from "../components/seo/SEOHelmet";
 
 export default function Movies() {
   const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
   return (
     <main className="pulldown">
+      {/* ✅ SEO for Movies Page */}
+      <SEOHelmet
+        title="Movies - Watch Latest & Trending Films | Tobbihub"
+        description="Discover and stream popular, top-rated, and upcoming movies on Tobbihub. Enjoy HD quality, fast streaming, and no sign-ups required."
+        keywords="Tobbihub, movies, latest movies, popular movies, top rated movies, upcoming films, streaming, HD movies"
+        image="/assets/favicon/favicon.ico"
+        url="https://tobbihub.com/movies"
+      />
+
       <h1>Movies</h1>
 
       {/* Popular Movies */}

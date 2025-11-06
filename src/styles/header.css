@@ -55,10 +55,13 @@
     font-size: 1.1rem;
   }
 
-  .search-box {
-    margin-right: 20px;
-  }
-
+.search-box {
+  margin-left: auto;
+}
+#nav-menu .mobile-search {
+  margin-top: 1rem;
+  width: 100%;
+}
   .input-search {
     width: 150px;
     height: 30px;

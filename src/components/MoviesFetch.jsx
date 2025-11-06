@@ -4,42 +4,53 @@ import Loader from "./Loader";
 
 export default function MoviesFetch({ title, apiUrl }) {
   const [movies, setMovies] = useState([]);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(true);
+
+  const loadMovies = async (pageNum) => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${apiUrl}&page=${pageNum}`);
+      if (!res.ok) throw new Error("Network response was not ok");
+      const data = await res.json();
+
+      const filtered = data.results?.filter(
+        (item) => (item.title || item.name) && item.poster_path
+      );
+
+      if (filtered.length === 0) {
+        setHasMore(false);
+        return;
+      }
+
+      // append new results
+      setMovies((prev) => [...prev, ...filtered]);
+    } catch (err) {
+      console.error("Error fetching movies:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchMovies = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(apiUrl);
-        if (!res.ok) throw new Error("Network response was not ok");
-        const data = await res.json();
+    // reset when apiUrl changes
+    setMovies([]);
+    setPage(1);
+    setHasMore(true);
+    loadMovies(1);
+  }, [apiUrl]);
 
-        console.log(`${title} data:`, data.results);
-        const onlyMovies = data.results?.filter(
-          (item) => (item.title || item.name) && item.poster_path
-        );
-        setMovies(onlyMovies);
-      } catch (err) {
-        console.error("Error fetching movies:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMovies();
-  }, [apiUrl, title]);
-
-  if (loading) {
-    return <Loader />;
-  }
-
-  if (!movies.length) {
-    return <p className="loading">No {title.toLowerCase()} found.</p>;
-  }
+  const handleLoadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    loadMovies(nextPage);
+  };
 
   return (
     <section className="movies-section">
       <h2 className="section-title">{title}</h2>
+
       <div className="movies-grid">
         {movies.map((movie) => (
           <MovieCard
@@ -56,6 +67,14 @@ export default function MoviesFetch({ title, apiUrl }) {
           />
         ))}
       </div>
+
+      {loading && <Loader />}
+      {!loading && hasMore && (
+        <button onClick={handleLoadMore} className="load-more-btn">
+          Load More
+        </button>
+      )}
+      {!hasMore && <p className="no-more">No more movies to show</p>}
     </section>
   );
 }
