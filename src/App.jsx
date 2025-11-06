@@ -3,6 +3,9 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
 
+import useScrollGlow from "./hooks/useScrollGlow";
+
+
 // pages
 import Home from "./pages/Home";
 import Movies from "./pages/Movies";
@@ -26,6 +29,7 @@ import ErrorPage from "./pages/ErrorPage";
 import SEOHelmet from "./components/seo/SEOHelmet";
 
 function App() {
+    useScrollGlow();
   return (
     <>
       {/* Global SEO defaults */}

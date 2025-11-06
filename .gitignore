@@ -37,7 +37,7 @@ Thumbs.db
 # OS generated files
 Desktop.ini
 
-# Local assets (optional)
+# Local assets (optional) 
 src/assets/video/*.mp4
 src/assets/video/*.mov
 src/assets/video/*.avi

@@ -86,7 +86,7 @@ export default function SearchResult() {
 
   return (
     <main className="search-page pulldown2">
-      {/* ✅ SEOHelmet Integration */}
+      
       <SEOHelmet
         title={seoTitle}
         description={seoDescription}
@@ -124,7 +124,7 @@ export default function SearchResult() {
                   ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
                   : "/no-image.jpg"
               }
-              quality="HD"
+              quality=""
               mediaType={item.media_type}
             />
           ))
