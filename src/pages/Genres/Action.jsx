@@ -9,7 +9,7 @@ export default function Action() {
       <SEOHelmet
         title="Action Movies | TobbiHub"
         description="Explore the best and most thrilling action movies available on TobbiHub. Watch blockbusters, adventures, and adrenaline-pumping titles."
-        url="https://tobbihub.com/movies/action"
+        url="https://moviereact-zzye.onrender.com/movies/action"
       />
 
       <h1>Action Movies</h1>

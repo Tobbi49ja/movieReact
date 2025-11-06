@@ -92,7 +92,7 @@ export default function SearchResult() {
         description={seoDescription}
         keywords={`Tobbihub, search ${query}, movies, tv shows, HD streaming`}
         image="/assets/favicon/favicon.ico"
-        url={`https://tobbihub.com/search/${encodeURIComponent(query)}`}
+        url={`https://moviereact-zzye.onrender.com/search/${encodeURIComponent(query)}`}
       />
 
       <div className="search-container">

@@ -9,7 +9,7 @@ export default function Anime() {
       <SEOHelmet
         title="Anime | TobbiHub"
         description="Explore popular anime movies and TV shows from Japan. Watch trending and classic anime streaming on TobbiHub."
-        url="https://tobbihub.com/genres/anime"
+        url="https://moviereact-zzye.onrender.com/genres/anime"
       />
 
       <h1>Anime</h1>

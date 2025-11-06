@@ -9,7 +9,7 @@ export default function Animation() {
       <SEOHelmet
         title="Animation Movies | TobbiHub"
         description="Enjoy animated films full of creativity, laughter, and emotion. Discover classic and new animation movies on TobbiHub."
-        url="https://tobbihub.com/movies/animation"
+        url="https://moviereact-zzye.onrender.com/movies/animation"
       />
 
       <h1>Animation Movies</h1>

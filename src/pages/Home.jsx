@@ -13,7 +13,7 @@ export default function Home() {
         description="Stream the latest movies, trending TV shows, and top-rated films online for free on Tobbihub. Fast, smooth, and ad-light streaming experience."
         keywords="Tobbihub, free movies, streaming, HD movies, TV shows, top rated, popular films"
         image="/assets/favicon/favicon.ico"
-        url="https://tobbihub.com"
+        url="https://moviereact-zzye.onrender.com"
       />
 
       {/* ✅ Hero Section */}

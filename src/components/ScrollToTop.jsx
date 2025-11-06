@@ -11,5 +11,5 @@ export default function ScrollToTop() {
     });
   }, [pathname]);
 
-  return null; // this component doesn't render anything visible
+  return null;
 }

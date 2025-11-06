@@ -21,7 +21,7 @@ export default function ErrorPage() {
       <SEOHelmet
         title="404 - Page Not Found | TobbiHub"
         description="The page you’re looking for could not be found on TobbiHub. It may have been moved or deleted."
-        url="https://tobbihub.com/404"
+        url="https://moviereact-zzye.onrender.com/404"
         noIndex={true}
       />
 

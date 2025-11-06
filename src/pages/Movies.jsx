@@ -13,7 +13,7 @@ export default function Movies() {
         description="Discover and stream popular, top-rated, and upcoming movies on Tobbihub. Enjoy HD quality, fast streaming, and no sign-ups required."
         keywords="Tobbihub, movies, latest movies, popular movies, top rated movies, upcoming films, streaming, HD movies"
         image="/assets/favicon/favicon.ico"
-        url="https://tobbihub.com/movies"
+        url="https://moviereact-zzye.onrender.com/movies"
       />
 
       <h1>Movies</h1>

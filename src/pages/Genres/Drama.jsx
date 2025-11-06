@@ -9,7 +9,7 @@ export default function Comedy() {
       <SEOHelmet
         title="Comedy Movies | TobbiHub"
         description="Discover the funniest comedy movies to brighten your day. Enjoy hilarious classics and new releases on TobbiHub."
-        url="https://tobbihub.com/genres/comedy"
+        url="https://moviereact-zzye.onrender.com/genres/comedy"
       />
 
       <h1>Comedy</h1>

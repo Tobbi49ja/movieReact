@@ -9,6 +9,8 @@ import {
   FiThumbsDown,
 } from "react-icons/fi";
 import SEOHelmet from "../components/seo/SEOHelmet"; // ✅ Import SEO
+import AdNoticeMarquee from "../components/AdNoticeMarquee";
+
 
 export default function WatchPage() {
   const { id } = useParams();
@@ -101,6 +103,7 @@ export default function WatchPage() {
 
   return (
     <main className="watch-page pulldown2">
+      <AdNoticeMarquee />
       {/* ✅ SEO */}
       <SEOHelmet
         title={`${movie.title} | TobbiHub`}

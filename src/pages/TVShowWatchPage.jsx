@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import Loader from "../components/Loader";
 import { FiChevronDown, FiChevronUp, FiThumbsUp, FiThumbsDown } from "react-icons/fi";
-
+import AdNoticeMarquee from "../components/AdNoticeMarquee";
 export default function TVShowWatchPage() {
   const { id } = useParams();
   const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
@@ -93,6 +93,7 @@ export default function TVShowWatchPage() {
 
   return (
     <main className="watch-page pulldown2">
+            <AdNoticeMarquee />
       {/* Sticky Info */}
       <div className="watch-sticky-info">
         <h1 className="watch-title">{show.name}</h1>
