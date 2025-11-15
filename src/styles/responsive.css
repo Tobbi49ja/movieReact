@@ -1,17 +1,4 @@
-
-
-@import url("https://fonts.googleapis.com/css2?family=Bungee+Spice&family=New+Rocker&family=Poppins:wght@400;600;700&display=swap");
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-/* ========================================
-   DESKTOP SCALING (1600px+)
-   ======================================== */
-
+/* DESKTOP SCALING (1600px+) */
 @media (min-width: 1600px) {
   body {
     transform: scale(1.05);
@@ -19,10 +6,7 @@
   }
 }
 
-/* ========================================
-   TABLET RESPONSIVE (768px)
-   ======================================== */
-
+/* TABLET RESPONSIVE (768px) */
 @media (max-width: 768px) {
   /* Header */
   header {
@@ -172,8 +156,6 @@
   }
 
   .movie-btn {
-    /* padding: 8px 14px;
-    font-size: 0.9rem; */
     bottom: unset;
     position: relative;
     float: right;
@@ -183,17 +165,21 @@
   .swiper-button-prev {
     display: none;
   }
-  .movies-section{
+
+  .movies-section {
     width: 100%;
   }
+
   .movies-grid {
     display: flex;
     flex-wrap: wrap;
   }
-  .movie-card{
+
+  .movie-card {
     flex-grow: 1;
     margin-bottom: 2rem;
   }
+
   /* Watch Page */
   .watch-hero {
     height: 35vh;
@@ -223,10 +209,7 @@
   }
 }
 
-/* ========================================
-   MOBILE RESPONSIVE (480px)
-   ======================================== */
-
+/* MOBILE RESPONSIVE (480px) */
 @media (max-width: 480px) {
   /* Hero Section */
   .hero-slider,
@@ -249,10 +232,7 @@
   }
 }
 
-/* ========================================
-   MOBILE RESPONSIVE (425px)
-   ======================================== */
-
+/* MOBILE RESPONSIVE (425px) */
 @media (max-width: 425px) {
   .movie-card {
     width: 40%;
@@ -267,13 +247,8 @@
   }
 }
 
-/* ========================================
-   MOBILE RESPONSIVE (375px)
-   ======================================== */
-
+/* MOBILE RESPONSIVE (375px) */
 @media (max-width: 375px) {
-
-
   .movie-section {
     border: 1px solid red;
     display: flex;

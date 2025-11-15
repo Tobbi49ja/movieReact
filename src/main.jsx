@@ -9,11 +9,17 @@ import "./Scrollbar.css";
 
 // your styles
 import "./styles/base.css";
+import "./styles/components.css";
+import "./styles/footer.css";
 import "./styles/header.css";
 import "./styles/hero.css";
 import "./styles/movies.css";
-import "./styles/watchpage.css";
 import "./styles/pages.css";
+import "./styles/pages.css";
+import "./styles/preview.css";
+import "./styles/responsive.css";
+import "./styles/tvshow.css";
+import "./styles/watchpage.css";
 import "./styles/responsive.css";
 
 createRoot(document.getElementById("root")).render(

@@ -1,464 +1,133 @@
-  @import url("https://fonts.googleapis.com/css2?family=Bungee+Spice&family=New+Rocker&family=Poppins:wght@400;600;700&display=swap");
-
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-   .preview-section {
-    border: 1px solid red;
-    height: 100vh;
-    align-content: center;
-    color: rgb(240 248 255 / 20%);
-    font-family: "Bungee Spice";
-    padding-left: 60px;
-    font-size: 1.5rem;
-    text-transform: capitalize;
-    font-weight: 600;
-  }
-
-  .preview-info1 {
-    color: aliceblue;
-  }
-
-  video {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100vh;
-    z-index: -1;
-    filter: brightness(0.5);
-    object-fit: cover;
-  }
-
-  h1 {
-    background-color: black;
-    color: aliceblue;
-    font-family: "New Rocker";
-    padding: 18px 0 18px 12px;
-    text-transform: capitalize;
-  }
-
-  .movies-section {
-    padding: 40px 20px;
-  }
-
-  .section-title {
-    font-size: 1.5rem;
-    color: red;
-    margin-bottom: 20px;
-    text-transform: uppercase;
-  }
-
-  .movies-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 20px;
-  }
-
-  .loading {
-    text-align: center;
-    color: gray;
-  }
-
-  /* ========= MOVIE SECTION ========= */
-  .movie-section {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
-    gap: 10px;
-    background-color: black;
-  }
-
-  .movie-card {
-    width: 195px;
-    height: 350px;
-    transition: 0.5s ease;
-  }
-
-  .movie-card:hover {
-    transform: scale(1.03);
-  }
-
-  .img-card {
-    background-color: rgb(16, 15, 15);
-    width: 100%;
-    height: 80%;
-    position: relative;
-    cursor: pointer;
-    border-radius: 10px;
-    transition: 0.5s ease;
-  }
-
-  .img-card:hover {
-    transform: scale(1.04);
-  }
-
-  .img-card::after {
-    content: "HD";
-    position: absolute;
-    right: 4px;
-    top: 4px;
-    background-color: rgb(255 254 254 / 60%);
-    color: black;
-    font-weight: 600;
-    padding: 4px;
-  }
-
-  .card {
-    object-fit: cover;
-    width: 100%;
-    height: 100%;
-  }
-
-  .title-info {
-    width: 100%;
-    height: 20%;
-    color: aliceblue;
-    position: relative;
-  }
-
-  .movie-title {
-    padding: 3px 0 0 12px;
-    text-transform: capitalize;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 90%;
-    display: block;
-  }
-
-  .movie-info {
-    padding: 3px 0 0 12px;
-    word-spacing: 10px;
-  }
-
-  /* ========= FOOTER ========= */
-  footer {
-    display: flex;
-    flex-wrap: wrap;
-    background-color: black;
-    padding: 12px 20px;
-    
-  }
-
-  .end-info {
-    margin-top: 30px;
-    width: 390px;
-    height: 160px;
-    flex-grow: 1;
-    color: aliceblue;
-  }
-
-  .info-info {
-    width: 100%;
-    height: 50%;
-    align-content: center;
-  }
-
-  .logo-container2{
-        width: 95px;
-    height: 75px;
-  }
-
-  .logo2 {
-    object-fit: fill;
-    width: 100%;
-    height: 100%;
-
-  }
-
-  .tobbihub a {
-    font-size: 2rem;
-    text-decoration: none;
-    text-transform: capitalize;
-    font-weight: 600;
-    color: white;
-    padding-left: 18px;
-  }
-
-  .copywrite-tobbihub {
-    padding: 4px 0 0 12px;
-    text-transform: capitalize;
-  }
-
-  .tobihub-info {
-    padding: 6px;
-    font-size: 14px;
-  }
-
-  .social-info {
-    width: 100%;
-    height: 50%;
-    justify-content: space-around;
-    display: flex;
-    align-items: center;
-  }
-
-  .social-info a {
-    text-decoration: none;
-    text-transform: capitalize;
-    font-weight: 600;
-    color: aliceblue;
-    transition: 0.5s ease;
-  }
-
-  .social-info a:hover {
-    text-decoration: underline;
-    color: blue;
-  }
-
-  .last-info {
-    justify-items: center;
-    padding: 12px;
-  }
-
-  .last-last-info {
-    border: 1px solid red;
-    width: 95%;
-    height: 55px;
-    position: relative;
-  }
-
-  .last-last-info::after {
-    position: absolute;
-    content: "";
-    width: 6px;
-    height: 6px;
-    background-color: orangered;
-    top: 0;
-    right: 0;
-    border-radius: 50%;
-  }
-  /* Sticky info at top when scrolling */
- .watch-sticky-info { 
-  position: sticky;
-  bottom: 8px;
-  background-color: rgba(0, 0, 0, 0.85);
-  padding: 15px 20px;
-  z-index: 1000;
-  border-bottom: 1px solid red; 
- }
-
- .watch-sticky-info h1 {
-  font-size: 2rem;
-  margin-bottom: 5px;
+/* Movies Section */
+.movies-section {
+  padding: 40px 20px;
 }
 
-.watch-sticky-info .watch-meta {
-  font-size: 0.95rem;
-  color: #ccc;
-}
-.watch-trailer {
-  margin: 20px 0;
-  scroll-behavior: smooth;
-}
-
-.trailer-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background-color: red;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  font-weight: 600;
-  cursor: pointer;
-  border-radius: 5px;
-  transition: background 0.3s ease;
-}
-
-.trailer-toggle:hover {
-  background-color: darkred;
-}
-
-.trailer-iframe {
-  margin-top: 15px;
-  border-radius: 8px;
-}
-/* 👍 REACTION SECTION */
-.reaction-section {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 1.5rem;
-  margin-top: 2rem;
-}
-
-.reaction-btn {
-  background: #1a1a1a;
-  color: #fff;
-  border: 1px solid #333;
-  padding: 0.5rem 1.2rem;
-  border-radius: 8px;
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.reaction-btn:hover {
-  background: #ff4c29;
-  color: #fff;
-}
-
-/* 💬 COMMENT SECTION */
-.comment-section {
-  width: 95%;
-  max-width: 800px;
-  margin-top: 3rem;
-  background: #121212;
-  border-radius: 10px;
-  padding: 1.5rem;
-}
-
-.comment-section h2 {
-  font-size: 1.2rem;
-  margin-bottom: 1rem;
-  color: #ff4c29;
-}
-
-.comment-form {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
-}
-
-.comment-input {
-  flex: 1;
-  background: #1a1a1a;
-  color: #fff;
-  border: 1px solid #333;
-  border-radius: 8px;
-  padding: 0.6rem;
-  font-size: 0.9rem;
-}
-
-.comment-btn {
-  background: #ff4c29;
-  border: none;
-  color: #fff;
-  padding: 0.6rem 1.2rem;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.comment-btn:hover {
-  background: #e8431e;
-}
-
-.comment-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.8rem;
-}
-
-.comment-item {
-  background: #1a1a1a;
-  padding: 0.6rem 1rem;
-  border-radius: 8px;
-  color: #ddd;
-  font-size: 0.9rem;
-}
-
-.no-comments {
-  text-align: center;
-  color: #666;
-}
-
-.page-container {
-  padding: 3rem 2rem;
-  color: aliceblue;
-  max-width: 900px;
-  margin: 0 auto;
-  line-height: 1.7;
-  font-family: "Poppins", sans-serif;
-}
-
-.page-container h1 {
+.section-title {
+  font-size: 1.5rem;
   color: red;
-  font-family: "New Rocker";
+  margin-bottom: 20px;
   text-transform: uppercase;
-  margin-bottom: 1.2rem;
 }
 
-.intro-text {
-  color: #ccc;
-  font-size: 1rem;
-  margin-bottom: 2rem;
+.movies-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 20px;
 }
 
-.sitemap-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2rem;
+.loading {
+  text-align: center;
+  color: gray;
 }
 
-.sitemap-group h2 {
-  color: #ff4c29;
-  margin-bottom: 0.8rem;
-}
-
-.sitemap-group ul {
-  list-style: none;
-}
-
-.sitemap-group ul li {
-  margin-bottom: 0.5rem;
-}
-
-.sitemap-group ul li a {
-  color: aliceblue;
-  text-decoration: none;
-  transition: color 0.3s;
-}
-
-.sitemap-group ul li a:hover {
-  color: red;
-}
-
-/* Terms Page */
-.terms-section h2 {
-  color: #ff4c29;
-  margin-top: 1.2rem;
-}
-
-/* Contact Form */
-.contact-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.contact-form input,
-.contact-form textarea {
-  background: transparent;
-  border: 1px solid red;
+.load-more-btn {
+  background: var(--primary-color);
   color: white;
-  border-radius: 6px;
-  padding: 0.8rem;
-  font-size: 1rem;
+  padding: 10px 25px;
+  border: none;
+  border-radius: 8px;
+  margin: 1.5rem auto;
+  display: block;
+  cursor: pointer;
+  transition: 0.3s;
 }
 
-.contact-form input:focus,
-.contact-form textarea:focus {
-  outline: none;
-  border-color: #ff4c29;
+.load-more-btn:hover {
+  background: var(--primary-hover);
 }
 
-.submit-btn {
+.no-more {
+  text-align: center;
+  color: var(--light-text);
+  margin: 1rem 0;
+}
+
+/* Movie Cards */
+.movie-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
+  gap: 10px;
+  background-color: black;
+}
+
+.movie-card {
+  width: 195px;
+  height: 350px;
+  transition: 0.5s ease;
+}
+
+.movie-card:hover {
+  transform: scale(1.03);
+}
+
+.img-card {
+  background-color: rgb(16, 15, 15);
+  width: 100%;
+  height: 80%;
+  position: relative;
+  cursor: pointer;
+  border-radius: 10px;
+  transition: 0.5s ease;
+}
+
+.img-card:hover {
+  transform: scale(1.04);
+}
+
+.img-card::after {
+  content: "HD";
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  background-color: rgb(255 254 254 / 60%);
+  color: black;
+  font-weight: 600;
+  padding: 4px;
+}
+
+.card {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+}
+
+.title-info {
+  width: 100%;
+  height: 20%;
+  color: aliceblue;
+  position: relative;
+}
+
+.movie-title {
+  padding: 3px 0 0 12px;
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90%;
+  display: block;
+}
+
+.movie-info {
+  padding: 3px 0 0 12px;
+  word-spacing: 10px;
+}
+
+.movie-btn {
+  margin-top: 10px;
   background: red;
   color: white;
+  padding: 0.3rem 0.3rem;
   font-weight: 600;
-  border: none;
-  border-radius: 8px;
-  padding: 0.8rem 1.4rem;
-  cursor: pointer;
-  transition: 0.3s ease;
-}
-
-.submit-btn:hover {
-  background: darkred;
+  text-decoration: none;
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  text-transform: capitalize;
+  font-weight: 400;
+  background: transparent;
+  color: aliceblue;
+  border: 1px solid red;
+  transition: 0.3s ease-in-out;
 }

@@ -1,123 +1,100 @@
-  @import url("https://fonts.googleapis.com/css2?family=Bungee+Spice&family=New+Rocker&family=Poppins:wght@400;600;700&display=swap");
+/* Hero Slider Section */
+.hero-slider {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
 
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-  .hero-slider {
-    position: relative;
-    width: 100%;
-    height: 100vh;
-    overflow: hidden;
-  }
+.hero-slide {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+}
 
-  .hero-slide {
-    position: relative;
-    width: 100%;
-    height: 100vh;
-  }
+.hero-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.6);
+}
 
-  .hero-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    filter: brightness(0.6);
-  }
+.hero-overlay {
+  position: absolute;
+  bottom: 20%;
+  left: 5%;
+  color: #fff;
+  z-index: 10;
+  max-width: 600px;
+  animation: fadeInUp 1s ease both;
+}
 
-  .hero-overlay {
-    position: absolute;
-    bottom: 20%;
-    left: 5%;
-    color: #fff;
-    z-index: 10;
-    max-width: 600px;
-    animation: fadeInUp 1s ease both;
-  }
+.hero-overlay.active {
+  opacity: 1;
+  transform: translateY(0);
+}
 
-  .hero-overlay.active {
+.hero-overlay h2 {
+  font-size: 3rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.hero-overlay p {
+  font-size: 1.1rem;
+  line-height: 1.5;
+}
+
+.movie-meta {
+  margin-top: 0.5rem;
+  font-size: 1rem;
+  display: flex;
+  gap: 15px;
+}
+
+.movie-btn {
+  display: inline-block;
+  margin-top: 1.5rem;
+  background: #e50914;
+  color: #fff;
+  border-radius: 5px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.3s;
+}
+
+.movie-btn:hover {
+  background: #b0060f;
+  transform: scale(1.1);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
     opacity: 1;
     transform: translateY(0);
   }
+}
 
-  .hero-overlay h2 {
-    font-size: 3rem;
-    font-weight: bold;
-    margin-bottom: 1rem;
-  }
+.swiper-slide {
+  opacity: 0;
+  transition: opacity 1s ease;
+}
 
-  .hero-overlay p {
-    font-size: 1.1rem;
-    line-height: 1.5;
-  }
+.swiper-slide-active {
+  opacity: 1;
+  z-index: 10;
+}
 
-  .movie-meta {
-    margin-top: 0.5rem;
-    font-size: 1rem;
-    display: flex;
-    gap: 15px;
-  }
-  .movie-btn {
-    display: inline-block;
-    margin-top: 1.5rem;
-    /* padding: 10px 22px; */
-    background: #e50914;
-    color: #fff;
-    border-radius: 5px;
-    font-weight: 600;
-    text-decoration: none;
-    transition: background 0.3s;
-  }
-  .movie-btn:hover {
-    background: #b0060f;
-        transform: scale(1.1);
-  }
+.swiper-button-next,
+.swiper-button-prev {
+  color: white;
+}
 
-
-  @keyframes fadeInUp {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .swiper-slide {
-    opacity: 0;
-    transition: opacity 1s ease;
-  }
-
-  .swiper-slide-active {
-    opacity: 1;
-    z-index: 10;
-  }
-
-  .swiper-button-next,
-  .swiper-button-prev {
-    color: white;
-  }
-
-  .swiper-button-next:hover,
-  .swiper-button-prev:hover {
-    color: red;
-  }
-  .movie-btn {
-    margin-top: 10px;
-    background: red;
-    color: white;
-    padding: 0.3rem 0.3rem;
-    font-weight: 600;
-    text-decoration: none;
-    position: absolute;
-    bottom: 3px;
-    right: 3px;
-    text-transform: capitalize;
-    font-weight: 400;
-    background: transparent;
-    color: aliceblue;
-    border: 1px solid red;
-    transition: 0.3s ease-in-out;
-  }
+.swiper-button-next:hover,
+.swiper-button-prev:hover {
+  color: red;
+}

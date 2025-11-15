@@ -1,6 +1,8 @@
 // src/pages/WatchPage.jsx
 import { useParams } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
+import axios from "axios";
+import io from "socket.io-client";
 import Loader from "../components/Loader";
 import {
   FiChevronDown,
@@ -8,9 +10,12 @@ import {
   FiThumbsUp,
   FiThumbsDown,
 } from "react-icons/fi";
-import SEOHelmet from "../components/seo/SEOHelmet"; // ✅ Import SEO
+import SEOHelmet from "../components/seo/SEOHelmet";
 import AdNoticeMarquee from "../components/AdNoticeMarquee";
 
+// change when hosting reminder!!!!
+const socket = io("http://localhost:5000"); 
+// change when hosting reminder!!!
 
 export default function WatchPage() {
   const { id } = useParams();
@@ -23,6 +28,7 @@ export default function WatchPage() {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [currentSource, setCurrentSource] = useState("");
+  const [deviceType, setDeviceType] = useState("");
 
   const trailerRef = useRef(null);
   const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
@@ -34,21 +40,26 @@ export default function WatchPage() {
     MovieAPI: `https://movieapi.club/embed/movie/${id}`,
   };
 
+  // Detect device type for username
+  useEffect(() => {
+    const ua = navigator.userAgent.toLowerCase();
+    if (ua.includes("android")) setDeviceType("android_user_" + Math.floor(Math.random() * 1000));
+    else if (ua.includes("iphone")) setDeviceType("iphone_user_" + Math.floor(Math.random() * 1000));
+    else if (ua.includes("samsung")) setDeviceType("samsung_user_" + Math.floor(Math.random() * 1000));
+    else setDeviceType("user_" + Math.floor(Math.random() * 1000));
+  }, []);
+
+  // Fetch Movie Details
   useEffect(() => {
     const fetchMovie = async () => {
       try {
         const [res, videosRes] = await Promise.all([
-          fetch(
-            `https://api.themoviedb.org/3/movie/${id}?api_key=${TMDB_KEY}&language=en-US`
-          ),
-          fetch(
-            `https://api.themoviedb.org/3/movie/${id}/videos?api_key=${TMDB_KEY}&language=en-US`
-          ),
+          fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${TMDB_KEY}&language=en-US`),
+          fetch(`https://api.themoviedb.org/3/movie/${id}/videos?api_key=${TMDB_KEY}&language=en-US`),
         ]);
 
         const data = await res.json();
         const videos = await videosRes.json();
-
         setMovie(data);
 
         const trailer = videos.results?.find(
@@ -66,13 +77,73 @@ export default function WatchPage() {
     fetchMovie();
   }, [id, TMDB_KEY]);
 
+  // Fetch existing comments (newest first)
+  useEffect(() => {
+    const fetchComments = async () => {
+      try {
+        const res = await axios.get(`http://localhost:5000/api/comments/${id}`);
+        setComments(res.data.reverse()); // newest on top
+      } catch (err) {
+        console.error("Error loading comments:", err);
+      }
+    };
+    fetchComments();
+  }, [id]);
+
+  // Listen for live comment updates from Socket.io
+  useEffect(() => {
+    socket.emit("join_movie_room", id);
+
+    socket.on("new_comment", (comment) => {
+      setComments((prev) => [comment, ...prev]); // prepend new comment
+    });
+
+    socket.on("comment_liked", (updatedComment) => {
+      setComments((prev) =>
+        prev.map((c) => (c._id === updatedComment._id ? updatedComment : c))
+      );
+    });
+
+    return () => {
+      socket.emit("leave_movie_room", id);
+      socket.off("new_comment");
+      socket.off("comment_liked");
+    };
+  }, [id]);
+
+  // Likes & Dislikes
   const handleLike = () => setLikes((prev) => prev + 1);
   const handleDislike = () => setDislikes((prev) => prev + 1);
-  const handleCommentSubmit = (e) => {
+
+  // Submit new comment
+  const handleCommentSubmit = async (e) => {
     e.preventDefault();
-    if (newComment.trim()) {
-      setComments((prev) => [...prev, newComment.trim()]);
+    if (!newComment.trim()) return;
+
+    try {
+      const res = await axios.post("http://localhost:5000/api/comments", {
+        movieId: id,
+        comment: newComment,
+        deviceType,
+      });
+
+      socket.emit("send_comment", res.data); // broadcast live
       setNewComment("");
+      setComments((prev) => [res.data, ...prev]); // prepend locally
+    } catch (err) {
+      console.error("Error posting comment:", err);
+    }
+  };
+
+  // Like a comment
+  const handleLikeComment = async (commentId) => {
+    try {
+      const res = await axios.post(
+        `http://localhost:5000/api/comments/like/${commentId}`
+      );
+      socket.emit("like_comment", res.data);
+    } catch (err) {
+      console.error("Error liking comment:", err);
     }
   };
 
@@ -86,7 +157,6 @@ export default function WatchPage() {
   if (loading) return <Loader />;
   if (!movie) return <p className="loading">Movie not found.</p>;
 
-  // ✅ SEO structured data for movie
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Movie",
@@ -104,7 +174,6 @@ export default function WatchPage() {
   return (
     <main className="watch-page pulldown2">
       <AdNoticeMarquee />
-      {/* ✅ SEO */}
       <SEOHelmet
         title={`${movie.title} | TobbiHub`}
         description={movie.overview || "Watch the latest movies on TobbiHub"}
@@ -114,16 +183,15 @@ export default function WatchPage() {
         schema={structuredData}
       />
 
-      {/* 🎬 Sticky Header Info */}
+      {/* Movie Header */}
       <div className="watch-sticky-info">
         <h1>{movie.title}</h1>
         <p className="watch-meta">
-          <strong>Release:</strong> {movie.release_date} |{" "}
-          <strong>Rating:</strong> {movie.vote_average?.toFixed(1)}
+          <strong>Release:</strong> {movie.release_date} | <strong>Rating:</strong> {movie.vote_average?.toFixed(1)}
         </p>
       </div>
 
-      {/* 🎥 Hero Section */}
+      {/* Hero Background */}
       <div className="watch-hero">
         <img
           src={`https://image.tmdb.org/t/p/original${movie.backdrop_path}`}
@@ -135,18 +203,14 @@ export default function WatchPage() {
         </div>
       </div>
 
-      {/* 🎞 Player Section */}
+      {/* Player Section */}
       <div className="watch-player">
         <h2>Now Playing</h2>
-
-        {/* Source Buttons */}
         <div className="source-buttons">
           {Object.entries(sources).map(([name, url]) => (
             <button
               key={name}
-              className={`source-btn ${
-                currentSource === url ? "active-source" : ""
-              }`}
+              className={`source-btn ${currentSource === url ? "active-source" : ""}`}
               onClick={() => setCurrentSource(url)}
             >
               {name}
@@ -154,7 +218,6 @@ export default function WatchPage() {
           ))}
         </div>
 
-        {/* Main Player */}
         <iframe
           src={currentSource}
           width="100%"
@@ -165,7 +228,7 @@ export default function WatchPage() {
         ></iframe>
       </div>
 
-      {/* 👍 Reactions */}
+      {/* Reactions */}
       <div className="reaction-section">
         <button className="reaction-btn" onClick={handleLike}>
           <FiThumbsUp /> {likes}
@@ -175,20 +238,11 @@ export default function WatchPage() {
         </button>
       </div>
 
-      {/* 🎬 Trailer Section */}
+      {/* Trailer Section */}
       <div className="watch-trailer" ref={trailerRef}>
         <button className="trailer-toggle" onClick={handleTrailerToggle}>
-          {showTrailer ? (
-            <>
-              Hide Trailer <FiChevronUp />
-            </>
-          ) : (
-            <>
-              Watch Trailer <FiChevronDown />
-            </>
-          )}
+          {showTrailer ? <>Hide Trailer <FiChevronUp /></> : <>Watch Trailer <FiChevronDown /></>}
         </button>
-
         {showTrailer && trailerKey && (
           <iframe
             width="100%"
@@ -199,12 +253,10 @@ export default function WatchPage() {
             className="trailer-iframe"
           ></iframe>
         )}
-        {showTrailer && !trailerKey && (
-          <p className="no-trailer">Trailer not available.</p>
-        )}
+        {showTrailer && !trailerKey && <p className="no-trailer">Trailer not available.</p>}
       </div>
 
-      {/* 💬 Comments Section */}
+      {/* Comments Section */}
       <div className="comment-section">
         <h2>Comments</h2>
         <form onSubmit={handleCommentSubmit} className="comment-form">
@@ -215,18 +267,20 @@ export default function WatchPage() {
             onChange={(e) => setNewComment(e.target.value)}
             className="comment-input"
           />
-          <button type="submit" className="comment-btn">
-            Post
-          </button>
+          <button type="submit" className="comment-btn">Post</button>
         </form>
 
         <div className="comment-list">
           {comments.length === 0 ? (
             <p className="no-comments">No comments yet. Be the first!</p>
           ) : (
-            comments.map((comment, index) => (
-              <div key={index} className="comment-item">
-                <span>💬 {comment}</span>
+            comments.map((c) => (
+              <div key={c._id} className="comment-item">
+                <strong>{c.username}</strong>
+                <p>{c.comment}</p>
+                <button onClick={() => handleLikeComment(c._id)}>
+                  ❤️ {c.likes || 0}
+                </button>
               </div>
             ))
           )}

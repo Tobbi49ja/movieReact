@@ -1,0 +1,95 @@
+/* Footer Styles */
+footer {
+  display: flex;
+  flex-wrap: wrap;
+  background-color: black;
+  padding: 12px 20px;
+}
+
+.end-info {
+  margin-top: 30px;
+  width: 390px;
+  height: 160px;
+  flex-grow: 1;
+  color: aliceblue;
+}
+
+.info-info {
+  width: 100%;
+  height: 50%;
+  align-content: center;
+}
+
+.logo-container2 {
+  width: 95px;
+  height: 75px;
+}
+
+.logo2 {
+  object-fit: fill;
+  width: 100%;
+  height: 100%;
+}
+
+.tobbihub a {
+  font-size: 2rem;
+  text-decoration: none;
+  text-transform: capitalize;
+  font-weight: 600;
+  color: white;
+  padding-left: 18px;
+}
+
+.copywrite-tobbihub {
+  padding: 4px 0 0 12px;
+  text-transform: capitalize;
+}
+
+.tobihub-info {
+  padding: 6px;
+  font-size: 14px;
+}
+
+.social-info {
+  width: 100%;
+  height: 50%;
+  justify-content: space-around;
+  display: flex;
+  align-items: center;
+}
+
+.social-info a {
+  text-decoration: none;
+  text-transform: capitalize;
+  font-weight: 600;
+  color: aliceblue;
+  transition: 0.5s ease;
+}
+
+.social-info a:hover {
+  text-decoration: underline;
+  color: blue;
+}
+
+.last-info {
+  justify-items: center;
+  padding: 12px;
+}
+
+.last-last-info {
+  border: 1px solid red;
+  width: 95%;
+  height: 55px;
+  position: relative;
+}
+
+.last-last-info::after {
+  position: absolute;
+  content: "";
+  width: 6px;
+  height: 6px;
+  background-color: orangered;
+  top: 0;
+  right: 0;
+  border-radius: 50%;
+}

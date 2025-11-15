@@ -1,0 +1,154 @@
+/* TV Show Watch Page Styles */
+.tvshow-header {
+  position: relative;
+  width: 100%;
+  height: 60vh;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.tvshow-bg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(60%);
+}
+
+.tvshow-overlay {
+  position: absolute;
+  bottom: 0;
+  padding: 2rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+  color: white;
+}
+
+.tvshow-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.tvshow-meta {
+  font-size: 1rem;
+  opacity: 0.8;
+  margin-bottom: 1rem;
+}
+
+.tvshow-overview {
+  font-size: 1rem;
+  line-height: 1.6;
+  max-width: 700px;
+}
+
+/* Player */
+.video-section {
+  margin: 2rem 0;
+  text-align: center;
+}
+
+.tvshow-player {
+  width: 100%;
+  max-width: 900px;
+  height: 500px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Season Selector */
+.season-selector {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.season-selector label {
+  font-weight: 600;
+  margin-right: 10px;
+}
+
+.season-selector select {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background: #222;
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* Episodes Section */
+.episodes-section {
+  padding: 1rem 2rem;
+}
+
+.episodes-section h2 {
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.episodes-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.episode-card {
+  flex-grow: 1;
+  background: #111;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  border: 1px solid #333;
+}
+
+.episode-card:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+  border-color: #f39c12;
+}
+
+.episode-card.active {
+  outline: 2px solid #e50914;
+  transform: scale(1.05);
+  border-color: #f39c12;
+  background-color: #222;
+}
+
+.episode-img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+}
+
+.episode-card img {
+  width: 100%;
+  height: 100px;
+  object-fit: cover;
+}
+
+.episode-info {
+  padding: 10px;
+}
+
+.ep-num {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+
+.ep-title {
+  font-size: 0.85rem;
+  padding: 0.5rem;
+  background: #000;
+  text-align: center;
+}
+
+.ep-date {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
