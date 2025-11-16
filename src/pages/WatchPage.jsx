@@ -14,7 +14,7 @@ import SEOHelmet from "../components/seo/SEOHelmet";
 import AdNoticeMarquee from "../components/AdNoticeMarquee";
 
 // change when hosting reminder!!!!
-const socket = io("http://localhost:5000"); 
+const socket = io("https://moviereact-backend.onrender.com"); 
 // change when hosting reminder!!!
 
 export default function WatchPage() {
@@ -81,7 +81,7 @@ export default function WatchPage() {
   useEffect(() => {
     const fetchComments = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/comments/${id}`);
+        const res = await axios.get(`https://moviereact-backend.onrender.com/api/comments/${id}`);
         setComments(res.data.reverse()); // newest on top
       } catch (err) {
         console.error("Error loading comments:", err);
@@ -121,7 +121,7 @@ export default function WatchPage() {
     if (!newComment.trim()) return;
 
     try {
-      const res = await axios.post("http://localhost:5000/api/comments", {
+      const res = await axios.post("https://moviereact-backend.onrender.com/api/comments", {
         movieId: id,
         comment: newComment,
         deviceType,
@@ -139,7 +139,7 @@ export default function WatchPage() {
   const handleLikeComment = async (commentId) => {
     try {
       const res = await axios.post(
-        `http://localhost:5000/api/comments/like/${commentId}`
+        `https://moviereact-backend.onrender.com/api/comments/like/${commentId}`
       );
       socket.emit("like_comment", res.data);
     } catch (err) {

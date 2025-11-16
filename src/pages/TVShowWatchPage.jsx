@@ -12,7 +12,7 @@ import {
 import AdNoticeMarquee from "../components/AdNoticeMarquee";
 
 // change when hosting reminder!!!!
-const socket = io("http://localhost:5000");
+const socket = io("https://moviereact-backend.onrender.com");
 // change when hosting reminder!!!
 
 export default function TVShowWatchPage() {
@@ -120,7 +120,7 @@ export default function TVShowWatchPage() {
     const fetchComments = async () => {
       try {
         const res = await axios.get(
-          `http://localhost:5000/api/comments/tv/${id}`
+          `https://moviereact-backend.onrender.com/api/comments/tv/${id}`
         );
         setComments(res.data);
       } catch (err) {
@@ -163,7 +163,7 @@ export default function TVShowWatchPage() {
     if (!newComment.trim()) return;
 
     try {
-      const res = await axios.post("http://localhost:5000/api/comments", {
+      const res = await axios.post("https://moviereact-backend.onrender.com/api/comments", {
         contentId: id,
         contentType: "tv",
         username: deviceType,
@@ -181,7 +181,7 @@ export default function TVShowWatchPage() {
   const handleLikeComment = async (commentId) => {
     try {
       const res = await axios.post(
-        `http://localhost:5000/api/comments/like/${commentId}`
+        `https://moviereact-backend.onrender.com/api/comments/like/${commentId}`
       );
       socket.emit("like_comment", res.data);
     } catch (err) {
