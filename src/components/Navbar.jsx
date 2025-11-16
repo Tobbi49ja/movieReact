@@ -5,8 +5,7 @@ export default function Navbar() {
   const [navOpen, setNavOpen] = useState(false);
   const [showGenres, setShowGenres] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768); // ✅ updated breakpoint
-
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const navigate = useNavigate();
   const location = useLocation();
   const API_KEY = import.meta.env.VITE_TMDB_API_KEY;

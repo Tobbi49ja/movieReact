@@ -2,7 +2,7 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import axios from "axios";
-import io from "socket.io-client";
+import { io } from "socket.io-client";
 import Loader from "../components/Loader";
 import {
   FiChevronDown,
@@ -13,9 +13,17 @@ import {
 import SEOHelmet from "../components/seo/SEOHelmet";
 import AdNoticeMarquee from "../components/AdNoticeMarquee";
 
-// change when hosting reminder!!!!
-const socket = io("https://moviereact-backend.onrender.com"); 
-// change when hosting reminder!!!
+// -----------------------------
+// Dynamic backend URL
+// -----------------------------
+const BACKEND_URL = import.meta.env.DEV
+  ? "http://localhost:5000"
+  : "https://moviereact-backend.onrender.com";
+
+// -----------------------------
+// Socket.io
+// -----------------------------
+const socket = io(BACKEND_URL, { transports: ["websocket"] });
 
 export default function WatchPage() {
   const { id } = useParams();
@@ -33,6 +41,9 @@ export default function WatchPage() {
   const trailerRef = useRef(null);
   const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
+  // -----------------------------
+  // Sources
+  // -----------------------------
   const sources = {
     VidSrc: `https://vidsrc.to/embed/movie/${id}`,
     AutoEmbed: `https://autoembed.cc/embed/movie/${id}`,
@@ -40,22 +51,33 @@ export default function WatchPage() {
     MovieAPI: `https://movieapi.club/embed/movie/${id}`,
   };
 
-  // Detect device type for username
+  // -----------------------------
+  // Detect device type
+  // -----------------------------
   useEffect(() => {
     const ua = navigator.userAgent.toLowerCase();
-    if (ua.includes("android")) setDeviceType("android_user_" + Math.floor(Math.random() * 1000));
-    else if (ua.includes("iphone")) setDeviceType("iphone_user_" + Math.floor(Math.random() * 1000));
-    else if (ua.includes("samsung")) setDeviceType("samsung_user_" + Math.floor(Math.random() * 1000));
+    if (ua.includes("android"))
+      setDeviceType("android_user_" + Math.floor(Math.random() * 1000));
+    else if (ua.includes("iphone"))
+      setDeviceType("iphone_user_" + Math.floor(Math.random() * 1000));
+    else if (ua.includes("samsung"))
+      setDeviceType("samsung_user_" + Math.floor(Math.random() * 1000));
     else setDeviceType("user_" + Math.floor(Math.random() * 1000));
   }, []);
 
-  // Fetch Movie Details
+  // -----------------------------
+  // Fetch Movie Details + trailer
+  // -----------------------------
   useEffect(() => {
     const fetchMovie = async () => {
       try {
         const [res, videosRes] = await Promise.all([
-          fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${TMDB_KEY}&language=en-US`),
-          fetch(`https://api.themoviedb.org/3/movie/${id}/videos?api_key=${TMDB_KEY}&language=en-US`),
+          fetch(
+            `https://api.themoviedb.org/3/movie/${id}?api_key=${TMDB_KEY}&language=en-US`
+          ),
+          fetch(
+            `https://api.themoviedb.org/3/movie/${id}/videos?api_key=${TMDB_KEY}&language=en-US`
+          ),
         ]);
 
         const data = await res.json();
@@ -77,12 +99,14 @@ export default function WatchPage() {
     fetchMovie();
   }, [id, TMDB_KEY]);
 
-  // Fetch existing comments (newest first)
+  // -----------------------------
+  // Fetch comments
+  // -----------------------------
   useEffect(() => {
     const fetchComments = async () => {
       try {
-        const res = await axios.get(`https://moviereact-backend.onrender.com/api/comments/${id}`);
-        setComments(res.data.reverse()); // newest on top
+        const res = await axios.get(`${BACKEND_URL}/api/comments/movie/${id}`);
+        setComments(res.data.reverse());
       } catch (err) {
         console.error("Error loading comments:", err);
       }
@@ -90,12 +114,14 @@ export default function WatchPage() {
     fetchComments();
   }, [id]);
 
-  // Listen for live comment updates from Socket.io
+  // -----------------------------
+  // Socket.io live updates
+  // -----------------------------
   useEffect(() => {
-    socket.emit("join_movie_room", id);
+    socket.emit("join_room", { contentId: id, contentType: "movie" });
 
     socket.on("new_comment", (comment) => {
-      setComments((prev) => [comment, ...prev]); // prepend new comment
+      setComments((prev) => [comment, ...prev]);
     });
 
     socket.on("comment_liked", (updatedComment) => {
@@ -105,41 +131,42 @@ export default function WatchPage() {
     });
 
     return () => {
-      socket.emit("leave_movie_room", id);
+      socket.emit("leave_room", { contentId: id, contentType: "movie" });
       socket.off("new_comment");
       socket.off("comment_liked");
     };
   }, [id]);
 
-  // Likes & Dislikes
+  // -----------------------------
+  // Handlers
+  // -----------------------------
   const handleLike = () => setLikes((prev) => prev + 1);
   const handleDislike = () => setDislikes((prev) => prev + 1);
 
-  // Submit new comment
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
     if (!newComment.trim()) return;
 
     try {
-      const res = await axios.post("https://moviereact-backend.onrender.com/api/comments", {
-        movieId: id,
+      const res = await axios.post(`${BACKEND_URL}/api/comments`, {
+        contentId: id,
+        contentType: "movie",
+        username: deviceType,
         comment: newComment,
-        deviceType,
       });
 
-      socket.emit("send_comment", res.data); // broadcast live
+      socket.emit("send_comment", res.data);
       setNewComment("");
-      setComments((prev) => [res.data, ...prev]); // prepend locally
+      setComments((prev) => [res.data, ...prev]);
     } catch (err) {
       console.error("Error posting comment:", err);
     }
   };
 
-  // Like a comment
   const handleLikeComment = async (commentId) => {
     try {
       const res = await axios.post(
-        `https://moviereact-backend.onrender.com/api/comments/like/${commentId}`
+        `${BACKEND_URL}/api/comments/like/${commentId}`
       );
       socket.emit("like_comment", res.data);
     } catch (err) {
@@ -157,41 +184,18 @@ export default function WatchPage() {
   if (loading) return <Loader />;
   if (!movie) return <p className="loading">Movie not found.</p>;
 
-  const structuredData = {
-    "@context": "https://schema.org",
-    "@type": "Movie",
-    name: movie.title,
-    image: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
-    description: movie.overview,
-    datePublished: movie.release_date,
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: movie.vote_average?.toFixed(1),
-      ratingCount: movie.vote_count,
-    },
-  };
-
   return (
     <main className="watch-page pulldown2">
       <AdNoticeMarquee />
-      <SEOHelmet
-        title={`${movie.title} | TobbiHub`}
-        description={movie.overview || "Watch the latest movies on TobbiHub"}
-        keywords={`watch ${movie.title}, ${movie.title} full movie, TobbiHub movies`}
-        image={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
-        url={`https://tobbihub.vercel.app/watch/${id}`}
-        schema={structuredData}
-      />
 
-      {/* Movie Header */}
       <div className="watch-sticky-info">
         <h1>{movie.title}</h1>
         <p className="watch-meta">
-          <strong>Release:</strong> {movie.release_date} | <strong>Rating:</strong> {movie.vote_average?.toFixed(1)}
+          <strong>Release:</strong> {movie.release_date} |{" "}
+          <strong>Rating:</strong> {movie.vote_average?.toFixed(1)}
         </p>
       </div>
 
-      {/* Hero Background */}
       <div className="watch-hero">
         <img
           src={`https://image.tmdb.org/t/p/original${movie.backdrop_path}`}
@@ -225,7 +229,7 @@ export default function WatchPage() {
           frameBorder="0"
           allowFullScreen
           title="Movie Player"
-        ></iframe>
+        />
       </div>
 
       {/* Reactions */}
@@ -251,7 +255,7 @@ export default function WatchPage() {
             title={`${movie.title} trailer`}
             allowFullScreen
             className="trailer-iframe"
-          ></iframe>
+          />
         )}
         {showTrailer && !trailerKey && <p className="no-trailer">Trailer not available.</p>}
       </div>

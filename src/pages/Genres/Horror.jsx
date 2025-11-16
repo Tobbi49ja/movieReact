@@ -9,7 +9,7 @@ export default function Horror() {
       <SEOHelmet
         title="Horror Movies | TobbiHub"
         description="Get ready for chills and screams. Explore the scariest horror movies and terrifying thrillers available on TobbiHub."
-        url="https://tobbihub.com/genres/horror"
+        url="https://moviereact-zzye.onrender.com/genres/horror"
       />
 
       <h1>Horror</h1>

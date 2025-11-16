@@ -1,7 +1,8 @@
+// src/pages/TVShowWatchPage.jsx
 import { useParams } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import axios from "axios";
-import io from "socket.io-client";
+import { io } from "socket.io-client";
 import Loader from "../components/Loader";
 import {
   FiChevronDown,
@@ -11,9 +12,17 @@ import {
 } from "react-icons/fi";
 import AdNoticeMarquee from "../components/AdNoticeMarquee";
 
-// change when hosting reminder!!!!
-const socket = io("https://moviereact-backend.onrender.com");
-// change when hosting reminder!!!
+// -----------------------------
+// Dynamic backend URL
+// -----------------------------
+const BACKEND_URL = import.meta.env.DEV
+  ? "http://localhost:5000"
+  : "https://moviereact-backend.onrender.com";
+
+// -----------------------------
+// Socket.io
+// -----------------------------
+const socket = io(BACKEND_URL, { transports: ["websocket"] });
 
 export default function TVShowWatchPage() {
   const { id } = useParams();
@@ -36,15 +45,9 @@ export default function TVShowWatchPage() {
 
   const trailerRef = useRef(null);
 
-  // Multiple sources for episodes
-  const sources = (season, episode) => ({
-    VidSrc: `https://vidsrc.to/embed/tv/${id}/${season}/${episode}`,
-    AutoEmbed: `https://autoembed.cc/embed/tv/${id}/${season}/${episode}`,
-    SmashyStream: `https://smashystream.com/embed/tv/${id}/${season}/${episode}`,
-    MovieAPI: `https://movieapi.club/embed/tv/${id}/${season}/${episode}`,
-  });
-
-  // Detect device type for username
+  // -----------------------------
+  // Detect device type
+  // -----------------------------
   useEffect(() => {
     const ua = navigator.userAgent.toLowerCase();
     if (ua.includes("android"))
@@ -56,7 +59,19 @@ export default function TVShowWatchPage() {
     else setDeviceType("user_" + Math.floor(Math.random() * 1000));
   }, []);
 
+  // -----------------------------
+  // Sources
+  // -----------------------------
+  const sources = (season, episode) => ({
+    VidSrc: `https://vidsrc.to/embed/tv/${id}/${season}/${episode}`,
+    AutoEmbed: `https://autoembed.cc/embed/tv/${id}/${season}/${episode}`,
+    SmashyStream: `https://smashystream.com/embed/tv/${id}/${season}/${episode}`,
+    MovieAPI: `https://movieapi.club/embed/tv/${id}/${season}/${episode}`,
+  });
+
+  // -----------------------------
   // Fetch show details + trailer
+  // -----------------------------
   useEffect(() => {
     const fetchShow = async () => {
       try {
@@ -87,7 +102,9 @@ export default function TVShowWatchPage() {
     fetchShow();
   }, [id, API_KEY]);
 
+  // -----------------------------
   // Fetch episodes for selected season
+  // -----------------------------
   useEffect(() => {
     const fetchEpisodes = async () => {
       setLoading(true);
@@ -115,13 +132,13 @@ export default function TVShowWatchPage() {
     if (selectedSeason) fetchEpisodes();
   }, [selectedSeason, id, API_KEY]);
 
-  // Fetch existing comments
+  // -----------------------------
+  // Fetch comments
+  // -----------------------------
   useEffect(() => {
     const fetchComments = async () => {
       try {
-        const res = await axios.get(
-          `https://moviereact-backend.onrender.com/api/comments/tv/${id}`
-        );
+        const res = await axios.get(`${BACKEND_URL}/api/comments/tv/${id}`);
         setComments(res.data);
       } catch (err) {
         console.error("Error loading comments:", err);
@@ -130,7 +147,9 @@ export default function TVShowWatchPage() {
     fetchComments();
   }, [id]);
 
+  // -----------------------------
   // Socket.io live updates
+  // -----------------------------
   useEffect(() => {
     socket.emit("join_room", { contentId: id, contentType: "tv" });
 
@@ -151,6 +170,9 @@ export default function TVShowWatchPage() {
     };
   }, [id]);
 
+  // -----------------------------
+  // Handlers
+  // -----------------------------
   const handleTrailerToggle = () => {
     setShowTrailer((prev) => !prev);
     if (!showTrailer && trailerRef.current) {
@@ -163,7 +185,7 @@ export default function TVShowWatchPage() {
     if (!newComment.trim()) return;
 
     try {
-      const res = await axios.post("https://moviereact-backend.onrender.com/api/comments", {
+      const res = await axios.post(`${BACKEND_URL}/api/comments`, {
         contentId: id,
         contentType: "tv",
         username: deviceType,
@@ -181,7 +203,7 @@ export default function TVShowWatchPage() {
   const handleLikeComment = async (commentId) => {
     try {
       const res = await axios.post(
-        `https://moviereact-backend.onrender.com/api/comments/like/${commentId}`
+        `${BACKEND_URL}/api/comments/like/${commentId}`
       );
       socket.emit("like_comment", res.data);
     } catch (err) {
@@ -191,6 +213,9 @@ export default function TVShowWatchPage() {
 
   if (loading || !show) return <Loader />;
 
+  // -----------------------------
+  // Render
+  // -----------------------------
   return (
     <main className="watch-page pulldown2">
       <AdNoticeMarquee />

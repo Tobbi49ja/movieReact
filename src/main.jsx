@@ -4,8 +4,6 @@ import { BrowserRouter } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 
 import App from "./App.jsx";
-import "./App.css";
-import "./Scrollbar.css";
 
 // your styles
 import "./styles/base.css";
