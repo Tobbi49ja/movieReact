@@ -178,3 +178,24 @@
 .submit-btn:hover {
   background: darkred;
 }
+.social-links {
+  margin-top: 25px;
+  text-align: center;
+}
+
+.social-links .icons {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
+.social-icon {
+  font-size: 28px;
+  color: var(--primary-text);
+  transition: 0.3s ease;
+}
+
+.social-icon:hover {
+  transform: scale(1.2);
+  color: var(--accent-color);
+}
