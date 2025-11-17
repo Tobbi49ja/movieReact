@@ -6,24 +6,60 @@ export default function Navbar() {
   const [showGenres, setShowGenres] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [scrolled, setScrolled] = useState(false);
+
   const navigate = useNavigate();
   const location = useLocation();
   const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
+  // Toggle mobile nav
   const toggleNav = () => setNavOpen(!navOpen);
-  const toggleGenres = () => setShowGenres(!showGenres);
+
+  // Toggle genres dropdown
+  const toggleGenres = (e) => {
+    e.preventDefault();
+    setShowGenres(!showGenres);
+  };
+
+  // Close menus
   const closeMenu = () => {
     setNavOpen(false);
     setShowGenres(false);
   };
 
-  // ✅ Detect screen resize (now 768px)
+  // Detect window resize
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Collapse genres when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (showGenres && !e.target.closest(".genre-wrapper")) {
+        setShowGenres(false);
+      }
+    };
+
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [showGenres]);
+
+  // Navbar scroll effect
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 150) {
+        setScrolled(true);
+      } else {
+        setScrolled(false);
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Handle navigation clicks
   const handleNavClick = (path) => {
     if (location.pathname === path) {
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -34,6 +70,7 @@ export default function Navbar() {
     closeMenu();
   };
 
+  // Search handler
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchTerm.trim()) return;
@@ -63,7 +100,7 @@ export default function Navbar() {
   };
 
   return (
-    <header>
+    <header className={scrolled ? "navbar scrolled" : "navbar"}>
       <div className="logo-container">
         <Link to="/" onClick={() => handleNavClick("/")}>
           <img src="/Logo.png" className="logo" alt="Logo" />
@@ -88,10 +125,12 @@ export default function Navbar() {
             </Link>
           </li>
 
-          <li className="relative">
+          {/* GENRES DROPDOWN */}
+          <li className="relative genre-wrapper">
             <a href="#" onClick={toggleGenres}>
               genres
             </a>
+
             <div
               className="genre-dropdown"
               style={{ display: showGenres ? "block" : "none" }}
@@ -136,7 +175,7 @@ export default function Navbar() {
           </li>
         </ul>
 
-        {/* ✅ Search bar INSIDE nav only on 768px and below */}
+        {/* Mobile search */}
         {isMobile && (
           <form className="search-box mobile-search" onSubmit={handleSearch}>
             <input
@@ -150,7 +189,7 @@ export default function Navbar() {
         )}
       </nav>
 
-      {/* ✅ Search bar OUTSIDE nav only on desktop */}
+      {/* Desktop search */}
       {!isMobile && (
         <form className="search-box" onSubmit={handleSearch}>
           <input

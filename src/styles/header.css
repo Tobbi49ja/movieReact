@@ -5,11 +5,18 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: rgb(0 0 0 / 70%);
-  backdrop-filter: blur(15px);
+  background: transparent; 
+  backdrop-filter: blur(0px); 
   position: fixed;
   top: 0;
   z-index: 1000;
+}
+header.navbar.scrolled {
+  background-color: rgb(0 0 0 / 70%);
+  backdrop-filter: blur(15px);
+  height: 80px; 
+  padding: 10px 20px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
 }
 
 .pulldown {
@@ -22,7 +29,7 @@ header {
 } */
  /* header.css */
 .pulldown2 {
-  padding-top: 6rem; /* Increased from 5rem to 6rem */
+  padding-top: 6rem; 
 }
 
 .logo-container {
@@ -55,6 +62,10 @@ nav ul li a {
   text-transform: capitalize;
   color: aliceblue;
   font-size: 1.1rem;
+  transition: 0.4s;
+}
+nav ul li a:hover{
+  color:  	 #ff4d4d;
 }
 
 .search-box {
@@ -113,7 +124,7 @@ nav ul li a {
 }
 
 .genre-dropdown a:hover {
-  background-color: red;
+  color: red;
 }
 
 .relative {

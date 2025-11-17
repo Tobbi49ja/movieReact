@@ -7,10 +7,15 @@ export default function Contact() {
   const [form, setForm] = useState({ name: "", email: "", message: "" });
   const [loading, setLoading] = useState(false);
 
+  // AUTO SWITCH BASE URL
+  const API_BASE =
+    import.meta.env.MODE === "development"
+      ? "http://localhost:5000/api"
+      : "https://moviereact-backend.onrender.com/api";
+
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
-  // Simple email validator
   const isValidEmail = (email) => /\S+@\S+\.\S+/.test(email);
 
   const handleSubmit = async (e) => {
@@ -24,7 +29,7 @@ export default function Contact() {
     setLoading(true);
 
     try {
-      const res = await fetch("https://moviereact-backend.onrender.com/api/contact", {
+      const res = await fetch(`${API_BASE}/contact`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
@@ -92,11 +97,7 @@ export default function Contact() {
           />
 
           <button type="submit" className="submit-btn" disabled={loading}>
-            {loading ? (
-              <div className="loader"></div>
-            ) : (
-              "Send Message"
-            )}
+            {loading ? <div className="loader"></div> : "Send Message"}
           </button>
         </form>
 
