@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 export default function Footer() {
   return (
     <footer>
-      {/* Top Section - Logo & Copyright */}
+
       <div className="end-info">
         <div className="info-info">
           <div className="logo-container2">
@@ -17,7 +17,6 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* Middle Section - Description + Links */}
       <div className="end-info">
         <p className="tobihub-info">
           Tobihub is a free movies streaming site with zero ads. We let you watch movies
@@ -31,7 +30,7 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* Bottom Section - Disclaimer */}
+
       <div className="end-info">
         <div className="last-info">
           <div className="last-last-info">

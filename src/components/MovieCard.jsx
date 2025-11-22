@@ -1,6 +1,14 @@
 import { Link } from "react-router-dom";
 
-export default function MovieCard({ id, title, name, year, image, quality, mediaType }) {
+export default function MovieCard({
+  id,
+  title,
+  name,
+  year,
+  image,
+  quality,
+  mediaType,
+}) {
   const displayTitle = title || name || "Untitled";
 
   const truncateTitle = (text, maxLength = 20) =>
@@ -17,7 +25,7 @@ export default function MovieCard({ id, title, name, year, image, quality, media
     <div className="movie-card">
       <div className="img-card">
         <Link to={linkPath}>
-          <img src={image} alt={displayTitle} className="card" />
+          <img src={image} alt={displayTitle}   loading="lazy"  className="card" />
           {quality && <span className="quality-tag">{quality}</span>}
         </Link>
       </div>
