@@ -10,7 +10,6 @@ export default function Navbar() {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
   // Toggle mobile nav
   const toggleNav = () => setNavOpen(!navOpen);
@@ -70,31 +69,11 @@ export default function Navbar() {
     closeMenu();
   };
 
-  // Search handler
-  const handleSearch = async (e) => {
+  // Search handler — just navigate, SearchResults handles the fetch
+  const handleSearch = (e) => {
     e.preventDefault();
     if (!searchTerm.trim()) return;
-
-    try {
-      const res = await fetch(
-        `https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(
-          searchTerm
-        )}&include_adult=false`
-      );
-      const data = await res.json();
-
-      if (data.results?.length > 0) {
-        navigate("/search", {
-          state: { results: data.results, query: searchTerm },
-        });
-      } else {
-        alert("No movies found!");
-      }
-    } catch (error) {
-      console.error("Search error:", error);
-      alert("Something went wrong. Try again later!");
-    }
-
+    navigate("/search", { state: { query: searchTerm.trim() } });
     setSearchTerm("");
     closeMenu();
   };
