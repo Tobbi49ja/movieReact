@@ -223,14 +223,15 @@ export default function WatchPage() {
           ))}
         </div>
 
-        <iframe
-          src={currentSource}
-          width="100%"
-          height="500"
-          frameBorder="0"
-          allowFullScreen
-          title="Movie Player"
-        />
+        <div className="video-container">
+          <iframe
+            src={currentSource}
+            title="Movie Player"
+            allowFullScreen
+            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+            style={{ border: "none" }}
+          />
+        </div>
       </div>
 
       <VPNBanner />

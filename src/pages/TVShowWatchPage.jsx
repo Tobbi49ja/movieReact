@@ -31,6 +31,7 @@ export default function TVShowWatchPage() {
   const [selectedEpisode, setSelectedEpisode] = useState(null);
   const [trailerKey, setTrailerKey] = useState(null);
   const [showTrailer, setShowTrailer] = useState(false);
+  const [showEpisodePanel, setShowEpisodePanel] = useState(false);
   const [loading, setLoading] = useState(true);
   const [likes, setLikes] = useState(0);
   const [dislikes, setDislikes] = useState(0);
@@ -214,6 +215,12 @@ export default function TVShowWatchPage() {
 
   if (loading || !show) return <Loader />;
 
+  const handleEpisodeSelect = (ep) => {
+    setSelectedEpisode(ep);
+    setCurrentSource(Object.values(sources(selectedSeason, ep.episode_number))[0]);
+    setShowEpisodePanel(false); // collapse after picking
+  };
+
   // -----------------------------
   // Render
   // -----------------------------
@@ -222,6 +229,7 @@ export default function TVShowWatchPage() {
       <SEOHelmet item={show} url={`https://moviereact-zzye.onrender.com/tv/${id}`} />
       <AdNoticeMarquee />
 
+      {/* Title */}
       <div className="watch-sticky-info">
         <h1 className="watch-title">{show.name}</h1>
         <p className="watch-meta">
@@ -230,6 +238,7 @@ export default function TVShowWatchPage() {
         </p>
       </div>
 
+      {/* Hero */}
       <div className="watch-hero">
         <img
           src={`https://image.tmdb.org/t/p/original${show.backdrop_path}`}
@@ -241,85 +250,109 @@ export default function TVShowWatchPage() {
         </div>
       </div>
 
-      <div className="season-selector">
-        <label htmlFor="season-select">Select Season:</label>
-        <select
-          id="season-select"
-          value={selectedSeason}
-          onChange={(e) => setSelectedSeason(Number(e.target.value))}
-          aria-label="Select TV show season"
-        >
-          {seasons.map((season) => (
-            <option key={season.id} value={season.season_number}>
-              {season.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      {/* Player — shown first so users can watch immediately */}
+      <div className="watch-player">
+        <h2>
+          Now Playing
+          {selectedEpisode && (
+            <span className="now-playing-ep">
+              {" "}— S{selectedSeason} E{selectedEpisode.episode_number}: {selectedEpisode.name}
+            </span>
+          )}
+        </h2>
 
-      <div className="episodes-section">
-        <h2>Episodes</h2>
-        <div className="episodes-grid">
-          {episodes.map((ep) => (
-            <div
-              key={ep.id}
-              className={`episode-card ${
-                selectedEpisode?.id === ep.id ? "active" : ""
-              }`}
-              onClick={() => {
-                setSelectedEpisode(ep);
-                setCurrentSource(
-                  Object.values(sources(selectedSeason, ep.episode_number))[0]
-                );
-              }}
-            >
-              <img
-                src={
-                  ep.still_path
-                    ? `https://image.tmdb.org/t/p/w300${ep.still_path}`
-                    : "https://via.placeholder.com/300x169?text=No+Image"
-                }
-                alt={ep.name}
-              />
-              <p className="ep-title">
-                E{ep.episode_number}: {ep.name}
-              </p>
+        <div className="source-buttons">
+          {selectedEpisode &&
+            Object.entries(sources(selectedSeason, selectedEpisode.episode_number)).map(
+              ([name, url]) => (
+                <button
+                  key={name}
+                  className={`source-btn ${currentSource === url ? "active-source" : ""}`}
+                  onClick={() => setCurrentSource(url)}
+                >
+                  {name}
+                </button>
+              )
+            )}
+        </div>
+
+        <div className="video-container">
+          {currentSource ? (
+            <iframe
+              src={currentSource}
+              title={selectedEpisode ? `S${selectedSeason} E${selectedEpisode.episode_number} - ${selectedEpisode.name}` : "TV Player"}
+              allowFullScreen
+              allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+              style={{ border: "none" }}
+            />
+          ) : (
+            <div className="player-placeholder">
+              <p>Select an episode below to start watching</p>
             </div>
-          ))}
+          )}
         </div>
       </div>
 
-      {selectedEpisode && (
-        <div className="watch-player">
-          <h2>Now Playing</h2>
-          <div className="source-buttons">
-            {Object.entries(
-              sources(selectedSeason, selectedEpisode.episode_number)
-            ).map(([name, url]) => (
-              <button
-                key={name}
-                className={`source-btn ${
-                  currentSource === url ? "active-source" : ""
-                }`}
-                onClick={() => setCurrentSource(url)}
-              >
-                {name}
-              </button>
-            ))}
+      {/* Season + Episode Selector — collapsible panel below the player */}
+      <div className="episode-panel">
+        {/* Season dropdown row */}
+        <div className="episode-panel-header">
+          <div className="season-selector">
+            <label htmlFor="season-select">Season:</label>
+            <select
+              id="season-select"
+              value={selectedSeason}
+              onChange={(e) => {
+                setSelectedSeason(Number(e.target.value));
+                setShowEpisodePanel(true);
+              }}
+              aria-label="Select TV show season"
+            >
+              {seasons.map((season) => (
+                <option key={season.id} value={season.season_number}>
+                  {season.name}
+                </option>
+              ))}
+            </select>
           </div>
-          <iframe
-            src={currentSource}
-            width="100%"
-            height="500"
-            frameBorder="0"
-            allowFullScreen
-            title={`Episode ${selectedEpisode.episode_number}`}
-          />
+
+          <button
+            className="episode-toggle-btn"
+            onClick={() => setShowEpisodePanel((prev) => !prev)}
+            aria-expanded={showEpisodePanel}
+            aria-controls="episode-list"
+          >
+            {showEpisodePanel ? (
+              <>Episodes <FiChevronUp /></>
+            ) : (
+              <>Episodes ({episodes.length}) <FiChevronDown /></>
+            )}
+          </button>
         </div>
-      )}
+
+        {/* Collapsible episode list */}
+        {showEpisodePanel && (
+          <ul className="episode-list" id="episode-list" role="listbox" aria-label="Episodes">
+            {episodes.map((ep) => (
+              <li
+                key={ep.id}
+                role="option"
+                aria-selected={selectedEpisode?.id === ep.id}
+                className={`episode-row ${selectedEpisode?.id === ep.id ? "active" : ""}`}
+                onClick={() => handleEpisodeSelect(ep)}
+              >
+                <span className="ep-number">E{ep.episode_number}</span>
+                <span className="ep-name">{ep.name}</span>
+                {ep.runtime && <span className="ep-runtime">{ep.runtime}m</span>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <VPNBanner />
 
+      {/* Reactions */}
       <div className="reaction-section" aria-label="Show reactions">
         <button className="reaction-btn" onClick={() => setLikes(likes + 1)} aria-label={`Like this show, ${likes} likes`}>
           <FiThumbsUp aria-hidden="true" /> <span>{likes}</span>
@@ -333,33 +366,25 @@ export default function TVShowWatchPage() {
         </button>
       </div>
 
+      {/* Trailer */}
       <div className="watch-trailer" ref={trailerRef}>
         <button className="trailer-toggle" onClick={handleTrailerToggle}>
-          {showTrailer ? (
-            <>
-              Hide Trailer <FiChevronUp />
-            </>
-          ) : (
-            <>
-              Watch Trailer <FiChevronDown />
-            </>
-          )}
+          {showTrailer ? <>Hide Trailer <FiChevronUp /></> : <>Watch Trailer <FiChevronDown /></>}
         </button>
         {showTrailer && trailerKey && (
           <iframe
-            width="100%"
-            height="400"
+            className="trailer-iframe"
             src={`https://www.youtube.com/embed/${trailerKey}`}
             title={`${show.name} Trailer`}
             allowFullScreen
-            className="trailer-iframe"
+            allow="autoplay; encrypted-media; fullscreen"
+            style={{ border: "none" }}
           />
         )}
-        {showTrailer && !trailerKey && (
-          <p className="no-trailer">Trailer not available.</p>
-        )}
+        {showTrailer && !trailerKey && <p className="no-trailer">Trailer not available.</p>}
       </div>
 
+      {/* Comments */}
       <section className="comment-section" aria-label="Comments">
         <h2>Comments</h2>
         <form onSubmit={handleCommentSubmit} className="comment-form">
@@ -373,9 +398,7 @@ export default function TVShowWatchPage() {
             className="comment-input"
             maxLength={500}
           />
-          <button type="submit" className="comment-btn">
-            Post
-          </button>
+          <button type="submit" className="comment-btn">Post</button>
         </form>
 
         <div className="comment-list" aria-live="polite" aria-label="Comments list">

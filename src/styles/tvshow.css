@@ -78,77 +78,148 @@
   cursor: pointer;
 }
 
-/* Episodes Section */
-.episodes-section {
-  padding: 1rem 2rem;
+/* Now Playing episode label */
+.now-playing-ep {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: #aaa;
 }
 
-.episodes-section h2 {
-  margin-bottom: 1rem;
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.episodes-grid {
+/* Player placeholder when no episode selected */
+.player-placeholder {
+  position: absolute;
+  inset: 0;
   display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.episode-card {
-  flex-grow: 1;
+  align-items: center;
+  justify-content: center;
   background: #111;
   border-radius: 10px;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+/* Episode Panel (season selector + collapsible list) */
+.episode-panel {
+  width: 95%;
+  max-width: 1000px;
+  margin: 1.5rem 0;
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
   overflow: hidden;
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  position: relative;
+}
+
+.episode-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* Season selector inside panel */
+.season-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.season-selector label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #ccc;
+  white-space: nowrap;
+}
+
+.season-selector select {
+  padding: 6px 12px;
+  border-radius: 8px;
   border: 1px solid #333;
+  background: #1a1a1a;
+  color: white;
+  font-size: 0.9rem;
+  cursor: pointer;
 }
 
-.episode-card:hover {
-  transform: scale(1.05);
-  box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
-  border-color: #f39c12;
-}
-
-.episode-card.active {
-  outline: 2px solid #e50914;
-  transform: scale(1.05);
-  border-color: #f39c12;
-  background-color: #222;
-}
-
-.episode-img {
-  width: 100%;
-  height: 120px;
-  object-fit: cover;
-}
-
-.episode-card img {
-  width: 100%;
-  height: 100px;
-  object-fit: cover;
-}
-
-.episode-info {
-  padding: 10px;
-}
-
-.ep-num {
+/* Episodes toggle button */
+.episode-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #e50914;
+  color: #fff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 8px;
   font-size: 0.9rem;
   font-weight: 600;
-  margin-bottom: 0.3rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
 }
 
-.ep-title {
-  font-size: 0.85rem;
-  padding: 0.5rem;
-  background: #000;
-  text-align: center;
+.episode-toggle-btn:hover {
+  background: #c0070f;
 }
 
-.ep-date {
+/* Collapsible episode list */
+.episode-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-top: 1px solid #2a2a2a;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.episode-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 1rem;
+  cursor: pointer;
+  border-bottom: 1px solid #1e1e1e;
+  transition: background 0.15s;
+}
+
+.episode-row:hover {
+  background: #1a1a1a;
+}
+
+.episode-row.active {
+  background: #1e1e1e;
+  border-left: 3px solid #e50914;
+}
+
+.ep-number {
+  flex-shrink: 0;
   font-size: 0.8rem;
-  opacity: 0.7;
+  font-weight: 700;
+  color: #e50914;
+  min-width: 32px;
+}
+
+.ep-name {
+  flex: 1;
+  font-size: 0.9rem;
+  color: #ddd;
+}
+
+.ep-runtime {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  color: #666;
+}
+
+@media (max-width: 480px) {
+  .episode-panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .episode-toggle-btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
