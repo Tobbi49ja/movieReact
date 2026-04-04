@@ -69,9 +69,6 @@
   width: 95%;
   max-width: 1000px;
   margin-top: 2rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
 }
 
 .watch-player h2 {
@@ -83,7 +80,10 @@
 .video-container {
   position: relative;
   width: 100%;
-  padding-top: 56.25%;
+  padding-top: 56.25%; /* 16:9 ratio */
+  background: #000;
+  border-radius: 10px;
+  overflow: hidden;
   margin-bottom: 2rem;
 }
 
@@ -93,6 +93,7 @@
   left: 0;
   width: 100%;
   height: 100%;
+  border: none;
   border-radius: 10px;
 }
 

@@ -58,13 +58,13 @@ export default function TVShowWatchPage() {
   }, []);
 
   // -----------------------------
-  // Sources
+  // Sources — VidSrc default (most content)
   // -----------------------------
   const sources = (season, episode) => ({
-    VidSrc: `https://vidsrc.to/embed/tv/${id}/${season}/${episode}`,
-    AutoEmbed: `https://autoembed.cc/embed/tv/${id}/${season}/${episode}`,
-    SmashyStream: `https://smashystream.com/embed/tv/${id}/${season}/${episode}`,
-    MovieAPI: `https://movieapi.club/embed/tv/${id}/${season}/${episode}`,
+    VidSrc:  `https://vidsrc.xyz/embed/tv?tmdb=${id}&season=${season}&episode=${episode}`,
+    VidSrc2: `https://vidsrc.me/embed/tv?tmdb=${id}&season=${season}&episode=${episode}`,
+    TwoEmbed:`https://www.2embed.cc/embedtv/${id}&s=${season}&e=${episode}`,
+    VidSrc3: `https://vidsrc.pro/embed/tv/${id}?season=${season}&episode=${episode}`,
   });
 
   // -----------------------------
@@ -279,6 +279,7 @@ export default function TVShowWatchPage() {
         <div className="video-container">
           {currentSource ? (
             <iframe
+              key={currentSource}
               src={currentSource}
               title={selectedEpisode ? `S${selectedSeason} E${selectedEpisode.episode_number} - ${selectedEpisode.name}` : "TV Player"}
               allowFullScreen

@@ -38,13 +38,13 @@ export default function WatchPage() {
   const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
   // -----------------------------
-  // Sources
+  // Sources — VidSrc default (most content)
   // -----------------------------
   const sources = {
-    VidSrc: `https://vidsrc.to/embed/movie/${id}`,
-    AutoEmbed: `https://autoembed.cc/embed/movie/${id}`,
-    SmashyStream: `https://smashystream.com/embed/movie/${id}`,
-    MovieAPI: `https://movieapi.club/embed/movie/${id}`,
+    VidSrc:  `https://vidsrc.xyz/embed/movie?tmdb=${id}`,
+    VidSrc2: `https://vidsrc.me/embed/movie?tmdb=${id}`,
+    TwoEmbed:`https://www.2embed.cc/embed/${id}`,
+    VidSrc3: `https://vidsrc.pro/embed/movie/${id}`,
   };
 
   // -----------------------------
@@ -225,6 +225,7 @@ export default function WatchPage() {
 
         <div className="video-container">
           <iframe
+            key={currentSource}
             src={currentSource}
             title="Movie Player"
             allowFullScreen
