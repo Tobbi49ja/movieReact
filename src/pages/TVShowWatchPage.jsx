@@ -33,6 +33,7 @@ export default function TVShowWatchPage() {
   const [showTrailer, setShowTrailer] = useState(false);
   const [showEpisodePanel, setShowEpisodePanel] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [userReaction, setUserReaction] = useState(null);
   const [likes, setLikes] = useState(0);
   const [dislikes, setDislikes] = useState(0);
   const [comments, setComments] = useState([]);
@@ -175,6 +176,51 @@ export default function TVShowWatchPage() {
   // -----------------------------
   // Handlers
   // -----------------------------
+  // Stable device ID
+  const deviceId = (() => {
+    let stored = localStorage.getItem("tobbihub_device_id");
+    if (!stored) {
+      stored = crypto.randomUUID
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2) + Date.now().toString(36);
+      localStorage.setItem("tobbihub_device_id", stored);
+    }
+    return stored;
+  })();
+
+  // Fetch reaction counts + this user's reaction from DB
+  useEffect(() => {
+    const fetchReactions = async () => {
+      try {
+        const res = await axios.get(
+          `${BACKEND_URL}/api/reactions/tv/${id}?deviceId=${deviceId}`
+        );
+        setLikes(res.data.likes);
+        setDislikes(res.data.dislikes);
+        setUserReaction(res.data.userReaction);
+      } catch (err) {
+        console.error("Error fetching reactions:", err);
+      }
+    };
+    fetchReactions();
+  }, [id]);
+
+  const handleReaction = async (reaction) => {
+    try {
+      const res = await axios.post(`${BACKEND_URL}/api/reactions`, {
+        contentId: id,
+        contentType: "tv",
+        deviceId,
+        reaction,
+      });
+      setLikes(res.data.likes);
+      setDislikes(res.data.dislikes);
+      setUserReaction(res.data.userReaction);
+    } catch (err) {
+      console.error("Error saving reaction:", err);
+    }
+  };
+
   const handleTrailerToggle = () => {
     setShowTrailer((prev) => !prev);
     if (!showTrailer && trailerRef.current) {
@@ -355,15 +401,23 @@ export default function TVShowWatchPage() {
 
       {/* Reactions */}
       <div className="reaction-section" aria-label="Show reactions">
-        <button className="reaction-btn" onClick={() => setLikes(likes + 1)} aria-label={`Like this show, ${likes} likes`}>
-          <FiThumbsUp aria-hidden="true" /> <span>{likes}</span>
+        <button
+          className={`reaction-btn ${userReaction === "like" ? "reaction-active" : ""}`}
+          onClick={() => handleReaction("like")}
+          aria-label="Like this show"
+          aria-pressed={userReaction === "like"}
+        >
+          <FiThumbsUp aria-hidden="true" />
+          <span>{likes} {userReaction === "like" ? "Liked" : "Like"}</span>
         </button>
         <button
-          className="reaction-btn"
-          onClick={() => setDislikes(dislikes + 1)}
-          aria-label={`Dislike this show, ${dislikes} dislikes`}
+          className={`reaction-btn ${userReaction === "dislike" ? "reaction-active" : ""}`}
+          onClick={() => handleReaction("dislike")}
+          aria-label="Dislike this show"
+          aria-pressed={userReaction === "dislike"}
         >
-          <FiThumbsDown aria-hidden="true" /> <span>{dislikes}</span>
+          <FiThumbsDown aria-hidden="true" />
+          <span>{dislikes} {userReaction === "dislike" ? "Disliked" : "Dislike"}</span>
         </button>
       </div>
 

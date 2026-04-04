@@ -189,6 +189,12 @@
   color: #fff;
 }
 
+.reaction-active {
+  background: #ff4c29;
+  border-color: #ff4c29;
+  color: #fff;
+}
+
 /* Comment Section */
 .comment-section {
   width: 95%;

@@ -26,6 +26,7 @@ export default function WatchPage() {
   const [loading, setLoading] = useState(true);
   const [showTrailer, setShowTrailer] = useState(false);
   const [trailerKey, setTrailerKey] = useState(null);
+  const [userReaction, setUserReaction] = useState(null);
   const [likes, setLikes] = useState(0);
   const [dislikes, setDislikes] = useState(0);
   const [comments, setComments] = useState([]);
@@ -137,11 +138,53 @@ export default function WatchPage() {
     };
   }, [id]);
 
+  // Stable device ID — generated once, lives in localStorage forever
+  const deviceId = (() => {
+    let stored = localStorage.getItem("tobbihub_device_id");
+    if (!stored) {
+      stored = crypto.randomUUID
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2) + Date.now().toString(36);
+      localStorage.setItem("tobbihub_device_id", stored);
+    }
+    return stored;
+  })();
+
+  // Fetch reaction counts + this user's reaction from DB
+  useEffect(() => {
+    const fetchReactions = async () => {
+      try {
+        const res = await axios.get(
+          `${BACKEND_URL}/api/reactions/movie/${id}?deviceId=${deviceId}`
+        );
+        setLikes(res.data.likes);
+        setDislikes(res.data.dislikes);
+        setUserReaction(res.data.userReaction);
+      } catch (err) {
+        console.error("Error fetching reactions:", err);
+      }
+    };
+    fetchReactions();
+  }, [id]);
+
   // -----------------------------
   // Handlers
   // -----------------------------
-  const handleLike = () => setLikes((prev) => prev + 1);
-  const handleDislike = () => setDislikes((prev) => prev + 1);
+  const handleReaction = async (reaction) => {
+    try {
+      const res = await axios.post(`${BACKEND_URL}/api/reactions`, {
+        contentId: id,
+        contentType: "movie",
+        deviceId,
+        reaction,
+      });
+      setLikes(res.data.likes);
+      setDislikes(res.data.dislikes);
+      setUserReaction(res.data.userReaction);
+    } catch (err) {
+      console.error("Error saving reaction:", err);
+    }
+  };
 
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
@@ -239,11 +282,23 @@ export default function WatchPage() {
 
       {/* Reactions */}
       <div className="reaction-section" aria-label="Movie reactions">
-        <button className="reaction-btn" onClick={handleLike} aria-label={`Like this movie, ${likes} likes`}>
-          <FiThumbsUp aria-hidden="true" /> <span>{likes}</span>
+        <button
+          className={`reaction-btn ${userReaction === "like" ? "reaction-active" : ""}`}
+          onClick={() => handleReaction("like")}
+          aria-label="Like this movie"
+          aria-pressed={userReaction === "like"}
+        >
+          <FiThumbsUp aria-hidden="true" />
+          <span>{likes} {userReaction === "like" ? "Liked" : "Like"}</span>
         </button>
-        <button className="reaction-btn" onClick={handleDislike} aria-label={`Dislike this movie, ${dislikes} dislikes`}>
-          <FiThumbsDown aria-hidden="true" /> <span>{dislikes}</span>
+        <button
+          className={`reaction-btn ${userReaction === "dislike" ? "reaction-active" : ""}`}
+          onClick={() => handleReaction("dislike")}
+          aria-label="Dislike this movie"
+          aria-pressed={userReaction === "dislike"}
+        >
+          <FiThumbsDown aria-hidden="true" />
+          <span>{dislikes} {userReaction === "dislike" ? "Disliked" : "Dislike"}</span>
         </button>
       </div>
 
