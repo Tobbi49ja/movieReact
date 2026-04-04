@@ -55,11 +55,9 @@ export default function SearchResults() {
         ]);
 
         const movies = (movieData.results || [])
-          .filter((m) => m.poster_path)
           .map((m) => ({ ...m, media_type: "movie" }));
 
         const shows = (tvData.results || [])
-          .filter((t) => t.poster_path)
           .map((t) => ({ ...t, media_type: "tv" }));
 
         // Sort by popularity (TMDB provides a popularity score)
@@ -177,11 +175,17 @@ export default function SearchResults() {
                 aria-label={`Watch ${title}${year ? ` (${year})` : ""}`}
               >
                 <div className="search-card-poster">
-                  <img
-                    src={`${TMDB_IMG}${item.poster_path}`}
-                    alt={title}
-                    loading="lazy"
-                  />
+                  {item.poster_path ? (
+                    <img
+                      src={`${TMDB_IMG}${item.poster_path}`}
+                      alt={title}
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="search-no-poster" aria-hidden="true">
+                      <span>{title}</span>
+                    </div>
+                  )}
                   <span className={`search-type-badge ${item.media_type}`}>
                     {item.media_type === "tv" ? "TV" : "Movie"}
                   </span>
