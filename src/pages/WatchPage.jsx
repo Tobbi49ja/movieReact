@@ -12,18 +12,13 @@ import {
 } from "react-icons/fi";
 import SEOHelmet from "../components/seo/SEOHelmet";
 import AdNoticeMarquee from "../components/AdNoticeMarquee";
+import VPNBanner from "../components/VPNBanner";
 
 // -----------------------------
 // Dynamic backend URL
 // -----------------------------
-const BACKEND_URL = import.meta.env.DEV
-  ? "http://localhost:5000"
-  : "https://moviereact-backend.onrender.com";
-
-// -----------------------------
-// Socket.io
-// -----------------------------
-const socket = io(BACKEND_URL, { transports: ["websocket"] });
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ||
+  (import.meta.env.DEV ? "http://localhost:5000" : "https://moviereact-backend.onrender.com");
 
 export default function WatchPage() {
   const { id } = useParams();
@@ -38,6 +33,7 @@ export default function WatchPage() {
   const [currentSource, setCurrentSource] = useState("");
   const [deviceType, setDeviceType] = useState("");
 
+  const socketRef = useRef(null);
   const trailerRef = useRef(null);
   const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
@@ -118,6 +114,9 @@ export default function WatchPage() {
   // Socket.io live updates
   // -----------------------------
   useEffect(() => {
+    const socket = io(BACKEND_URL, { transports: ["websocket"] });
+    socketRef.current = socket;
+
     socket.emit("join_room", { contentId: id, contentType: "movie" });
 
     socket.on("new_comment", (comment) => {
@@ -134,6 +133,7 @@ export default function WatchPage() {
       socket.emit("leave_room", { contentId: id, contentType: "movie" });
       socket.off("new_comment");
       socket.off("comment_liked");
+      socket.disconnect();
     };
   }, [id]);
 
@@ -155,7 +155,7 @@ export default function WatchPage() {
         comment: newComment,
       });
 
-      socket.emit("send_comment", res.data);
+      socketRef.current?.emit("send_comment", res.data);
       setNewComment("");
       setComments((prev) => [res.data, ...prev]);
     } catch (err) {
@@ -168,7 +168,7 @@ export default function WatchPage() {
       const res = await axios.post(
         `${BACKEND_URL}/api/comments/like/${commentId}`
       );
-      socket.emit("like_comment", res.data);
+      socketRef.current?.emit("like_comment", res.data);
     } catch (err) {
       console.error("Error liking comment:", err);
     }
@@ -185,7 +185,8 @@ export default function WatchPage() {
   if (!movie) return <p className="loading">Movie not found.</p>;
 
   return (
-    <main className="watch-page pulldown2">
+    <main id="main-content" className="watch-page pulldown2">
+      <SEOHelmet item={movie} url={`https://moviereact-zzye.onrender.com/watch/${id}`} />
       <AdNoticeMarquee />
 
       <div className="watch-sticky-info">
@@ -232,13 +233,15 @@ export default function WatchPage() {
         />
       </div>
 
+      <VPNBanner />
+
       {/* Reactions */}
-      <div className="reaction-section">
-        <button className="reaction-btn" onClick={handleLike}>
-          <FiThumbsUp /> {likes}
+      <div className="reaction-section" aria-label="Movie reactions">
+        <button className="reaction-btn" onClick={handleLike} aria-label={`Like this movie, ${likes} likes`}>
+          <FiThumbsUp aria-hidden="true" /> <span>{likes}</span>
         </button>
-        <button className="reaction-btn" onClick={handleDislike}>
-          <FiThumbsDown /> {dislikes}
+        <button className="reaction-btn" onClick={handleDislike} aria-label={`Dislike this movie, ${dislikes} dislikes`}>
+          <FiThumbsDown aria-hidden="true" /> <span>{dislikes}</span>
         </button>
       </div>
 
@@ -261,20 +264,23 @@ export default function WatchPage() {
       </div>
 
       {/* Comments Section */}
-      <div className="comment-section">
+      <section className="comment-section" aria-label="Comments">
         <h2>Comments</h2>
         <form onSubmit={handleCommentSubmit} className="comment-form">
+          <label htmlFor="comment-input" className="sr-only">Add a comment</label>
           <input
+            id="comment-input"
             type="text"
             placeholder="Add a comment..."
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             className="comment-input"
+            maxLength={500}
           />
           <button type="submit" className="comment-btn">Post</button>
         </form>
 
-        <div className="comment-list">
+        <div className="comment-list" aria-live="polite" aria-label="Comments list">
           {comments.length === 0 ? (
             <p className="no-comments">No comments yet. Be the first!</p>
           ) : (
@@ -282,14 +288,17 @@ export default function WatchPage() {
               <div key={c._id} className="comment-item">
                 <strong>{c.username}</strong>
                 <p>{c.comment}</p>
-                <button onClick={() => handleLikeComment(c._id)}>
+                <button
+                  onClick={() => handleLikeComment(c._id)}
+                  aria-label={`Like comment by ${c.username}, ${c.likes || 0} likes`}
+                >
                   ❤️ {c.likes || 0}
                 </button>
               </div>
             ))
           )}
         </div>
-      </div>
+      </section>
     </main>
   );
 }

@@ -1,8 +1,7 @@
-/* DESKTOP SCALING (1600px+) */
-@media (min-width: 1600px) {
-  body {
-    transform: scale(1.05);
-    transform-origin: top center;
+/* DESKTOP SPACING (1467px) */
+@media (max-width: 1467px) {
+  .input-search {
+    margin-right: 18px;
   }
 }
 

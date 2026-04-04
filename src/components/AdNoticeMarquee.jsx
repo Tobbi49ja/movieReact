@@ -19,10 +19,10 @@ export default function AdNoticeMarquee() {
   if (hidden) return null;
 
   return (
-    <div className="ad-marquee-wrapper">
+    <div className="ad-marquee-wrapper" role="alert" aria-live="polite">
       <div className="ad-marquee-content">
         <div className="ad-marquee-text">
-          ⚠️ Tip: Use an ad-blocker in your browser to block popups and enjoy
+          <span aria-hidden="true">⚠️</span> Tip: Use an ad-blocker in your browser to block popups and enjoy
           smoother, ad-free viewing on TobbiHub.
         </div>
 
@@ -32,11 +32,12 @@ export default function AdNoticeMarquee() {
               type="checkbox"
               checked={dontShowAgain}
               onChange={(e) => setDontShowAgain(e.target.checked)}
+              aria-label="Don't show this notice again"
             />
             <span>Don't show again</span>
           </label>
-          <button onClick={handleClose} className="ad-marquee-close">
-            ✖
+          <button onClick={handleClose} className="ad-marquee-close" aria-label="Close notice">
+            <span aria-hidden="true">✖</span>
           </button>
         </div>
       </div>

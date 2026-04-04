@@ -23,13 +23,8 @@ header.navbar.scrolled {
   padding-top: 12rem;
 }
 
-/* .pulldown2 {
-  padding-top: 5rem;
-  
-} */
- /* header.css */
 .pulldown2 {
-  padding-top: 6rem; 
+  padding-top: 6rem;
 }
 
 .logo-container {
@@ -96,6 +91,9 @@ nav ul li a:hover{
   display: none;
   flex-direction: column;
   cursor: pointer;
+  background: none;
+  border: none;
+  padding: 4px;
 }
 
 .hamburger span {

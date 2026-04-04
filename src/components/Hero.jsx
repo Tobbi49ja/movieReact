@@ -60,7 +60,7 @@ export default function Hero() {
   }
 
   return (
-    <section className="hero-slider">
+    <section className="hero-slider" aria-label="Featured movies">
       <Swiper
         modules={[Autoplay, Navigation, EffectFade]}
         effect="fade"
@@ -69,15 +69,20 @@ export default function Hero() {
         autoplay={{ delay: 6000, disableOnInteraction: false }}
         onSwiper={(swiper) => (swiperRef.current = swiper)}
         className="hero-swiper"
+        a11y={{ prevSlideMessage: "Previous movie", nextSlideMessage: "Next movie" }}
       >
-        {movies.map((movie) => (
+        {movies.map((movie, index) => (
           <SwiperSlide key={movie.id}>
             <div className="hero-slide">
-            
+
               <img
                 src={`https://image.tmdb.org/t/p/original${movie.backdrop_path}`}
-                alt={movie.title}
+                alt={`${movie.title} backdrop`}
                 className="hero-image"
+                loading={index === 0 ? "eager" : "lazy"}
+                fetchpriority={index === 0 ? "high" : "low"}
+                width="1920"
+                height="1080"
               />
 
           
@@ -96,6 +101,7 @@ export default function Hero() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="movie-btn"
+                    aria-label={`Watch ${movie.title} trailer on YouTube`}
                   >
                     ▶ Watch Trailer
                   </a>

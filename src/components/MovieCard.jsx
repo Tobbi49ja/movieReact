@@ -22,10 +22,10 @@ export default function MovieCard({
   const buttonLabel = type === "tv" ? "TV Show" : "Movie";
 
   return (
-    <div className="movie-card">
+    <article className="movie-card">
       <div className="img-card">
-        <Link to={linkPath}>
-          <img src={image} alt={displayTitle}   loading="lazy"  className="card" />
+        <Link to={linkPath} aria-label={`View ${displayTitle}`} tabIndex={-1} aria-hidden="true">
+          <img src={image} alt={displayTitle} loading="lazy" className="card" width="195" height="293" />
           {quality && <span className="quality-tag">{quality}</span>}
         </Link>
       </div>
@@ -36,10 +36,10 @@ export default function MovieCard({
         </h3>
         <p className="movie-info">{year || "Unknown"}</p>
 
-        <Link to={linkPath} className="movie-btn">
+        <Link to={linkPath} className="movie-btn" aria-label={`Watch ${displayTitle} (${buttonLabel})`}>
           {buttonLabel}
         </Link>
       </div>
-    </div>
+    </article>
   );
 }

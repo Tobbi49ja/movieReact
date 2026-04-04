@@ -2,12 +2,59 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/Logo.png" />
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TobbiHub</title>
+
+    <!-- Primary SEO -->
+    <title>TobbiHub - Watch Free Movies &amp; TV Shows Online</title>
+    <meta name="description" content="Stream HD movies and TV shows for free on TobbiHub. No sign-up required. Watch popular, top-rated, and latest films online." />
+    <meta name="keywords" content="TobbiHub, free movies, watch TV shows online, HD streaming, free streaming" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#000000" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="TobbiHub" />
+    <meta property="og:title" content="TobbiHub - Watch Free Movies &amp; TV Shows Online" />
+    <meta property="og:description" content="Stream HD movies and TV shows for free on TobbiHub. No sign-up required." />
+    <meta property="og:image" content="/Logo.png" />
+    <meta property="og:url" content="https://moviereact-zzye.onrender.com" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="TobbiHub - Watch Free Movies &amp; TV Shows Online" />
+    <meta name="twitter:description" content="Stream HD movies and TV shows for free on TobbiHub. No sign-up required." />
+    <meta name="twitter:image" content="/Logo.png" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/Logo.png" />
+    <link rel="apple-touch-icon" href="/Logo.png" />
+
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://api.themoviedb.org" />
+    <link rel="preconnect" href="https://image.tmdb.org" />
+
+    <!-- Google Analytics 4 — replace G-XXXXXXXXXX with your Measurement ID -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-XXXXXXXXXX');
+    </script>
+
+    <!-- Microsoft Clarity — replace XXXXXXXXXX with your Project ID -->
+    <script>
+      (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+      })(window,document,"clarity","script","XXXXXXXXXX");
+    </script>
   </head>
   <body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

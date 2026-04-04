@@ -13,12 +13,10 @@ import "./styles/header.css";
 import "./styles/hero.css";
 import "./styles/movies.css";
 import "./styles/pages.css";
-import "./styles/pages.css";
 import "./styles/preview.css";
 import "./styles/responsive.css";
 import "./styles/tvshow.css";
 import "./styles/watchpage.css";
-import "./styles/responsive.css";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>

@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /watch/
+Disallow: /tv/
+
+Sitemap: https://moviereact-zzye.onrender.com/sitemap.xml

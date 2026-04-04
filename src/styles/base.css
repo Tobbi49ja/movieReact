@@ -7,9 +7,9 @@
 }
 
 body {
-  max-width: 1400px;
+  max-width: 1440px;
   margin: 0 auto;
-  background-color: black;
+  background-color:black;
   color: white;
   overflow-x: hidden;
 }
@@ -41,6 +41,36 @@ body {
 * {
   scrollbar-width: thin;
   scrollbar-color: #e50914 #0a0a0a;
+}
+
+/* Screen-reader only utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Skip to main content link (accessibility) */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 0;
+  background: #e50914;
+  color: white;
+  padding: 8px 16px;
+  z-index: 9999;
+  font-weight: 700;
+  text-decoration: none;
+  border-radius: 0 0 4px 0;
+}
+.skip-link:focus {
+  top: 0;
 }
 
 h1 {

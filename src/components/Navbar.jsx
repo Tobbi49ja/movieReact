@@ -100,88 +100,67 @@ export default function Navbar() {
   };
 
   return (
-    <header className={scrolled ? "navbar scrolled" : "navbar"}>
+    <header className={scrolled ? "navbar scrolled" : "navbar"} role="banner">
       <div className="logo-container">
-        <Link to="/" onClick={() => handleNavClick("/")}>
-          <img src="/Logo.png" className="logo" alt="Logo" />
+        <Link to="/" onClick={() => handleNavClick("/")} aria-label="TobbiHub - Go to homepage">
+          <img src="/Logo.png" className="logo" alt="TobbiHub Logo" />
         </Link>
       </div>
 
-      <nav id="nav-menu" className={navOpen ? "active" : ""}>
-        <ul>
-          <li>
-            <Link to="/" onClick={() => handleNavClick("/")}>
+      <nav id="nav-menu" className={navOpen ? "active" : ""} aria-label="Main navigation">
+        <ul role="menubar">
+          <li role="none">
+            <Link to="/" onClick={() => handleNavClick("/")} role="menuitem">
               home
             </Link>
           </li>
-          <li>
-            <Link to="/movies" onClick={() => handleNavClick("/movies")}>
+          <li role="none">
+            <Link to="/movies" onClick={() => handleNavClick("/movies")} role="menuitem">
               movies
             </Link>
           </li>
-          <li>
-            <Link to="/tvshows" onClick={() => handleNavClick("/tvshows")}>
+          <li role="none">
+            <Link to="/tvshows" onClick={() => handleNavClick("/tvshows")} role="menuitem">
               tv shows
             </Link>
           </li>
 
           {/* GENRES DROPDOWN */}
-          <li className="relative genre-wrapper">
-            <a href="#" onClick={toggleGenres}>
+          <li className="relative genre-wrapper" role="none">
+            <a
+              href="#"
+              onClick={toggleGenres}
+              role="menuitem"
+              aria-haspopup="true"
+              aria-expanded={showGenres}
+            >
               genres
             </a>
 
             <div
               className="genre-dropdown"
+              role="menu"
+              aria-label="Genre categories"
               style={{ display: showGenres ? "block" : "none" }}
             >
-              <Link
-                to="/genres/action"
-                onClick={() => handleNavClick("/genres/action")}
-              >
-                Action
-              </Link>
-              <Link
-                to="/genres/comedy"
-                onClick={() => handleNavClick("/genres/comedy")}
-              >
-                Comedy
-              </Link>
-              <Link
-                to="/genres/animation"
-                onClick={() => handleNavClick("/genres/animation")}
-              >
-                Animation
-              </Link>
-              <Link
-                to="/genres/anime"
-                onClick={() => handleNavClick("/genres/anime")}
-              >
-                Anime
-              </Link>
-              <Link
-                to="/genres/drama"
-                onClick={() => handleNavClick("/genres/drama")}
-              >
-                Drama
-              </Link>
-              <Link
-                to="/genres/horror"
-                onClick={() => handleNavClick("/genres/horror")}
-              >
-                Horror
-              </Link>
+              <Link to="/genres/action" onClick={() => handleNavClick("/genres/action")} role="menuitem">Action</Link>
+              <Link to="/genres/comedy" onClick={() => handleNavClick("/genres/comedy")} role="menuitem">Comedy</Link>
+              <Link to="/genres/animation" onClick={() => handleNavClick("/genres/animation")} role="menuitem">Animation</Link>
+              <Link to="/genres/anime" onClick={() => handleNavClick("/genres/anime")} role="menuitem">Anime</Link>
+              <Link to="/genres/drama" onClick={() => handleNavClick("/genres/drama")} role="menuitem">Drama</Link>
+              <Link to="/genres/horror" onClick={() => handleNavClick("/genres/horror")} role="menuitem">Horror</Link>
             </div>
           </li>
         </ul>
 
         {/* Mobile search */}
         {isMobile && (
-          <form className="search-box mobile-search" onSubmit={handleSearch}>
+          <form className="search-box mobile-search" onSubmit={handleSearch} role="search">
             <input
               className="input-search"
-              type="text"
-              placeholder="Search..."
+              type="search"
+              placeholder="Search movies..."
+              aria-label="Search movies and TV shows"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -191,25 +170,29 @@ export default function Navbar() {
 
       {/* Desktop search */}
       {!isMobile && (
-        <form className="search-box" onSubmit={handleSearch}>
+        <form className="search-box" onSubmit={handleSearch} role="search">
           <input
             className="input-search"
-            type="text"
-            placeholder="Search..."
+            type="search"
+            placeholder="Search movies..."
+            aria-label="Search movies and TV shows"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </form>
       )}
 
-      <div
+      <button
         className={`hamburger ${navOpen ? "active" : ""}`}
         onClick={toggleNav}
+        aria-label={navOpen ? "Close navigation menu" : "Open navigation menu"}
+        aria-expanded={navOpen}
+        aria-controls="nav-menu"
       >
         <span></span>
         <span></span>
         <span></span>
-      </div>
+      </button>
     </header>
   );
 }
