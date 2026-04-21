@@ -9,6 +9,7 @@ import {
   FiChevronUp,
   FiThumbsUp,
   FiThumbsDown,
+  FiMaximize,
 } from "react-icons/fi";
 import AdNoticeMarquee from "../components/AdNoticeMarquee";
 import SEOHelmet from "../components/seo/SEOHelmet";
@@ -43,6 +44,7 @@ export default function TVShowWatchPage() {
 
   const socketRef = useRef(null);
   const trailerRef = useRef(null);
+  const iframeRef = useRef(null);
 
   // -----------------------------
   // Detect device type
@@ -221,6 +223,15 @@ export default function TVShowWatchPage() {
     }
   };
 
+  const handleFullscreen = () => {
+    const el = iframeRef.current;
+    if (!el) return;
+    if (el.requestFullscreen) el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
+    else if (el.msRequestFullscreen) el.msRequestFullscreen();
+  };
+
   const handleTrailerToggle = () => {
     setShowTrailer((prev) => !prev);
     if (!showTrailer && trailerRef.current) {
@@ -325,11 +336,13 @@ export default function TVShowWatchPage() {
         <div className="video-container">
           {currentSource ? (
             <iframe
+              ref={iframeRef}
               key={currentSource}
               src={currentSource}
               title={selectedEpisode ? `S${selectedSeason} E${selectedEpisode.episode_number} - ${selectedEpisode.name}` : "TV Player"}
               allowFullScreen
               allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+              referrerPolicy="no-referrer-when-downgrade"
               style={{ border: "none" }}
             />
           ) : (
@@ -338,6 +351,11 @@ export default function TVShowWatchPage() {
             </div>
           )}
         </div>
+        {currentSource && (
+          <button className="fullscreen-btn" onClick={handleFullscreen} aria-label="Fullscreen">
+            <FiMaximize /> Fullscreen
+          </button>
+        )}
       </div>
 
       {/* Season + Episode Selector — collapsible panel below the player */}

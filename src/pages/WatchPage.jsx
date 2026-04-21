@@ -9,6 +9,7 @@ import {
   FiChevronUp,
   FiThumbsUp,
   FiThumbsDown,
+  FiMaximize,
 } from "react-icons/fi";
 import SEOHelmet from "../components/seo/SEOHelmet";
 import AdNoticeMarquee from "../components/AdNoticeMarquee";
@@ -36,6 +37,7 @@ export default function WatchPage() {
 
   const socketRef = useRef(null);
   const trailerRef = useRef(null);
+  const iframeRef = useRef(null);
   const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
   // -----------------------------
@@ -217,6 +219,15 @@ export default function WatchPage() {
     }
   };
 
+  const handleFullscreen = () => {
+    const el = iframeRef.current;
+    if (!el) return;
+    if (el.requestFullscreen) el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
+    else if (el.msRequestFullscreen) el.msRequestFullscreen();
+  };
+
   const handleTrailerToggle = () => {
     setShowTrailer((prev) => !prev);
     if (!showTrailer && trailerRef.current) {
@@ -268,14 +279,19 @@ export default function WatchPage() {
 
         <div className="video-container">
           <iframe
+            ref={iframeRef}
             key={currentSource}
             src={currentSource}
             title="Movie Player"
             allowFullScreen
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+            referrerPolicy="no-referrer-when-downgrade"
             style={{ border: "none" }}
           />
         </div>
+        <button className="fullscreen-btn" onClick={handleFullscreen} aria-label="Fullscreen">
+          <FiMaximize /> Fullscreen
+        </button>
       </div>
 
       <VPNBanner />
