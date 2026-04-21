@@ -188,11 +188,6 @@
     font-size: 1.4rem;
   }
 
-  .watch-player iframe,
-  .trailer-iframe {
-    height: 260px;
-  }
-
   /* Comments */
   .comment-section {
     padding: 1rem;
@@ -225,9 +220,56 @@
   }
 
   /* Watch Page */
-  .watch-player iframe,
-  .trailer-iframe {
-    height: 220px;
+  .watch-sticky-info {
+    padding: 0.6rem 1rem;
+  }
+
+  .watch-sticky-info h1 {
+    font-size: 1.1rem;
+  }
+
+  .watch-meta {
+    font-size: 0.75rem;
+  }
+
+  .watch-hero {
+    height: 28vh;
+  }
+
+  .watch-overlay p {
+    font-size: 0.82rem;
+  }
+
+  .source-buttons {
+    gap: 0.4rem;
+  }
+
+  .source-btn {
+    font-size: 0.78rem;
+    padding: 0.4rem 0.7rem;
+  }
+
+  /* Stack comment form vertically */
+  .comment-form {
+    flex-direction: column;
+  }
+
+  .comment-btn {
+    width: 100%;
+  }
+
+  .reaction-section {
+    gap: 0.8rem;
+  }
+
+  .reaction-btn {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.9rem;
+  }
+
+  .trailer-toggle {
+    width: 100%;
+    justify-content: center;
   }
 }
 
@@ -249,7 +291,6 @@
 /* MOBILE RESPONSIVE (375px) */
 @media (max-width: 375px) {
   .movie-section {
-    border: 1px solid red;
     display: flex;
     flex-wrap: wrap;
   }

@@ -427,14 +427,16 @@ export default function TVShowWatchPage() {
           {showTrailer ? <>Hide Trailer <FiChevronUp /></> : <>Watch Trailer <FiChevronDown /></>}
         </button>
         {showTrailer && trailerKey && (
-          <iframe
-            className="trailer-iframe"
-            src={`https://www.youtube.com/embed/${trailerKey}`}
-            title={`${show.name} Trailer`}
-            allowFullScreen
-            allow="autoplay; encrypted-media; fullscreen"
-            style={{ border: "none" }}
-          />
+          <div className="trailer-container">
+            <iframe
+              src={`https://www.youtube.com/embed/${trailerKey}`}
+              title={`${show.name} Trailer`}
+              allowFullScreen
+              allow="autoplay; encrypted-media; fullscreen"
+              className="trailer-iframe"
+              style={{ border: "none" }}
+            />
+          </div>
         )}
         {showTrailer && !trailerKey && <p className="no-trailer">Trailer not available.</p>}
       </div>
