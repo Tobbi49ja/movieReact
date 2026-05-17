@@ -16,7 +16,7 @@ export default function Animation() {
 
       <MoviesFetch
         title="Animation Movies"
-        apiUrl={`https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&language=en-US&with_genres=16&page=1`}
+        apiUrl={`https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&language=en-US&with_genres=16`}
       />
     </main>
   );

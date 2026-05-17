@@ -22,17 +22,17 @@ export default function Home() {
       {/* ✅ Movie Sections */}
       <MoviesFetch
         title="Now Playing"
-        apiUrl={`https://api.themoviedb.org/3/movie/now_playing?api_key=${API_KEY}&language=en-US&page=1`}
+        apiUrl={`https://api.themoviedb.org/3/movie/now_playing?api_key=${API_KEY}&language=en-US`}
       />
 
       <MoviesFetch
         title="Popular Movies"
-        apiUrl={`https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}&language=en-US&page=1`}
+        apiUrl={`https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}&language=en-US`}
       />
 
       <MoviesFetch
         title="Top Rated"
-        apiUrl={`https://api.themoviedb.org/3/movie/top_rated?api_key=${API_KEY}&language=en-US&page=1`}
+        apiUrl={`https://api.themoviedb.org/3/movie/top_rated?api_key=${API_KEY}&language=en-US`}
       />
     </main>
   );

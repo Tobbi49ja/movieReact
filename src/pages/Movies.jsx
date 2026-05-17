@@ -21,19 +21,19 @@ export default function Movies() {
       {/* Popular Movies */}
       <MoviesFetch
         title="Popular Movies"
-        apiUrl={`https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}&language=en-US&page=1`}
+        apiUrl={`https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}&language=en-US`}
       />
 
       {/* Top Rated Movies */}
       <MoviesFetch
         title="Top Rated Movies"
-        apiUrl={`https://api.themoviedb.org/3/movie/top_rated?api_key=${API_KEY}&language=en-US&page=1`}
+        apiUrl={`https://api.themoviedb.org/3/movie/top_rated?api_key=${API_KEY}&language=en-US`}
       />
 
       {/* Upcoming Movies */}
       <MoviesFetch
         title="Upcoming Movies"
-        apiUrl={`https://api.themoviedb.org/3/movie/upcoming?api_key=${API_KEY}&language=en-US&page=1`}
+        apiUrl={`https://api.themoviedb.org/3/movie/upcoming?api_key=${API_KEY}&language=en-US`}
       />
     </main>
   );

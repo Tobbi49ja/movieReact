@@ -20,19 +20,19 @@ export default function TvShows() {
       {/* Airing Today */}
       <MoviesFetch
         title="Airing Today"
-        apiUrl={`https://api.themoviedb.org/3/tv/airing_today?api_key=${API_KEY}&language=en-US&page=1`}
+        apiUrl={`https://api.themoviedb.org/3/tv/airing_today?api_key=${API_KEY}&language=en-US`}
       />
 
       {/* Popular TV Shows */}
       <MoviesFetch
         title="Popular TV Shows"
-        apiUrl={`https://api.themoviedb.org/3/tv/popular?api_key=${API_KEY}&language=en-US&page=1`}
+        apiUrl={`https://api.themoviedb.org/3/tv/popular?api_key=${API_KEY}&language=en-US`}
       />
 
       {/* Top Rated TV Shows */}
       <MoviesFetch
         title="Top Rated TV Shows"
-        apiUrl={`https://api.themoviedb.org/3/tv/top_rated?api_key=${API_KEY}&language=en-US&page=1`}
+        apiUrl={`https://api.themoviedb.org/3/tv/top_rated?api_key=${API_KEY}&language=en-US`}
       />
     </main>
   );

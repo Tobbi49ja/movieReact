@@ -11,7 +11,9 @@ export default function MoviesFetch({ title, apiUrl }) {
   const loadMovies = async (pageNum) => {
     try {
       setLoading(true);
-      const res = await fetch(`${apiUrl}&page=${pageNum}`);
+      const url = new URL(apiUrl);
+      url.searchParams.set("page", pageNum);
+      const res = await fetch(url.toString());
       if (!res.ok) throw new Error("Network response was not ok");
       const data = await res.json();
 

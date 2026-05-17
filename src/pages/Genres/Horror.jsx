@@ -16,7 +16,7 @@ export default function Horror() {
 
       <MoviesFetch
         title="Horror Movies"
-        apiUrl={`https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&language=en-US&with_genres=27&page=1`}
+        apiUrl={`https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&language=en-US&with_genres=27`}
       />
     </main>
   );
