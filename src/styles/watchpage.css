@@ -128,6 +128,14 @@
   border-color: #ff4c29;
 }
 
+/* Player Actions (Fullscreen & Download) */
+.player-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
 /* Fullscreen button */
 .fullscreen-btn {
   display: inline-flex;
@@ -141,12 +149,30 @@
   font-size: 0.88rem;
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s;
-  margin-bottom: 1.5rem;
 }
 
 .fullscreen-btn:hover {
   background: #ff4c29;
   border-color: #ff4c29;
+}
+
+/* Download button */
+.download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #ff4c29;
+  color: #fff;
+  text-decoration: none;
+  padding: 0.45rem 1rem;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.download-btn:hover {
+  background: #e8431e;
 }
 
 /* Trailer Section */
@@ -290,4 +316,287 @@
 .no-comments {
   text-align: center;
   color: #666;
+}
+
+/* ==========================================================================
+   MovieBox Download Modal
+   ========================================================================== */
+.download-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.download-modal-content {
+  background: #141417;
+  border: 1px solid #2b2b36;
+  width: 100%;
+  max-width: 620px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 16px;
+  padding: 1.5rem;
+  color: #fff;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
+}
+
+.download-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid #242430;
+  padding-bottom: 1rem;
+  margin-bottom: 1.2rem;
+}
+
+.download-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.modal-header-icon {
+  font-size: 1.8rem;
+  color: #ff4c29;
+  flex-shrink: 0;
+}
+
+.download-modal-header h3 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 0;
+  color: #fff;
+}
+
+.download-subtitle {
+  font-size: 0.88rem;
+  color: #a0a0ab;
+  margin-top: 0.2rem;
+}
+
+.tv-download-tag {
+  color: #ff4c29;
+  font-weight: 600;
+}
+
+.download-modal-close {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 1.4rem;
+  cursor: pointer;
+  padding: 0.2rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s, background 0.2s;
+}
+
+.download-modal-close:hover {
+  color: #fff;
+  background: #252530;
+}
+
+/* Quality Pills */
+.download-qualities-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.2rem;
+}
+
+.quality-pill {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.3rem 0.7rem;
+  border-radius: 20px;
+}
+
+.q-1080 {
+  background: rgba(255, 76, 41, 0.15);
+  color: #ff4c29;
+  border: 1px solid rgba(255, 76, 41, 0.4);
+}
+
+.q-720 {
+  background: rgba(41, 121, 255, 0.15);
+  color: #2979ff;
+  border: 1px solid rgba(41, 121, 255, 0.4);
+}
+
+.q-480 {
+  background: rgba(76, 175, 80, 0.15);
+  color: #4caf50;
+  border: 1px solid rgba(76, 175, 80, 0.4);
+}
+
+.q-multi {
+  background: rgba(156, 39, 176, 0.15);
+  color: #ba68c8;
+  border: 1px solid rgba(156, 39, 176, 0.4);
+}
+
+/* Server Cards */
+.download-servers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  margin-bottom: 1.2rem;
+}
+
+.download-server-card {
+  background: #1c1c22;
+  border: 1px solid #282834;
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.download-server-card:hover {
+  border-color: #ff4c29;
+  background: #22222a;
+}
+
+.server-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.server-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.server-icon {
+  color: #ff4c29;
+  font-size: 1.1rem;
+}
+
+.server-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+.server-badge {
+  font-size: 0.7rem;
+  background: #ff4c29;
+  color: #fff;
+  border-radius: 4px;
+  padding: 0.15rem 0.4rem;
+  font-weight: 600;
+}
+
+.server-details {
+  font-size: 0.8rem;
+  color: #888899;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.server-details .bullet {
+  color: #555;
+}
+
+.server-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.server-download-btn {
+  background: #ff4c29;
+  color: #fff;
+  text-decoration: none;
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition: background 0.2s;
+}
+
+.server-download-btn:hover {
+  background: #e8431e;
+}
+
+.server-copy-btn {
+  background: #282834;
+  color: #ccc;
+  border: none;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+
+.server-copy-btn:hover {
+  background: #363646;
+  color: #fff;
+}
+
+.copied-icon {
+  color: #4caf50;
+}
+
+/* Modal Footer */
+.download-modal-footer {
+  background: #18181f;
+  border-radius: 10px;
+  padding: 0.8rem 1rem;
+  border: 1px solid #242430;
+}
+
+.download-tip {
+  font-size: 0.8rem;
+  color: #a0a0b0;
+  margin: 0;
+  line-height: 1.5;
+}
+
+@media (max-width: 550px) {
+  .download-server-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .server-actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+  }
 }

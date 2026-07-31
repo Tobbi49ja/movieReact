@@ -10,16 +10,18 @@ import {
   FiThumbsUp,
   FiThumbsDown,
   FiMaximize,
+  FiDownload,
 } from "react-icons/fi";
 import SEOHelmet from "../components/seo/SEOHelmet";
 import AdNoticeMarquee from "../components/AdNoticeMarquee";
 import VPNBanner from "../components/VPNBanner";
+import DownloadModal from "../components/DownloadModal";
 
 // -----------------------------
 // Dynamic backend URL
 // -----------------------------
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ||
-  (import.meta.env.DEV ? "http://localhost:5000" : "https://moviereact-backend.onrender.com");
+  (import.meta.env.DEV ? "http://localhost:5000" : "https://moviereact-zzye.onrender.com");
 
 export default function WatchPage() {
   const { id } = useParams();
@@ -34,6 +36,7 @@ export default function WatchPage() {
   const [newComment, setNewComment] = useState("");
   const [currentSource, setCurrentSource] = useState("");
   const [deviceType, setDeviceType] = useState("");
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
 
   const socketRef = useRef(null);
   const trailerRef = useRef(null);
@@ -51,17 +54,20 @@ export default function WatchPage() {
   };
 
   // -----------------------------
-  // Detect device type
+  // Detect device type (persisted in localStorage)
   // -----------------------------
   useEffect(() => {
-    const ua = navigator.userAgent.toLowerCase();
-    if (ua.includes("android"))
-      setDeviceType("android_user_" + Math.floor(Math.random() * 1000));
-    else if (ua.includes("iphone"))
-      setDeviceType("iphone_user_" + Math.floor(Math.random() * 1000));
-    else if (ua.includes("samsung"))
-      setDeviceType("samsung_user_" + Math.floor(Math.random() * 1000));
-    else setDeviceType("user_" + Math.floor(Math.random() * 1000));
+    let storedName = localStorage.getItem("tobbihub_username");
+    if (!storedName) {
+      const ua = navigator.userAgent.toLowerCase();
+      let prefix = "user";
+      if (ua.includes("android")) prefix = "android_user";
+      else if (ua.includes("iphone")) prefix = "iphone_user";
+      else if (ua.includes("samsung")) prefix = "samsung_user";
+      storedName = `${prefix}_${Math.floor(Math.random() * 9000 + 1000)}`;
+      localStorage.setItem("tobbihub_username", storedName);
+    }
+    setDeviceType(storedName);
   }, []);
 
   // -----------------------------
@@ -289,9 +295,18 @@ export default function WatchPage() {
             style={{ border: "none" }}
           />
         </div>
-        <button className="fullscreen-btn" onClick={handleFullscreen} aria-label="Fullscreen">
-          <FiMaximize /> Fullscreen
-        </button>
+        <div className="player-actions">
+          <button className="fullscreen-btn" onClick={handleFullscreen} aria-label="Fullscreen">
+            <FiMaximize /> Fullscreen
+          </button>
+          <button
+            className="download-btn"
+            onClick={() => setIsDownloadModalOpen(true)}
+            aria-label="Open download options"
+          >
+            <FiDownload /> Download
+          </button>
+        </div>
       </div>
 
       <VPNBanner />
@@ -374,6 +389,15 @@ export default function WatchPage() {
           )}
         </div>
       </section>
+
+      {/* MovieBox Download Modal */}
+      <DownloadModal
+        isOpen={isDownloadModalOpen}
+        onClose={() => setIsDownloadModalOpen(false)}
+        itemTitle={movie.title}
+        type="movie"
+        tmdbId={id}
+      />
     </main>
   );
 }
