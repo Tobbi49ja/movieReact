@@ -21,7 +21,7 @@ import DownloadModal from "../components/DownloadModal";
 // Dynamic backend URL
 // -----------------------------
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ||
-  (import.meta.env.DEV ? "http://localhost:5000" : "https://moviereact-zzye.onrender.com");
+  (import.meta.env.DEV ? "http://localhost:3001" : "https://moviereact-zzye.onrender.com");
 
 export default function WatchPage() {
   const { id } = useParams();
@@ -86,10 +86,11 @@ export default function WatchPage() {
         ]);
 
         const data = await res.json();
-        const videos = await videosRes.json();
+        const videosData = await videosRes.json();
         setMovie(data);
 
-        const trailer = videos.results?.find(
+        const videos = Array.isArray(videosData?.results) ? videosData.results : [];
+        const trailer = videos.find(
           (vid) => vid.type === "Trailer" && vid.site === "YouTube"
         );
         if (trailer) setTrailerKey(trailer.key);
@@ -111,7 +112,8 @@ export default function WatchPage() {
     const fetchComments = async () => {
       try {
         const res = await axios.get(`${BACKEND_URL}/api/comments/movie/${id}`);
-        setComments(res.data.reverse());
+        const list = Array.isArray(res.data) ? res.data : [];
+        setComments([...list].reverse());
       } catch (err) {
         console.error("Error loading comments:", err);
       }
@@ -289,7 +291,6 @@ export default function WatchPage() {
             key={currentSource}
             src={currentSource}
             title="Movie Player"
-            allowFullScreen
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             referrerPolicy="no-referrer-when-downgrade"
             style={{ border: "none" }}
@@ -343,7 +344,6 @@ export default function WatchPage() {
             <iframe
               src={`https://www.youtube.com/embed/${trailerKey}`}
               title={`${movie.title} trailer`}
-              allowFullScreen
               allow="autoplay; encrypted-media; fullscreen"
               className="trailer-iframe"
               style={{ border: "none" }}

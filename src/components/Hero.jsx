@@ -21,7 +21,9 @@ export default function Hero() {
           `https://api.themoviedb.org/3/movie/now_playing?api_key=${apiKey}&language=en-US&page=1`
         );
         const data = await res.json();
-        const topMovies = data.results.slice(0, 5);
+        const topMovies = Array.isArray(data?.results)
+          ? data.results.slice(0, 5)
+          : [];
 
 
         const moviesWithTrailers = await Promise.all(
@@ -30,7 +32,10 @@ export default function Hero() {
               `https://api.themoviedb.org/3/movie/${movie.id}/videos?api_key=${apiKey}&language=en-US`
             );
             const trailerData = await trailerRes.json();
-            const trailer = trailerData.results.find(
+            const videos = Array.isArray(trailerData?.results)
+              ? trailerData.results
+              : [];
+            const trailer = videos.find(
               (vid) => vid.type === "Trailer" && vid.site === "YouTube"
             );
             return { ...movie, trailerKey: trailer ? trailer.key : null };
@@ -71,7 +76,7 @@ export default function Hero() {
         className="hero-swiper"
         a11y={{ prevSlideMessage: "Previous movie", nextSlideMessage: "Next movie" }}
       >
-        {movies.map((movie, index) => (
+        {(Array.isArray(movies) ? movies : []).map((movie, index) => (
           <SwiperSlide key={movie.id}>
             <div className="hero-slide">
 

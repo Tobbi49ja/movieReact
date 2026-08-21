@@ -5,7 +5,7 @@ export default function MoviesSection({ title, movies }) {
     <>
       <h1>{title}</h1>
       <section className="movie-section">
-        {movies.map((movie, index) => (
+        {(Array.isArray(movies) ? movies : []).map((movie, index) => (
           <MovieCard
             key={index}
             title={movie.title}

@@ -54,10 +54,10 @@ export default function SearchResults() {
           tvRes.json(),
         ]);
 
-        const movies = (movieData.results || [])
+        const movies = (Array.isArray(movieData?.results) ? movieData.results : [])
           .map((m) => ({ ...m, media_type: "movie" }));
 
-        const shows = (tvData.results || [])
+        const shows = (Array.isArray(tvData?.results) ? tvData.results : [])
           .map((t) => ({ ...t, media_type: "tv" }));
 
         // Sort by popularity (TMDB provides a popularity score)
@@ -84,7 +84,7 @@ export default function SearchResults() {
     setQuery(inputValue.trim());
   };
 
-  const filtered = results.filter((r) => {
+  const filtered = (Array.isArray(results) ? results : []).filter((r) => {
     if (filter === "Movies") return r.media_type === "movie";
     if (filter === "TV Shows") return r.media_type === "tv";
     return true;

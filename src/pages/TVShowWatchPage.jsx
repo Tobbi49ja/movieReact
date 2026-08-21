@@ -21,7 +21,7 @@ import DownloadModal from "../components/DownloadModal";
 // Dynamic backend URL
 // -----------------------------
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ||
-  (import.meta.env.DEV ? "http://localhost:5000" : "https://moviereact-zzye.onrender.com");
+  (import.meta.env.DEV ? "http://localhost:3001" : "https://moviereact-zzye.onrender.com");
 
 export default function TVShowWatchPage() {
   const { id } = useParams();
@@ -95,10 +95,12 @@ export default function TVShowWatchPage() {
         const videoData = await videosRes.json();
 
         setShow(showData);
-        setSeasons(showData.seasons || []);
-        setSelectedSeason(showData.seasons?.[0]?.season_number || 1);
+        const seasonList = Array.isArray(showData?.seasons) ? showData.seasons : [];
+        setSeasons(seasonList);
+        setSelectedSeason(seasonList[0]?.season_number || 1);
 
-        const trailer = videoData.results?.find(
+        const videos = Array.isArray(videoData?.results) ? videoData.results : [];
+        const trailer = videos.find(
           (vid) => vid.type === "Trailer" && vid.site === "YouTube"
         );
         if (trailer) setTrailerKey(trailer.key);
@@ -120,11 +122,12 @@ export default function TVShowWatchPage() {
           `https://api.themoviedb.org/3/tv/${id}/season/${selectedSeason}?api_key=${API_KEY}&language=en-US`
         );
         const data = await res.json();
-        setEpisodes(data.episodes || []);
-        setSelectedEpisode(data.episodes?.[0] || null);
+        const episodeList = Array.isArray(data?.episodes) ? data.episodes : [];
+        setEpisodes(episodeList);
+        setSelectedEpisode(episodeList[0] || null);
 
-        if (data.episodes?.[0]) {
-          const firstEp = data.episodes[0];
+        if (episodeList[0]) {
+          const firstEp = episodeList[0];
           const firstSource = Object.values(
             sources(selectedSeason, firstEp.episode_number)
           )[0];
@@ -346,7 +349,6 @@ export default function TVShowWatchPage() {
               key={currentSource}
               src={currentSource}
               title={selectedEpisode ? `S${selectedSeason} E${selectedEpisode.episode_number} - ${selectedEpisode.name}` : "TV Player"}
-              allowFullScreen
               allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
               referrerPolicy="no-referrer-when-downgrade"
               style={{ border: "none" }}
@@ -388,7 +390,7 @@ export default function TVShowWatchPage() {
               }}
               aria-label="Select TV show season"
             >
-              {seasons.map((season) => (
+              {(Array.isArray(seasons) ? seasons : []).map((season) => (
                 <option key={season.id} value={season.season_number}>
                   {season.name}
                 </option>
@@ -413,7 +415,7 @@ export default function TVShowWatchPage() {
         {/* Collapsible episode list */}
         {showEpisodePanel && (
           <ul className="episode-list" id="episode-list" role="listbox" aria-label="Episodes">
-            {episodes.map((ep) => (
+            {(Array.isArray(episodes) ? episodes : []).map((ep) => (
               <li
                 key={ep.id}
                 role="option"
@@ -464,7 +466,6 @@ export default function TVShowWatchPage() {
             <iframe
               src={`https://www.youtube.com/embed/${trailerKey}`}
               title={`${show.name} Trailer`}
-              allowFullScreen
               allow="autoplay; encrypted-media; fullscreen"
               className="trailer-iframe"
               style={{ border: "none" }}

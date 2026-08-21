@@ -17,7 +17,9 @@ export default function MoviesFetch({ title, apiUrl }) {
       if (!res.ok) throw new Error("Network response was not ok");
       const data = await res.json();
 
-      const filtered = data.results?.filter(
+      const results = Array.isArray(data?.results) ? data.results : [];
+
+      const filtered = results.filter(
         (item) => (item.title || item.name) && item.poster_path
       );
 
@@ -54,7 +56,7 @@ export default function MoviesFetch({ title, apiUrl }) {
       <h2 className="section-title">{title}</h2>
 
       <div className="movies-grid">
-        {movies.map((movie) => (
+        {(Array.isArray(movies) ? movies : []).map((movie) => (
           <MovieCard
             key={movie.id}
             id={movie.id}
