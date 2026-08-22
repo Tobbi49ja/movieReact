@@ -89,6 +89,34 @@ export default function Navbar() {
     closeMenu();
   };
 
+  // Auth controls — rendered inline on desktop, inside the drawer on mobile
+  const authContent = user ? (
+    <>
+      <Link to="/watchlist" className="nav-user" onClick={() => handleNavClick("/watchlist")} aria-label="My watchlist">
+        {user.avatar ? (
+          <img src={user.avatar} alt={user.name} className="nav-avatar" />
+        ) : (
+          <span className="nav-avatar nav-avatar-initial">
+            {user.name?.charAt(0).toUpperCase()}
+          </span>
+        )}
+        <span className="nav-user-name">{user.name}</span>
+      </Link>
+      <button className="nav-logout-btn" onClick={handleLogout} aria-label="Logout">
+        Logout
+      </button>
+    </>
+  ) : (
+    <>
+      <Link to="/login" className="nav-auth-link" onClick={closeMenu}>
+        Login
+      </Link>
+      <Link to="/register" className="nav-auth-link nav-auth-register" onClick={closeMenu}>
+        Register
+      </Link>
+    </>
+  );
+
   return (
     <header className={scrolled ? "navbar scrolled" : "navbar"} role="banner">
       <div className="logo-container">
@@ -172,6 +200,9 @@ export default function Navbar() {
             />
           </form>
         )}
+
+        {/* Mobile auth */}
+        <div className="navbar-auth drawer-auth">{authContent}</div>
       </nav>
 
       {/* Desktop search */}
@@ -188,35 +219,8 @@ export default function Navbar() {
         </form>
       )}
 
-      {/* Auth section */}
-      <div className="navbar-auth">
-        {user ? (
-          <>
-            <Link to="/watchlist" className="nav-user" onClick={() => handleNavClick("/watchlist")} aria-label="My watchlist">
-              {user.avatar ? (
-                <img src={user.avatar} alt={user.name} className="nav-avatar" />
-              ) : (
-                <span className="nav-avatar nav-avatar-initial">
-                  {user.name?.charAt(0).toUpperCase()}
-                </span>
-              )}
-              <span className="nav-user-name">{user.name}</span>
-            </Link>
-            <button className="nav-logout-btn" onClick={handleLogout} aria-label="Logout">
-              Logout
-            </button>
-          </>
-        ) : (
-          <>
-            <Link to="/login" className="nav-auth-link" onClick={closeMenu}>
-              Login
-            </Link>
-            <Link to="/register" className="nav-auth-link nav-auth-register" onClick={closeMenu}>
-              Register
-            </Link>
-          </>
-        )}
-      </div>
+   
+      <div className="navbar-auth">{authContent}</div>
 
       <button
         className={`hamburger ${navOpen ? "active" : ""}`}

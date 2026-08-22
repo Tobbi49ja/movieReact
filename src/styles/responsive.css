@@ -17,7 +17,7 @@
     position: fixed;
     top: 0;
     left: -100%;
-    width: 50%;
+    width: 75%;
     background-color: rgba(0, 0, 0, 0.8);
     flex-direction: column;
     justify-content: center;
@@ -25,6 +25,28 @@
     padding: 20px;
     transition: left 0.4s ease;
     z-index: 1001;
+  }
+
+  /* Hide inline auth controls — they live in the drawer on mobile */
+  header .navbar-auth:not(.drawer-auth) {
+    display: none;
+  }
+
+  /* Auth controls inside the drawer */
+  .drawer-auth {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    margin-top: 2rem;
+  }
+
+  .drawer-auth .nav-user {
+    color: white;
+  }
+
+  .drawer-auth .nav-auth-link {
+    font-size: 1rem;
+    padding: 8px 18px;
   }
 
   nav ul {
