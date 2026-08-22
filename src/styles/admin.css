@@ -1,0 +1,188 @@
+/* =========================================
+   Admin Panel
+   ========================================= */
+.admin-page {
+  min-height: 70vh;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 0 1rem 1.5rem;
+  justify-content: center;
+}
+
+.admin-tab {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #aaa;
+  background: transparent;
+  border: 1px solid #333;
+  border-radius: 20px;
+  padding: 8px 22px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.admin-tab:hover {
+  border-color: #e50914;
+  color: white;
+}
+
+.admin-tab.active {
+  background: linear-gradient(90deg, #e50914, #b00510);
+  border-color: transparent;
+  color: white;
+}
+
+.admin-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  padding: 0 1rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.stat-card {
+  background: #0d0d0d;
+  border: 1px solid rgba(229, 9, 20, 0.35);
+  border-radius: 12px;
+  padding: 1.4rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  background: linear-gradient(90deg, #e50914, #8000ff, #00ffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.stat-label {
+  color: #bbb;
+  font-size: 0.9rem;
+}
+
+.admin-section {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #0d0d0d;
+  border: 1px solid #222;
+  border-radius: 12px;
+  overflow: hidden;
+  font-size: 0.92rem;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid #1c1c1c;
+}
+
+.admin-table th {
+  color: #e50914;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  letter-spacing: 0.5px;
+  background: #111;
+}
+
+.admin-table tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table tbody tr:hover {
+  background: rgba(229, 9, 20, 0.06);
+}
+
+.comment-cell {
+  max-width: 380px;
+  color: #ccc;
+}
+
+.role-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: #1a1a1a;
+  color: #bbb;
+  border: 1px solid #333;
+}
+
+.role-admin {
+  color: #ffd700;
+  border-color: rgba(255, 215, 0, 0.5);
+}
+
+.role-comment {
+  color: #00ffff;
+  border-color: rgba(0, 255, 255, 0.35);
+}
+
+.admin-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.admin-btn {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: white;
+  background: transparent;
+  border: 1px solid #e50914;
+  border-radius: 14px;
+  padding: 4px 14px;
+  cursor: pointer;
+  transition: 0.3s;
+  white-space: nowrap;
+}
+
+.admin-btn:hover:not(:disabled) {
+  background: #e50914;
+  color: white;
+}
+
+.admin-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.admin-btn-danger {
+  border-color: #ff4d4d;
+  color: #ff4d4d;
+}
+
+.admin-btn-danger:hover:not(:disabled) {
+  background: #ff4d4d;
+  color: white;
+}
+
+.admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 1.2rem 0;
+  color: #aaa;
+  font-size: 0.9rem;
+}

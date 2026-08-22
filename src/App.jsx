@@ -1,4 +1,5 @@
 import { Routes, Route } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
@@ -10,12 +11,7 @@ import useScrollGlow from "./hooks/useScrollGlow";
 import Home from "./pages/Home";
 import Movies from "./pages/Movies";
 import TvShows from "./pages/TvShows";
-import Animation from "./pages/Genres/Animation";
-import Action from "./pages/Genres/Action";
-import Comedy from "./pages/Genres/Comedy";
-import Drama from "./pages/Genres/Drama";
-import Horror from "./pages/Genres/Horror";
-import Anime from "./pages/Genres/Anime";
+import GenrePage from "./pages/Genres/GenrePage";
 import SearchResults from "./pages/SearchResults";
 import WatchPage from "./pages/WatchPage";
 import TVShowWatchPage from "./pages/TVShowWatchPage";
@@ -24,6 +20,10 @@ import Terms from "./pages/Terms";
 import Contact from "./pages/Contact";
 import About from "./pages/About";
 import ErrorPage from "./pages/ErrorPage";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Watchlist from "./pages/Watchlist";
+import AdminPanel from "./pages/Admin/AdminPanel";
 
 // SEO
 import SEOHelmet from "./components/seo/SEOHelmet";
@@ -40,6 +40,7 @@ function App() {
       />
 
       <ScrollToTop />
+      <Toaster position="top-center" toastOptions={{ style: { background: "#1a1a1a", color: "#fff" } }} />
       <Navbar />
 
       <Routes>
@@ -49,12 +50,7 @@ function App() {
         <Route path="/search" element={<SearchResults />} />
 
         {/* Genres */}
-        <Route path="/genres/action" element={<Action />} />
-        <Route path="/genres/animation" element={<Animation />} />
-        <Route path="/genres/comedy" element={<Comedy />} />
-        <Route path="/genres/drama" element={<Drama />} />
-        <Route path="/genres/horror" element={<Horror />} />
-        <Route path="/genres/anime" element={<Anime />} />
+        <Route path="/genres/:genre" element={<GenrePage />} />
 
         {/* Others */}
         <Route path="/sitemap" element={<Sitemap />} />
@@ -63,6 +59,14 @@ function App() {
         <Route path="/about" element={<About />} />
         <Route path="/watch/:id" element={<WatchPage />} />
         <Route path="/tv/:id" element={<TVShowWatchPage />} />
+
+        {/* Auth */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/watchlist" element={<Watchlist />} />
+
+        {/* Admin */}
+        <Route path="/admin" element={<AdminPanel />} />
 
         {/* 404 */}
         <Route path="*" element={<ErrorPage />} />

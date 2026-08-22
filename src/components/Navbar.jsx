@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import toast from "react-hot-toast";
+import { useAuth } from "../context/AuthContext";
 
 export default function Navbar() {
   const [navOpen, setNavOpen] = useState(false);
@@ -10,6 +12,7 @@ export default function Navbar() {
 
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, logout } = useAuth();
 
   // Toggle mobile nav
   const toggleNav = () => setNavOpen(!navOpen);
@@ -78,6 +81,14 @@ export default function Navbar() {
     closeMenu();
   };
 
+  // Logout handler
+  const handleLogout = () => {
+    logout();
+    toast.success("Logged out");
+    navigate("/");
+    closeMenu();
+  };
+
   return (
     <header className={scrolled ? "navbar scrolled" : "navbar"} role="banner">
       <div className="logo-container">
@@ -103,6 +114,22 @@ export default function Navbar() {
               tv shows
             </Link>
           </li>
+
+          {user && (
+            <li role="none">
+              <Link to="/watchlist" onClick={() => handleNavClick("/watchlist")} role="menuitem">
+                watchlist
+              </Link>
+            </li>
+          )}
+
+          {user?.role === "admin" && (
+            <li role="none">
+              <Link to="/admin" onClick={() => handleNavClick("/admin")} role="menuitem">
+                admin
+              </Link>
+            </li>
+          )}
 
           {/* GENRES DROPDOWN */}
           <li className="relative genre-wrapper" role="none">
@@ -160,6 +187,36 @@ export default function Navbar() {
           />
         </form>
       )}
+
+      {/* Auth section */}
+      <div className="navbar-auth">
+        {user ? (
+          <>
+            <Link to="/watchlist" className="nav-user" onClick={() => handleNavClick("/watchlist")} aria-label="My watchlist">
+              {user.avatar ? (
+                <img src={user.avatar} alt={user.name} className="nav-avatar" />
+              ) : (
+                <span className="nav-avatar nav-avatar-initial">
+                  {user.name?.charAt(0).toUpperCase()}
+                </span>
+              )}
+              <span className="nav-user-name">{user.name}</span>
+            </Link>
+            <button className="nav-logout-btn" onClick={handleLogout} aria-label="Logout">
+              Logout
+            </button>
+          </>
+        ) : (
+          <>
+            <Link to="/login" className="nav-auth-link" onClick={closeMenu}>
+              Login
+            </Link>
+            <Link to="/register" className="nav-auth-link nav-auth-register" onClick={closeMenu}>
+              Register
+            </Link>
+          </>
+        )}
+      </div>
 
       <button
         className={`hamburger ${navOpen ? "active" : ""}`}

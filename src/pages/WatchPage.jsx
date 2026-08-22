@@ -16,6 +16,7 @@ import SEOHelmet from "../components/seo/SEOHelmet";
 import AdNoticeMarquee from "../components/AdNoticeMarquee";
 import VPNBanner from "../components/VPNBanner";
 import DownloadModal from "../components/DownloadModal";
+import StarRating from "../components/StarRating";
 
 // -----------------------------
 // Dynamic backend URL
@@ -333,6 +334,9 @@ export default function WatchPage() {
           <span>{dislikes} {userReaction === "dislike" ? "Disliked" : "Dislike"}</span>
         </button>
       </div>
+
+      {/* Star Rating */}
+      <StarRating tmdbId={id} mediaType="movie" />
 
       {/* Trailer Section */}
       <div className="watch-trailer" ref={trailerRef}>
