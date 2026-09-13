@@ -196,26 +196,29 @@ export default function Navbar() {
           </form>
         )}
 
-        {/* Mobile auth */}
-        <div className="navbar-auth drawer-auth">{authContent}</div>
-      </nav>
+{isMobile && (
+          <div className="navbar-auth drawer-auth">{authContent}</div>
+        )}
+        </nav>
 
-      {/* Desktop search */}
-      {!isMobile && (
-        <form className="search-box" onSubmit={handleSearch} role="search">
-          <input
-            className="input-search"
-            type="search"
-            placeholder="Search movies..."
-            aria-label="Search movies and TV shows"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </form>
-      )}
+        {/* Desktop search */}
+        {!isMobile && (
+          <form className="search-box" onSubmit={handleSearch} role="search">
+            <input
+              className="input-search"
+              type="search"
+              placeholder="Search movies..."
+              aria-label="Search movies and TV shows"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </form>
+        )}
 
-   
-      <div className="navbar-auth">{authContent}</div>
+        {/* Desktop auth — hidden on mobile to avoid duplicate controls */}
+        {!isMobile && (
+          <div className="navbar-auth">{authContent}</div>
+        )}
 
       <button
         className={`hamburger ${navOpen ? "active" : ""}`}

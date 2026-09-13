@@ -32,18 +32,8 @@ export default function DownloadModal({
     .replace(/\s+/g, "_");
 
   // Server targets pointing to Express proxy and fallback mirrors
+  // 2embed is the default (first) server — VidSrc is the fallback.
   const downloadServers = [
-    {
-      name: "Tobbihub Direct Proxy",
-      badge: "Direct MP4 Download",
-      quality: "1080p Full HD",
-      speed: "Ultra Fast",
-      sourceKey: "vidsrc",
-      proxyUrl: `${BACKEND_URL}/api/download/stream?tmdb=${tmdbId}&type=${type}&s=${season}&e=${episode}&source=vidsrc&filename=${encodeURIComponent(cleanFilename)}`,
-      externalUrl: isTv
-        ? `https://vidsrc.me/download/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`
-        : `https://vidsrc.me/download/movie?tmdb=${tmdbId}`,
-    },
     {
       name: "AutoEmbed HD Gateway",
       badge: "720p / 1080p",
@@ -54,6 +44,17 @@ export default function DownloadModal({
       externalUrl: isTv
         ? `https://www.2embed.cc/embedtv/${tmdbId}&s=${season}&e=${episode}`
         : `https://www.2embed.cc/embed/${tmdbId}`,
+    },
+    {
+      name: "Tobbihub Direct Proxy",
+      badge: "Direct MP4 Download",
+      quality: "1080p Full HD",
+      speed: "Ultra Fast",
+      sourceKey: "vidsrc",
+      proxyUrl: `${BACKEND_URL}/api/download/stream?tmdb=${tmdbId}&type=${type}&s=${season}&e=${episode}&source=vidsrc&filename=${encodeURIComponent(cleanFilename)}`,
+      externalUrl: isTv
+        ? `https://vidsrc.me/download/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`
+        : `https://vidsrc.me/download/movie?tmdb=${tmdbId}`,
     },
     {
       name: "MultiEmbed Mirror",
