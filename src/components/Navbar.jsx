@@ -107,14 +107,9 @@ export default function Navbar() {
       </button>
     </>
   ) : (
-    <>
-      <Link to="/login" className="nav-auth-link" onClick={closeMenu}>
-        Login
-      </Link>
-      <Link to="/register" className="nav-auth-link nav-auth-register" onClick={closeMenu}>
-        Register
-      </Link>
-    </>
+    <Link to="/login" className="nav-auth-link" onClick={closeMenu}>
+      Login
+    </Link>
   );
 
   return (
