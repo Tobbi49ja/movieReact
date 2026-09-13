@@ -38,7 +38,8 @@ export default function DownloadModal({
       badge: "Direct MP4 Download",
       quality: "1080p Full HD",
       speed: "Ultra Fast",
-      proxyUrl: `${BACKEND_URL}/api/download/proxy?tmdb=${tmdbId}&type=${type}&s=${season}&e=${episode}&filename=${encodeURIComponent(cleanFilename)}`,
+      sourceKey: "vidsrc",
+      proxyUrl: `${BACKEND_URL}/api/download/stream?tmdb=${tmdbId}&type=${type}&s=${season}&e=${episode}&source=vidsrc&filename=${encodeURIComponent(cleanFilename)}`,
       externalUrl: isTv
         ? `https://vidsrc.me/download/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`
         : `https://vidsrc.me/download/movie?tmdb=${tmdbId}`,
@@ -48,11 +49,8 @@ export default function DownloadModal({
       badge: "720p / 1080p",
       quality: "720p / 1080p",
       speed: "High Speed",
-      proxyUrl: `${BACKEND_URL}/api/download/proxy?url=${encodeURIComponent(
-        isTv
-          ? `https://www.2embed.cc/embedtv/${tmdbId}&s=${season}&e=${episode}`
-          : `https://www.2embed.cc/embed/${tmdbId}`
-      )}&filename=${encodeURIComponent(cleanFilename)}`,
+      sourceKey: "2embed",
+      proxyUrl: `${BACKEND_URL}/api/download/stream?tmdb=${tmdbId}&type=${type}&s=${season}&e=${episode}&source=2embed&filename=${encodeURIComponent(cleanFilename)}`,
       externalUrl: isTv
         ? `https://www.2embed.cc/embedtv/${tmdbId}&s=${season}&e=${episode}`
         : `https://www.2embed.cc/embed/${tmdbId}`,
@@ -62,11 +60,8 @@ export default function DownloadModal({
       badge: "Multi-Quality",
       quality: "1080p / 720p / 480p",
       speed: "Stable",
-      proxyUrl: `${BACKEND_URL}/api/download/proxy?url=${encodeURIComponent(
-        isTv
-          ? `https://multiembed.mov/direct-download?tmdb=${tmdbId}&s=${season}&e=${episode}`
-          : `https://multiembed.mov/direct-download?tmdb=${tmdbId}`
-      )}&filename=${encodeURIComponent(cleanFilename)}`,
+      sourceKey: "multiembed",
+      proxyUrl: `${BACKEND_URL}/api/download/stream?tmdb=${tmdbId}&type=${type}&s=${season}&e=${episode}&source=multiembed&filename=${encodeURIComponent(cleanFilename)}`,
       externalUrl: isTv
         ? `https://multiembed.mov/direct-download?tmdb=${tmdbId}&s=${season}&e=${episode}`
         : `https://multiembed.mov/direct-download?tmdb=${tmdbId}`,
@@ -76,11 +71,8 @@ export default function DownloadModal({
       badge: "Standard Mirror",
       quality: "720p HD",
       speed: "Standard",
-      proxyUrl: `${BACKEND_URL}/api/download/proxy?url=${encodeURIComponent(
-        isTv
-          ? `https://vidsrc.pro/embed/tv/${tmdbId}?season=${season}&episode=${episode}`
-          : `https://vidsrc.pro/embed/movie/${tmdbId}`
-      )}&filename=${encodeURIComponent(cleanFilename)}`,
+      sourceKey: "vidsrcpro",
+      proxyUrl: `${BACKEND_URL}/api/download/stream?tmdb=${tmdbId}&type=${type}&s=${season}&e=${episode}&source=vidsrcpro&filename=${encodeURIComponent(cleanFilename)}`,
       externalUrl: isTv
         ? `https://vidsrc.pro/embed/tv/${tmdbId}?season=${season}&episode=${episode}`
         : `https://vidsrc.pro/embed/movie/${tmdbId}`,
@@ -101,7 +93,7 @@ export default function DownloadModal({
 
     setTimeout(() => {
       setDownloadingIdx(null);
-    }, 3000);
+    }, 60000);
   };
 
   const handleCopyLink = (url, index) => {
@@ -195,6 +187,9 @@ export default function DownloadModal({
         <div className="download-modal-footer">
           <p className="download-tip">
             💡 <strong>MovieBox Tip:</strong> Click <strong>"Download MP4"</strong> to trigger direct binary downloading via Tobbihub's proxy server. For 3rd-party download apps (like IDM, 1DM, ADM), click the copy icon to copy the direct link.
+          </p>
+          <p className="download-note">
+            ⏱️ First download may take 15–30s while the stream resolves. Subsequent downloads are instant (cached for 30 min).
           </p>
         </div>
       </div>
