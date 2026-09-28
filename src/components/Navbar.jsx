@@ -8,7 +8,7 @@ export default function Navbar() {
   const [navOpen, setNavOpen] = useState(false);
   const [showGenres, setShowGenres] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
   const [scrolled, setScrolled] = useState(false);
 
   const navigate = useNavigate();
@@ -33,7 +33,7 @@ export default function Navbar() {
 
   // Detect window resize
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    const handleResize = () => setIsMobile(window.innerWidth <= 900);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
@@ -119,7 +119,9 @@ export default function Navbar() {
     position: "fixed",
     top: 0,
     left: 0,
-    width: "100vw",
+    right: 0,
+    bottom: 0,
+    width: "100%",
     height: "100vh",
     background: "#0a0a0a",
     zIndex: 9999,
@@ -128,6 +130,8 @@ export default function Navbar() {
     display: "flex",
     flexDirection: "column",
     gap: "8px",
+    margin: 0,
+    boxSizing: "border-box",
   } : {};
 
   const ulStyle = navOpen && isMobile ? {
