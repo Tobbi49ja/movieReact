@@ -114,7 +114,32 @@ export default function Navbar() {
     </Link>
   );
 
-return (
+  // Inline styles for mobile drawer — always win over CSS class rules
+  const drawerStyle = navOpen && isMobile ? {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100vw",
+    height: "100vh",
+    background: "#0a0a0a",
+    zIndex: 9999,
+    overflowY: "auto",
+    padding: "80px 20px 40px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+  } : {};
+
+  const ulStyle = navOpen && isMobile ? {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, 1fr)",
+    gap: "10px",
+    listStyle: "none",
+    padding: 0,
+    margin: 0,
+  } : {};
+
+  return (
     <header className={scrolled ? "navbar scrolled" : "navbar"} role="banner">
       <div className="logo-container">
         <Link to="/" onClick={() => handleNavClick("/")} aria-label="TobbiHub - Go to homepage">
@@ -127,8 +152,8 @@ return (
         <div className="nav-overlay" onClick={closeMenu} aria-hidden="true" />
       )}
 
-      <nav id="nav-menu" className={navOpen ? "active" : ""} aria-label="Main navigation">
-        <ul role="menubar">
+      <nav id="nav-menu" style={drawerStyle} className={navOpen ? "active" : ""} aria-label="Main navigation">
+        <ul role="menubar" style={ulStyle}>
           <li role="none">
             <Link to="/" onClick={() => handleNavClick("/")} role="menuitem">
               home
