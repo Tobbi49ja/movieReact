@@ -1,5 +1,5 @@
 import { Helmet } from "react-helmet-async";
-import { useContentMode } from "../context/ContentModeContext";
+import { useContentMode } from "../../context/ContentModeContext";
 
 const SITE_URL = "https://moviereact-zzye.onrender.com";
 
