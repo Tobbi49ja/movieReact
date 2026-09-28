@@ -38,12 +38,12 @@ header.navbar.scrolled {
   height: 100%;
 }
 
-nav {
+.navbar-drawer {
   flex: 1;
   margin-left: 40px;
 }
 
-nav ul {
+.navbar-drawer ul {
   display: flex;
   gap: 60px;
   list-style: none;
@@ -51,7 +51,7 @@ nav ul {
   justify-content: flex-start;
 }
 
-nav ul li a {
+.navbar-drawer ul li a {
   font-weight: 600;
   text-decoration: none;
   text-transform: capitalize;
@@ -59,7 +59,7 @@ nav ul li a {
   font-size: 1.1rem;
   transition: 0.4s;
 }
-nav ul li a:hover{
+.navbar-drawer ul li a:hover{
   color:  	 #ff4d4d;
 }
 

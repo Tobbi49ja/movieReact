@@ -156,7 +156,7 @@ export default function Navbar() {
         <div className="nav-overlay" onClick={closeMenu} aria-hidden="true" />
       )}
 
-      <nav id="nav-menu" style={drawerStyle} className={navOpen ? "active" : ""} aria-label="Main navigation">
+      <nav id="nav-menu" style={drawerStyle} className={navOpen ? "navbar-drawer active" : "navbar-drawer"} aria-label="Main navigation">
         <ul role="menubar" style={ulStyle}>
           <li role="none">
             <Link to="/" onClick={() => handleNavClick("/")} role="menuitem">
