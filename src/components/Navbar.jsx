@@ -8,13 +8,13 @@ export default function Navbar() {
   const [navOpen, setNavOpen] = useState(false);
   const [showGenres, setShowGenres] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [scrolled, setScrolled] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
-  const { mode, toggleMode } = useContentMode();
+  const { mode, setMode } = useContentMode();
 
   // Toggle mobile nav
   const toggleNav = () => setNavOpen(!navOpen);
@@ -33,7 +33,7 @@ export default function Navbar() {
 
   // Detect window resize
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 900);
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
@@ -114,8 +114,8 @@ export default function Navbar() {
     </Link>
   );
 
-  // Inline styles for mobile drawer — always win over CSS class rules
-  const drawerStyle = navOpen && isMobile ? {
+  // Inline styles for drawer — always win over CSS class rules
+  const drawerStyle = navOpen ? {
     position: "fixed",
     top: 0,
     left: 0,
@@ -134,17 +134,76 @@ export default function Navbar() {
     boxSizing: "border-box",
   } : {};
 
-  const ulStyle = navOpen && isMobile ? {
+  const ulStyle = navOpen ? {
     display: "grid",
     gridTemplateColumns: "repeat(2, 1fr)",
     gap: "10px",
     listStyle: "none",
     padding: 0,
     margin: 0,
+    width: "100%",
   } : {};
+
+  // Mode toggle button — inline styles, flags + text
+  const modeToggle = (
+    <div style={{
+      display: "flex",
+      background: "#1a1a2e",
+      borderRadius: "999px",
+      padding: "3px",
+      gap: "4px",
+      width: "fit-content",
+      margin: navOpen ? "16px auto" : "0 8px",
+    }}>
+      <button
+        onClick={() => setMode("hollywood")}
+        aria-label="Hollywood mode"
+        style={{
+          padding: "6px 12px",
+          borderRadius: "999px",
+          border: "none",
+          cursor: "pointer",
+          fontSize: "1rem",
+          background: mode === "hollywood" ? "#2563eb" : "transparent",
+          color: mode === "hollywood" ? "white" : "#aaa",
+          transition: "all 0.2s",
+        }}
+      >
+        🇺🇸 <span className="mode-label">Hollywood</span>
+      </button>
+      <button
+        onClick={() => setMode("nollywood")}
+        aria-label="Nollywood mode"
+        style={{
+          padding: "6px 12px",
+          borderRadius: "999px",
+          border: "none",
+          cursor: "pointer",
+          fontSize: "1rem",
+          background: mode === "nollywood" ? "#008751" : "transparent",
+          color: mode === "nollywood" ? "white" : "#aaa",
+          transition: "all 0.2s",
+        }}
+      >
+        🇳🇬 <span className="mode-label">Nollywood</span>
+      </button>
+    </div>
+  );
 
   return (
     <header className={scrolled ? "navbar scrolled" : "navbar"} role="banner">
+      <button
+        className={`hamburger ${navOpen ? "active" : ""}`}
+        onClick={toggleNav}
+        aria-label={navOpen ? "Close navigation menu" : "Open navigation menu"}
+        aria-expanded={navOpen}
+        aria-controls="nav-menu"
+      >
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+
       <div className="logo-container">
         <Link to="/" onClick={() => handleNavClick("/")} aria-label="TobbiHub - Go to homepage">
           <img src="/Logo.png" className="logo" alt="TobbiHub Logo" />
@@ -216,19 +275,10 @@ export default function Navbar() {
               <Link to="/genres/horror" onClick={() => handleNavClick("/genres/horror")} role="menuitem">Horror</Link>
             </div>
           </li>
-
-          {/* Content mode toggle — inside nav list for proper flex flow */}
-          <li role="none" className="nav-mode-toggle-wrapper">
-            <button
-              className={`content-mode-toggle mode-${mode}`}
-              onClick={toggleMode}
-              aria-label="Switch content mode"
-            >
-              <span className={mode === "hollywood" ? "mode-pill active" : "mode-pill"}>🇺🇸 Hollywood</span>
-              <span className={mode === "nollywood" ? "mode-pill active" : "mode-pill"}>🇳🇬 Nollywood</span>
-            </button>
-          </li>
         </ul>
+
+        {/* Mode toggle — inside drawer when open, full text on desktop */}
+        {navOpen && modeToggle}
 
         {/* Mobile search */}
         {isMobile && (
@@ -262,22 +312,13 @@ export default function Navbar() {
           </form>
         )}
 
-        {/* Desktop auth — hidden on mobile to avoid duplicate controls */}
+        {/* Desktop mode toggle */}
+        {!isMobile && modeToggle}
+
+{/* Desktop auth — hidden on mobile to avoid duplicate controls */}
         {!isMobile && (
           <div className="navbar-auth">{authContent}</div>
         )}
-
-        <button
-          className={`hamburger ${navOpen ? "active" : ""}`}
-          onClick={toggleNav}
-          aria-label={navOpen ? "Close navigation menu" : "Open navigation menu"}
-          aria-expanded={navOpen}
-          aria-controls="nav-menu"
-        >
-          <span></span>
-          <span></span>
-          <span></span>
-        </button>
       </header>
   );
 }
