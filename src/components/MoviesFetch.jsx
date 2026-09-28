@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import MovieCard from "./MovieCard";
 import Loader from "./Loader";
 
-export default function MoviesFetch({ title, apiUrl }) {
+export default function MoviesFetch({ title, apiUrl, source, modeSwitching }) {
   const [movies, setMovies] = useState([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -55,7 +55,7 @@ export default function MoviesFetch({ title, apiUrl }) {
     <section className="movies-section">
       <h2 className="section-title">{title}</h2>
 
-      <div className="movies-grid">
+      <div className={`movies-grid${modeSwitching ? " mode-switching" : ""}`}>
         {(Array.isArray(movies) ? movies : []).map((movie) => (
           <MovieCard
             key={movie.id}
@@ -68,6 +68,7 @@ export default function MoviesFetch({ title, apiUrl }) {
             }
             image={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
             mediaType={movie.media_type || (movie.title ? "movie" : "tv")}
+            source={source}
           />
         ))}
       </div>

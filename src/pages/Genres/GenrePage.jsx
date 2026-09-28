@@ -3,6 +3,7 @@ import MoviesFetch from "../../components/MoviesFetch";
 import SEOHelmet from "../../components/seo/SEOHelmet";
 import { GENRE_MAP } from "../../config/genres";
 import { TMDB_API_KEY, TMDB_BASE } from "../../config/api";
+import { useContentMode } from "../../context/ContentModeContext";
 
 const GENRE_DESCRIPTIONS = {
   action: "Explore the best and most thrilling action movies available on TobbiHub. Watch blockbusters, adventures, and adrenaline-pumping titles.",
@@ -13,17 +14,31 @@ const GENRE_DESCRIPTIONS = {
   anime: "Explore popular anime movies and TV shows from Japan. Watch trending and classic anime streaming on TobbiHub.",
 };
 
-const buildUrl = (genreKey, mediaType) => {
+const buildUrl = (genreKey, mediaType, nollywoodMode = false) => {
   const genre = GENRE_MAP[genreKey];
+  const params = new URLSearchParams();
+  params.set("api_key", TMDB_API_KEY);
+  params.set("language", "en-US");
+  params.set("sort_by", "popularity.desc");
+
   if (genre.language) {
-    return `${TMDB_BASE}/discover/${mediaType}?api_key=${TMDB_API_KEY}&language=en-US&with_original_language=${genre.language}&sort_by=popularity.desc`;
+    params.set("with_original_language", genre.language);
+  } else if (genre.id) {
+    params.set("with_genres", genre.id);
   }
-  return `${TMDB_BASE}/discover/${mediaType}?api_key=${TMDB_API_KEY}&language=en-US&with_genres=${genre.id}`;
+
+  if (nollywoodMode) {
+    params.set("with_origin_country", "NG");
+  }
+
+  return `${TMDB_BASE}/discover/${mediaType}?${params.toString()}`;
 };
 
 export default function GenrePage() {
   const { genre } = useParams();
   const genreConfig = GENRE_MAP[genre];
+  const { mode } = useContentMode();
+  const isNollywood = mode === "nollywood";
 
   // Unknown genre → 404 (hits App's catch-all ErrorPage route)
   if (!genreConfig) return <Navigate to="/404" replace />;
@@ -42,12 +57,12 @@ export default function GenrePage() {
 
         <MoviesFetch
           title="Popular Anime TV Shows"
-          apiUrl={buildUrl(genre, "tv")}
+          apiUrl={buildUrl(genre, "tv", isNollywood)}
         />
 
         <MoviesFetch
           title="Popular Anime Movies"
-          apiUrl={buildUrl(genre, "movie")}
+          apiUrl={buildUrl(genre, "movie", isNollywood)}
         />
       </main>
     );
@@ -61,7 +76,7 @@ export default function GenrePage() {
 
       <MoviesFetch
         title={genreConfig.label}
-        apiUrl={buildUrl(genre, genreConfig.mediaType)}
+        apiUrl={buildUrl(genre, genreConfig.mediaType, isNollywood)}
       />
     </main>
   );

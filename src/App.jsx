@@ -3,6 +3,7 @@ import { Toaster } from "react-hot-toast";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
+import { ContentModeProvider } from "./context/ContentModeContext";
 
 import useScrollGlow from "./hooks/useScrollGlow";
 
@@ -43,7 +44,8 @@ function App() {
       <Toaster position="top-center" toastOptions={{ style: { background: "#1a1a1a", color: "#fff" } }} />
       <Navbar />
 
-      <Routes>
+      <ContentModeProvider>
+        <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/movies" element={<Movies />} />
         <Route path="/tvshows" element={<TvShows />} />
@@ -68,9 +70,10 @@ function App() {
         {/* Admin */}
         <Route path="/admin" element={<AdminPanel />} />
 
-        {/* 404 */}
-        <Route path="*" element={<ErrorPage />} />
-      </Routes>
+{/* 404 */}
+          <Route path="*" element={<ErrorPage />} />
+        </Routes>
+      </ContentModeProvider>
 
       <Footer />
     </>

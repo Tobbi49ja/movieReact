@@ -2,15 +2,23 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import SEOHelmet from "../components/seo/SEOHelmet";
+import { useContentMode } from "../context/ContentModeContext";
 
 const TMDB_IMG = "https://image.tmdb.org/t/p/w342";
 const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
+
+const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL ||
+  (import.meta.env.DEV
+    ? "http://localhost:3001"
+    : "https://moviereact-zzye.onrender.com");
 
 const FILTERS = ["All", "Movies", "TV Shows"];
 
 export default function SearchResults() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { mode } = useContentMode();
 
   const [query, setQuery] = useState(location.state?.query || "");
   const [inputValue, setInputValue] = useState(location.state?.query || "");
@@ -38,34 +46,48 @@ export default function SearchResults() {
     const fetchResults = async () => {
       setLoading(true);
       try {
-        const [movieRes, tvRes] = await Promise.all([
-          fetch(
-            `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&include_adult=false`,
+        if (mode === "nollywood") {
+          const res = await fetch(
+            `${BACKEND_URL}/api/nollywood/search?q=${encodeURIComponent(query)}&page=1`,
             { signal: controller.signal }
-          ),
-          fetch(
-            `https://api.themoviedb.org/3/search/tv?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&include_adult=false`,
-            { signal: controller.signal }
-          ),
-        ]);
+          );
+          const data = await res.json();
+          const nollywood = (Array.isArray(data?.results) ? data.results : []).map((m) => ({
+            ...m,
+            media_type: "movie",
+            source: "nollywood",
+          }));
+          setResults(nollywood);
+        } else {
+          const [movieRes, tvRes] = await Promise.all([
+            fetch(
+              `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&include_adult=false`,
+              { signal: controller.signal }
+            ),
+            fetch(
+              `https://api.themoviedb.org/3/search/tv?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&include_adult=false`,
+              { signal: controller.signal }
+            ),
+          ]);
 
-        const [movieData, tvData] = await Promise.all([
-          movieRes.json(),
-          tvRes.json(),
-        ]);
+          const [movieData, tvData] = await Promise.all([
+            movieRes.json(),
+            tvRes.json(),
+          ]);
 
-        const movies = (Array.isArray(movieData?.results) ? movieData.results : [])
-          .map((m) => ({ ...m, media_type: "movie" }));
+          const movies = (Array.isArray(movieData?.results) ? movieData.results : [])
+            .map((m) => ({ ...m, media_type: "movie" }));
 
-        const shows = (Array.isArray(tvData?.results) ? tvData.results : [])
-          .map((t) => ({ ...t, media_type: "tv" }));
+          const shows = (Array.isArray(tvData?.results) ? tvData.results : [])
+            .map((t) => ({ ...t, media_type: "tv" }));
 
-        // Sort by popularity (TMDB provides a popularity score)
-        const combined = [...movies, ...shows].sort(
-          (a, b) => (b.popularity || 0) - (a.popularity || 0)
-        );
+          // Sort by popularity (TMDB provides a popularity score)
+          const combined = [...movies, ...shows].sort(
+            (a, b) => (b.popularity || 0) - (a.popularity || 0)
+          );
 
-        setResults(combined);
+          setResults(combined);
+        }
       } catch (err) {
         if (err.name !== "AbortError") console.error("Search error:", err);
       } finally {
@@ -75,7 +97,7 @@ export default function SearchResults() {
 
     fetchResults();
     return () => controller.abort();
-  }, [query]);
+  }, [query, mode]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -189,6 +211,9 @@ export default function SearchResults() {
                   <span className={`search-type-badge ${item.media_type}`}>
                     {item.media_type === "tv" ? "TV" : "Movie"}
                   </span>
+                  {item.source === "nollywood" && (
+                    <span className="source-badge nollywood">Nollywood</span>
+                  )}
                 </div>
                 <div className="search-card-info">
                   <h3 className="search-card-title">{title}</h3>

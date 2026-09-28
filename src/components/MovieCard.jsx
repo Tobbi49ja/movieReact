@@ -20,6 +20,7 @@ export default function MovieCard({
   quality,
   mediaType,
   showBookmark = true,
+  source,
 }) {
   const { user, token } = useAuth();
   const [inWatchlist, setInWatchlist] = useState(false);
@@ -104,6 +105,8 @@ export default function MovieCard({
           <img src={image} alt={displayTitle} loading="lazy" className="card" width="195" height="293" />
           {quality && <span className="quality-tag">{quality}</span>}
         </Link>
+
+        {source && <span className={`source-badge ${source === "Nollywood" ? "nollywood" : ""}`}>{source}</span>}
 
         {showBookmark && id && (
           <button

@@ -128,3 +128,64 @@ nav ul li a:hover{
 .relative {
   position: relative;
 }
+
+/* Content mode toggle */
+.content-mode-toggle {
+  display: flex;
+  background: #1a1a2e;
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+  border: none;
+  cursor: pointer;
+}
+
+.mode-pill {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  color: #e0e0e0;
+  white-space: nowrap;
+}
+
+.mode-hollywood .mode-pill.active {
+  background: #2563eb;
+  color: #fff;
+}
+
+.mode-nollywood .mode-pill.active {
+  background: #16a34a;
+  color: #fff;
+}
+
+/* Mobile — full width in nav drawer */
+@media (max-width: 768px) {
+  .content-mode-toggle {
+    width: 100%;
+    margin: 12px 0;
+    justify-content: center;
+  }
+  .mode-pill {
+    flex: 1;
+    text-align: center;
+    padding: 8px 0;
+  }
+}
+
+.mode-icon {
+  display: none;
+}
+
+/* Ultra-small screens — icon only */
+@media (max-width: 400px) {
+  .content-mode-toggle .mode-pill {
+    display: none;
+  }
+  .content-mode-toggle .mode-icon {
+    display: inline-block;
+    font-size: 1.2rem;
+    padding: 4px 12px;
+  }
+}

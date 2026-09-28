@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
+import { useContentMode } from "../context/ContentModeContext";
 
 export default function Navbar() {
   const [navOpen, setNavOpen] = useState(false);
@@ -13,6 +14,7 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { mode, toggleMode } = useContentMode();
 
   // Toggle mobile nav
   const toggleNav = () => setNavOpen(!navOpen);
@@ -182,6 +184,19 @@ export default function Navbar() {
           </li>
         </ul>
 
+        {/* Content mode toggle — mobile, inside nav drawer */}
+        {isMobile && (
+          <button
+            className={`content-mode-toggle mode-${mode}`}
+            onClick={toggleMode}
+            aria-label="Switch content mode"
+          >
+            <span className="mode-icon">{mode === "nollywood" ? "🎥 🇳🇬" : "🎬"}</span>
+            <span className={mode === "hollywood" ? "mode-pill active" : "mode-pill"}>🎬 Hollywood</span>
+            <span className={mode === "nollywood" ? "mode-pill active" : "mode-pill"}>🎥 Nollywood</span>
+          </button>
+        )}
+
         {/* Mobile search */}
         {isMobile && (
           <form className="search-box mobile-search" onSubmit={handleSearch} role="search">
@@ -200,6 +215,19 @@ export default function Navbar() {
           <div className="navbar-auth drawer-auth">{authContent}</div>
         )}
         </nav>
+
+        {/* Content mode toggle — desktop */}
+        {!isMobile && (
+          <button
+            className={`content-mode-toggle mode-${mode}`}
+            onClick={toggleMode}
+            aria-label="Switch content mode"
+          >
+            <span className="mode-icon">{mode === "nollywood" ? "🎥 🇳🇬" : "🎬"}</span>
+            <span className={mode === "hollywood" ? "mode-pill active" : "mode-pill"}>🎬 Hollywood</span>
+            <span className={mode === "nollywood" ? "mode-pill active" : "mode-pill"}>🎥 Nollywood</span>
+          </button>
+        )}
 
         {/* Desktop search */}
         {!isMobile && (

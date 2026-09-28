@@ -80,21 +80,37 @@ export default function DownloadModal({
     },
   ];
 
-  const handleStartDownload = (server, index) => {
+  const handleStartDownload = async (server, index) => {
     setDownloadingIdx(index);
     toast.success(`Starting download for ${formattedTitle}...`);
 
-    // Create an invisible anchor tag to trigger direct download prompt
-    const a = document.createElement("a");
-    a.href = server.proxyUrl;
-    a.download = `${cleanFilename}.mp4`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    try {
+      // Fetch the proxied stream as a blob — works cross-origin because the
+      // backend has CORS enabled. Anchor-tag download attributes are ignored
+      // for cross-origin URLs, so we use object URLs instead.
+      const res = await fetch(server.proxyUrl);
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
 
-    setTimeout(() => {
-      setDownloadingIdx(null);
-    }, 60000);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `${cleanFilename}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      // Revoke the object URL after a short delay so the blob can be freed
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
+    } catch (err) {
+      console.error("Download failed:", err);
+      toast.error(err.message || "Download failed — please try again");
+    } finally {
+      setTimeout(() => {
+        setDownloadingIdx(null);
+      }, 60000);
+    }
   };
 
   const handleCopyLink = (url, index) => {

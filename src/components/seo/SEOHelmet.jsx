@@ -1,11 +1,20 @@
 import { Helmet } from "react-helmet-async";
+import { useContentMode } from "../context/ContentModeContext";
 
 const SITE_URL = "https://moviereact-zzye.onrender.com";
 
 export default function SEOHelmet({ item, title, description, keywords, image, url }) {
+  const { mode } = useContentMode();
+
   const dynamicTitle = item
     ? item.title || item.name || "Tobbihub"
     : title || "Tobbihub";
+
+  const modePrefix = mode === "nollywood" ? "Nollywood | " : "";
+  const defaultTitle = `${modePrefix}Tobbihub - Watch Movies & TV Shows Online`;
+  const pageTitle = dynamicTitle !== "Tobbihub"
+    ? `${modePrefix}${dynamicTitle} | Tobbihub`
+    : defaultTitle;
 
   const dynamicDescription = item
     ? item.overview || "Stream the latest movies and TV shows on Tobbihub."
@@ -19,10 +28,7 @@ export default function SEOHelmet({ item, title, description, keywords, image, u
   const canonicalUrl = url || SITE_URL;
 
   const dynamicKeywords =
-    keywords || `${dynamicTitle}, ${item ? "movies, tv shows" : "streaming"}, Tobbihub, HD`;
-
-  const defaultTitle = "Tobbihub - Watch Movies & TV Shows Online";
-  const pageTitle = dynamicTitle !== "Tobbihub" ? `${dynamicTitle} | Tobbihub` : defaultTitle;
+    keywords || `${dynamicTitle}, ${item ? "movies, tv shows" : "streaming"}, Tobbihub, HD${mode === "nollywood" ? ", Nollywood, Nigerian movies" : ""}`;
 
   const schemaType = item
     ? item.first_air_date !== undefined ? "TVSeries" : "Movie"
