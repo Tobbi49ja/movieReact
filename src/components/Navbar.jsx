@@ -114,13 +114,18 @@ export default function Navbar() {
     </Link>
   );
 
-  return (
+return (
     <header className={scrolled ? "navbar scrolled" : "navbar"} role="banner">
       <div className="logo-container">
         <Link to="/" onClick={() => handleNavClick("/")} aria-label="TobbiHub - Go to homepage">
           <img src="/Logo.png" className="logo" alt="TobbiHub Logo" />
         </Link>
       </div>
+
+      {/* Close overlay — tap outside drawer to close */}
+      {navOpen && (
+        <div className="nav-overlay" onClick={closeMenu} aria-hidden="true" />
+      )}
 
       <nav id="nav-menu" className={navOpen ? "active" : ""} aria-label="Main navigation">
         <ul role="menubar">
@@ -233,17 +238,17 @@ export default function Navbar() {
           <div className="navbar-auth">{authContent}</div>
         )}
 
-      <button
-        className={`hamburger ${navOpen ? "active" : ""}`}
-        onClick={toggleNav}
-        aria-label={navOpen ? "Close navigation menu" : "Open navigation menu"}
-        aria-expanded={navOpen}
-        aria-controls="nav-menu"
-      >
-        <span></span>
-        <span></span>
-        <span></span>
-      </button>
-    </header>
+        <button
+          className={`hamburger ${navOpen ? "active" : ""}`}
+          onClick={toggleNav}
+          aria-label={navOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-expanded={navOpen}
+          aria-controls="nav-menu"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </header>
   );
 }
