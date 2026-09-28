@@ -32,51 +32,51 @@ import SEOHelmet from "./components/seo/SEOHelmet";
 function App() {
     useScrollGlow();
   return (
-    <>
-      {/* Global SEO defaults */}
-      <SEOHelmet
-        title="Tobbihub - Watch Free Movies & TV Shows Online"
-        description="Stream HD movies and TV shows for free on Tobbihub. No ads, no sign-up, just entertainment."
-        keywords="Tobbihub, free movies, watch TV shows online, HD streaming"
-      />
+    <ContentModeProvider>
+      <>
+        {/* Global SEO defaults */}
+        <SEOHelmet
+          title="Tobbihub - Watch Free Movies & TV Shows Online"
+          description="Stream HD movies and TV shows for free on Tobbihub. No ads, no sign-up, just entertainment."
+          keywords="Tobbihub, free movies, watch TV shows online, HD streaming"
+        />
 
-      <ScrollToTop />
-      <Toaster position="top-center" toastOptions={{ style: { background: "#1a1a1a", color: "#fff" } }} />
-      <Navbar />
+        <ScrollToTop />
+        <Toaster position="top-center" toastOptions={{ style: { background: "#1a1a1a", color: "#fff" } }} />
+        <Navbar />
 
-      <ContentModeProvider>
         <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/movies" element={<Movies />} />
-        <Route path="/tvshows" element={<TvShows />} />
-        <Route path="/search" element={<SearchResults />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/movies" element={<Movies />} />
+          <Route path="/tvshows" element={<TvShows />} />
+          <Route path="/search" element={<SearchResults />} />
 
-        {/* Genres */}
-        <Route path="/genres/:genre" element={<GenrePage />} />
+          {/* Genres */}
+          <Route path="/genres/:genre" element={<GenrePage />} />
 
-        {/* Others */}
-        <Route path="/sitemap" element={<Sitemap />} />
-        <Route path="/terms" element={<Terms />} />
-        <Route path="/contact" element={<Contact />} />
-        <Route path="/about" element={<About />} />
-        <Route path="/watch/:id" element={<WatchPage />} />
-        <Route path="/tv/:id" element={<TVShowWatchPage />} />
+          {/* Others */}
+          <Route path="/sitemap" element={<Sitemap />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/watch/:id" element={<WatchPage />} />
+          <Route path="/tv/:id" element={<TVShowWatchPage />} />
 
-        {/* Auth */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/watchlist" element={<Watchlist />} />
+          {/* Auth */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/watchlist" element={<Watchlist />} />
 
-        {/* Admin */}
-        <Route path="/admin" element={<AdminPanel />} />
+          {/* Admin */}
+          <Route path="/admin" element={<AdminPanel />} />
 
-{/* 404 */}
+          {/* 404 */}
           <Route path="*" element={<ErrorPage />} />
         </Routes>
-      </ContentModeProvider>
 
-      <Footer />
-    </>
+        <Footer />
+      </>
+    </ContentModeProvider>
   );
 }
 
