@@ -50,39 +50,42 @@ export default function Movies() {
       {/* Popular Movies */}
       <MoviesFetch
         key={`movies-popular-${mode}`}
-        title="Popular Movies"
+        title={mode === "nollywood" ? "🇳🇬 Nollywood Movies" : "Popular Movies"}
         apiUrl={
           mode === "nollywood"
             ? nollywoodUrl
             : `https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}&language=en-US`
         }
         source={mode === "nollywood" ? "Nollywood" : undefined}
+        mode={mode}
         modeSwitching={switching}
       />
 
       {/* Top Rated Movies */}
       <MoviesFetch
         key={`movies-toprated-${mode}`}
-        title="Top Rated Movies"
+        title={mode === "nollywood" ? "🇳🇬 Nollywood Movies" : "Top Rated Movies"}
         apiUrl={
           mode === "nollywood"
             ? nollywoodUrl
             : `https://api.themoviedb.org/3/movie/top_rated?api_key=${API_KEY}&language=en-US`
         }
         source={mode === "nollywood" ? "Nollywood" : undefined}
+        mode={mode}
         modeSwitching={switching}
       />
 
       {/* Upcoming Movies */}
       <MoviesFetch
         key={`movies-upcoming-${mode}`}
-        title="Upcoming Movies"
+        title={mode === "nollywood" ? "🇳🇬 Nollywood Movies" : "Upcoming Movies"}
         apiUrl={
           mode === "nollywood"
             ? nollywoodUrl
             : `https://api.themoviedb.org/3/movie/upcoming?api_key=${API_KEY}&language=en-US`
         }
         source={mode === "nollywood" ? "Nollywood" : undefined}
+        mode={mode}
         modeSwitching={switching}
       />
     </main>

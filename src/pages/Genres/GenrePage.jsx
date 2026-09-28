@@ -53,16 +53,18 @@ export default function GenrePage() {
       <main className="pulldown">
         <SEOHelmet title={title} description={description} url={url} />
 
-        <h1>{genreConfig.label}</h1>
+        <h1>{isNollywood ? `🇳🇬 Nollywood ${genreConfig.label}` : genreConfig.label}</h1>
 
         <MoviesFetch
           title="Popular Anime TV Shows"
           apiUrl={buildUrl(genre, "tv", isNollywood)}
+          mode={mode}
         />
 
         <MoviesFetch
           title="Popular Anime Movies"
           apiUrl={buildUrl(genre, "movie", isNollywood)}
+          mode={mode}
         />
       </main>
     );
@@ -72,11 +74,12 @@ export default function GenrePage() {
     <main className="pulldown">
       <SEOHelmet title={title} description={description} url={url} />
 
-      <h1>{genreConfig.label}</h1>
+      <h1>{isNollywood ? `🇳🇬 Nollywood ${genreConfig.label}` : genreConfig.label}</h1>
 
       <MoviesFetch
         title={genreConfig.label}
         apiUrl={buildUrl(genre, genreConfig.mediaType, isNollywood)}
+        mode={mode}
       />
     </main>
   );

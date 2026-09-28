@@ -16,13 +16,14 @@
   nav {
     position: fixed;
     top: 0;
-    left: -100%;
-    width: 75%;
-    background-color: rgba(0, 0, 0, 0.8);
+    left: 0;
+    right: 0;
+    width: 100%;
+    background-color: #0a0a0a;
     flex-direction: column;
-    justify-content: center;
-    align-items: flex-start;
-    padding: 20px;
+    justify-content: flex-start;
+    align-items: stretch;
+    padding: 80px 20px 20px;
     transition: left 0.4s ease;
     z-index: 1001;
   }
@@ -35,9 +36,9 @@
   /* Auth controls inside the drawer */
   .drawer-auth {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-    margin-top: 2rem;
+    align-items: stretch;
+    gap: 12px;
+    margin-top: 1.5rem;
   }
 
   .drawer-auth .nav-user {
@@ -49,25 +50,47 @@
     padding: 8px 18px;
   }
 
+  /* Nav items in a 2-column grid */
   nav ul {
-    flex-direction: column;
-    gap: 30px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
     width: 100%;
+    list-style: none;
+    margin: 0;
+    padding: 0;
   }
 
-  nav ul li a {
-    font-size: 1.3rem;
+  nav ul li {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  nav ul li a,
+  nav ul li button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 44px;
+    padding: 16px 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    font-size: 0.9rem;
     color: white;
+    text-decoration: none;
     text-transform: capitalize;
-    width: 100%;
-    display: block;
-    padding: 10px 0;
     font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s;
   }
 
-  nav ul li a:hover {
+  nav ul li a:hover,
+  nav ul li button:hover {
+    background: rgba(255, 255, 255, 0.12);
     color: red;
-    transition: 0.3s ease;
   }
 
   nav.active {

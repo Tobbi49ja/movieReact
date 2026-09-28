@@ -102,11 +102,24 @@
 
 .search-count strong { color: #fff; }
 
-/* Results grid */
+/* Mode label above results */
+.search-mode-label {
+  text-align: center;
+  font-size: 0.85rem;
+  color: #aaa;
+  margin: 1rem 0 0.5rem;
+  font-weight: 500;
+}
+
 .search-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 1.2rem;
+}
+
+.search-grid.mode-switching {
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
 
 /* Card */

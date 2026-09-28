@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import MovieCard from "./MovieCard";
 import Loader from "./Loader";
 
-export default function MoviesFetch({ title, apiUrl, source, modeSwitching }) {
+export default function MoviesFetch({ title, apiUrl, source, modeSwitching, mode }) {
   const [movies, setMovies] = useState([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -51,35 +51,49 @@ export default function MoviesFetch({ title, apiUrl, source, modeSwitching }) {
     loadMovies(nextPage);
   };
 
+  // Nollywood empty state: first page returned 0 valid results
+  const showNollywoodEmpty =
+    mode === "nollywood" && movies.length === 0 && !loading && !hasMore;
+
   return (
     <section className="movies-section">
       <h2 className="section-title">{title}</h2>
 
-      <div className={`movies-grid${modeSwitching ? " mode-switching" : ""}`}>
-        {(Array.isArray(movies) ? movies : []).map((movie) => (
-          <MovieCard
-            key={movie.id}
-            id={movie.id}
-            title={movie.title || movie.name}
-            year={
-              movie.release_date?.split("-")[0] ||
-              movie.first_air_date?.split("-")[0] ||
-              "N/A"
-            }
-            image={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
-            mediaType={movie.media_type || (movie.title ? "movie" : "tv")}
-            source={source}
-          />
-        ))}
-      </div>
+      {showNollywoodEmpty ? (
+        <div className="nollywood-empty">
+          <span>🎬</span>
+          <p>No Nigerian content found in this category.</p>
+          <p>Switch to 🇺🇸 Hollywood for more options.</p>
+        </div>
+      ) : (
+        <>
+          <div className={`movies-grid${modeSwitching ? " mode-switching" : ""}`}>
+            {(Array.isArray(movies) ? movies : []).map((movie) => (
+              <MovieCard
+                key={movie.id}
+                id={movie.id}
+                title={movie.title || movie.name}
+                year={
+                  movie.release_date?.split("-")[0] ||
+                  movie.first_air_date?.split("-")[0] ||
+                  "N/A"
+                }
+                image={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
+                mediaType={movie.media_type || (movie.title ? "movie" : "tv")}
+                source={source}
+              />
+            ))}
+          </div>
 
-      {loading && <Loader />}
-      {!loading && hasMore && (
-        <button onClick={handleLoadMore} className="load-more-btn">
-          Load More
-        </button>
+          {loading && <Loader />}
+          {!loading && hasMore && (
+            <button onClick={handleLoadMore} className="load-more-btn">
+              Load More
+            </button>
+          )}
+          {!hasMore && <p className="no-more">No more movies to show</p>}
+        </>
       )}
-      {!hasMore && <p className="no-more">No more movies to show</p>}
     </section>
   );
 }

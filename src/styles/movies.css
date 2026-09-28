@@ -1,3 +1,24 @@
+/* Nollywood empty state */
+.nollywood-empty {
+  text-align: center;
+  padding: 40px;
+  color: #aaa;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.nollywood-empty span {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+.nollywood-empty p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
 /* Movies Section */
 .movies-section {
   padding: 40px 20px;

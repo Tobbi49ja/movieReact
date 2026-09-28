@@ -25,7 +25,20 @@ export default function SearchResults() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState("All");
+  const [modeSwitching, setModeSwitching] = useState(false);
   const inputRef = useRef(null);
+  const firstMount = useRef(true);
+
+  // Trigger fade animation only when mode actually changes (not on first mount)
+  useEffect(() => {
+    if (firstMount.current) {
+      firstMount.current = false;
+      return;
+    }
+    setModeSwitching(true);
+    const timer = setTimeout(() => setModeSwitching(false), 200);
+    return () => clearTimeout(timer);
+  }, [mode]);
 
   // Re-run search when query changes
   useEffect(() => {
@@ -163,6 +176,15 @@ export default function SearchResults() {
         </div>
       )}
 
+      {/* Mode label */}
+      {query && (
+        <p className="search-mode-label">
+          {mode === "nollywood"
+            ? `Showing 🇳🇬 Nollywood results for: ${query}`
+            : `Showing 🇺🇸 Hollywood results for: ${query}`}
+        </p>
+      )}
+
       {/* Loading skeletons */}
       {loading && (
         <div className="search-grid">
@@ -181,7 +203,7 @@ export default function SearchResults() {
 
       {/* Results grid */}
       {!loading && filtered.length > 0 && (
-        <div className="search-grid">
+        <div className={`search-grid${modeSwitching ? " mode-switching" : ""}`}>
           {filtered.map((item) => {
             const title = item.title || item.name;
             const year = (item.release_date || item.first_air_date || "").slice(0, 4);
@@ -236,8 +258,17 @@ export default function SearchResults() {
       {/* Empty state */}
       {!loading && query && filtered.length === 0 && (
         <div className="search-empty">
-          <p className="search-empty-title">No results for "{query}"</p>
-          <p className="search-empty-sub">Try a different spelling or keyword.</p>
+          {mode === "nollywood" ? (
+            <>
+              <p className="search-empty-title">No Nigerian results for "{query}".</p>
+              <p className="search-empty-sub">Try switching to 🇺🇸 Hollywood mode for more results.</p>
+            </>
+          ) : (
+            <>
+              <p className="search-empty-title">No results for "{query}"</p>
+              <p className="search-empty-sub">Try a different spelling or keyword.</p>
+            </>
+          )}
         </div>
       )}
 

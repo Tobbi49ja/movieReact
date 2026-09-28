@@ -60,6 +60,7 @@ export default function Home() {
         title="Now Playing"
         apiUrl={mode === "nollywood" ? nollywoodUrl : hollywoodUrls["Now Playing"]}
         source={mode === "nollywood" ? "Nollywood" : undefined}
+        mode={mode}
         modeSwitching={switching}
       />
 
@@ -68,6 +69,7 @@ export default function Home() {
         title="Popular Movies"
         apiUrl={mode === "nollywood" ? nollywoodUrl : hollywoodUrls["Popular Movies"]}
         source={mode === "nollywood" ? "Nollywood" : undefined}
+        mode={mode}
         modeSwitching={switching}
       />
 
@@ -76,6 +78,7 @@ export default function Home() {
         title="Top Rated"
         apiUrl={mode === "nollywood" ? nollywoodUrl : hollywoodUrls["Top Rated"]}
         source={mode === "nollywood" ? "Nollywood" : undefined}
+        mode={mode}
         modeSwitching={switching}
       />
     </main>

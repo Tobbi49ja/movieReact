@@ -190,9 +190,8 @@ export default function Navbar() {
               onClick={toggleMode}
               aria-label="Switch content mode"
             >
-              <span className="mode-icon">{mode === "nollywood" ? "🎥 🇳🇬" : "🎬"}</span>
-              <span className={mode === "hollywood" ? "mode-pill active" : "mode-pill"}>🎬 Hollywood</span>
-              <span className={mode === "nollywood" ? "mode-pill active" : "mode-pill"}>🎥 Nollywood</span>
+              <span className={mode === "hollywood" ? "mode-pill active" : "mode-pill"}>🇺🇸 Hollywood</span>
+              <span className={mode === "nollywood" ? "mode-pill active" : "mode-pill"}>🇳🇬 Nollywood</span>
             </button>
           </li>
         </ul>
