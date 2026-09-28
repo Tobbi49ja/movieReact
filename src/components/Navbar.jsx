@@ -182,20 +182,20 @@ export default function Navbar() {
               <Link to="/genres/horror" onClick={() => handleNavClick("/genres/horror")} role="menuitem">Horror</Link>
             </div>
           </li>
-        </ul>
 
-        {/* Content mode toggle — mobile, inside nav drawer */}
-        {isMobile && (
-          <button
-            className={`content-mode-toggle mode-${mode}`}
-            onClick={toggleMode}
-            aria-label="Switch content mode"
-          >
-            <span className="mode-icon">{mode === "nollywood" ? "🎥 🇳🇬" : "🎬"}</span>
-            <span className={mode === "hollywood" ? "mode-pill active" : "mode-pill"}>🎬 Hollywood</span>
-            <span className={mode === "nollywood" ? "mode-pill active" : "mode-pill"}>🎥 Nollywood</span>
-          </button>
-        )}
+          {/* Content mode toggle — inside nav list for proper flex flow */}
+          <li role="none" className="nav-mode-toggle-wrapper">
+            <button
+              className={`content-mode-toggle mode-${mode}`}
+              onClick={toggleMode}
+              aria-label="Switch content mode"
+            >
+              <span className="mode-icon">{mode === "nollywood" ? "🎥 🇳🇬" : "🎬"}</span>
+              <span className={mode === "hollywood" ? "mode-pill active" : "mode-pill"}>🎬 Hollywood</span>
+              <span className={mode === "nollywood" ? "mode-pill active" : "mode-pill"}>🎥 Nollywood</span>
+            </button>
+          </li>
+        </ul>
 
         {/* Mobile search */}
         {isMobile && (
@@ -210,24 +210,10 @@ export default function Navbar() {
             />
           </form>
         )}
-
-{isMobile && (
+        {isMobile && (
           <div className="navbar-auth drawer-auth">{authContent}</div>
         )}
         </nav>
-
-        {/* Content mode toggle — desktop */}
-        {!isMobile && (
-          <button
-            className={`content-mode-toggle mode-${mode}`}
-            onClick={toggleMode}
-            aria-label="Switch content mode"
-          >
-            <span className="mode-icon">{mode === "nollywood" ? "🎥 🇳🇬" : "🎬"}</span>
-            <span className={mode === "hollywood" ? "mode-pill active" : "mode-pill"}>🎬 Hollywood</span>
-            <span className={mode === "nollywood" ? "mode-pill active" : "mode-pill"}>🎥 Nollywood</span>
-          </button>
-        )}
 
         {/* Desktop search */}
         {!isMobile && (

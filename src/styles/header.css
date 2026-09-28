@@ -138,6 +138,7 @@ nav ul li a:hover{
   gap: 2px;
   border: none;
   cursor: pointer;
+  align-items: center;
 }
 
 .mode-pill {
@@ -160,8 +161,19 @@ nav ul li a:hover{
   color: #fff;
 }
 
+/* Desktop — toggle as a nav list item */
+.nav-mode-toggle-wrapper {
+  margin-left: auto;
+  padding-left: 20px;
+}
+
 /* Mobile — full width in nav drawer */
 @media (max-width: 768px) {
+  .nav-mode-toggle-wrapper {
+    margin-left: 0;
+    margin-top: 1rem;
+    width: 100%;
+  }
   .content-mode-toggle {
     width: 100%;
     margin: 12px 0;
