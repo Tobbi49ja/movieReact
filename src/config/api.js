@@ -2,11 +2,21 @@
 export const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY;
 export const TMDB_BASE = "https://api.themoviedb.org/3";
 
-// Build a TMDB discover URL
-export const buildDiscoverUrl = ({ mediaType = "movie", genreId, language = "en-US", extraParams = "" }) => {
+export const buildDiscoverUrl = ({
+  mediaType = "movie",
+  genreId,
+  language = "en-US",
+  extraParams = "",
+}) => {
   const params = new URLSearchParams();
   params.set("api_key", TMDB_API_KEY);
   params.set("language", language);
+  params.set(
+    "sort_by",
+    mediaType === "tv" ? "first_air_date.desc" : "primary_release_date.desc"
+  );
+  // Filter out movies with no poster or very low vote count
+  params.set("vote_count.gte", "10");
   if (genreId) params.set("with_genres", genreId);
   if (extraParams) {
     extraParams.split("&").forEach((pair) => {

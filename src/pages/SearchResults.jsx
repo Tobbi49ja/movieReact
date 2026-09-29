@@ -180,8 +180,8 @@ export default function SearchResults() {
       {query && (
         <p className="search-mode-label">
           {mode === "nollywood"
-            ? `Showing 🇳🇬 Nollywood results for: ${query}`
-            : `Showing 🇺🇸 Hollywood results for: ${query}`}
+            ? `🇳🇬 Nollywood results for: ${query}`
+            : `🇺🇸 Hollywood results for: ${query}`}
         </p>
       )}
 
@@ -203,7 +203,7 @@ export default function SearchResults() {
 
       {/* Results grid */}
       {!loading && filtered.length > 0 && (
-        <div className={`search-grid${modeSwitching ? " mode-switching" : ""}`}>
+        <div className={`search-grid${modeSwitching ? " mode-switching" : ""}`} key={`results-${mode}`}>
           {filtered.map((item) => {
             const title = item.title || item.name;
             const year = (item.release_date || item.first_air_date || "").slice(0, 4);
@@ -258,17 +258,17 @@ export default function SearchResults() {
       {/* Empty state */}
       {!loading && query && filtered.length === 0 && (
         <div className="search-empty">
-          {mode === "nollywood" ? (
-            <>
-              <p className="search-empty-title">No Nigerian results for "{query}".</p>
-              <p className="search-empty-sub">Try switching to 🇺🇸 Hollywood mode for more results.</p>
-            </>
-          ) : (
-            <>
-              <p className="search-empty-title">No results for "{query}"</p>
-              <p className="search-empty-sub">Try a different spelling or keyword.</p>
-            </>
-          )}
+{mode === "nollywood" ? (
+              <>
+                <p className="search-empty-title">No Nigerian results found.</p>
+                <p className="search-empty-sub">Try switching to 🇺🇸 Hollywood mode for more results.</p>
+              </>
+            ) : (
+              <>
+                <p className="search-empty-title">No results for "{query}"</p>
+                <p className="search-empty-sub">Try a different spelling or keyword.</p>
+              </>
+            )}
         </div>
       )}
 

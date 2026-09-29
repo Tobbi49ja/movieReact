@@ -44,7 +44,14 @@ export default function Movies() {
 
       {/* Nollywood banner */}
       {mode === "nollywood" && (
-        <div className="nollywood-banner">🇳🇬 Now showing Nigerian movies</div>
+        <div style={{
+          background: "linear-gradient(90deg, #008751, #ffffff22, #008751)",
+          color: "#fff",
+          textAlign: "center",
+          padding: "6px",
+          fontSize: "0.85rem",
+          fontWeight: 600
+        }}>🇳🇬 Now showing Nigerian movies</div>
       )}
 
       {/* Popular Movies */}

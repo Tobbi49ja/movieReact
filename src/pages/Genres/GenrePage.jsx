@@ -55,6 +55,17 @@ export default function GenrePage() {
 
         <h1>{isNollywood ? `🇳🇬 Nollywood ${genreConfig.label}` : genreConfig.label}</h1>
 
+        {isNollywood && (
+          <div style={{
+            background: "linear-gradient(90deg, #008751, #ffffff22, #008751)",
+            color: "#fff",
+            textAlign: "center",
+            padding: "6px",
+            fontSize: "0.85rem",
+            fontWeight: 600
+          }}>🇳🇬 Now showing Nigerian content</div>
+        )}
+
         <MoviesFetch
           title="Popular Anime TV Shows"
           apiUrl={buildUrl(genre, "tv", isNollywood)}
@@ -74,13 +85,24 @@ export default function GenrePage() {
     <main className="pulldown">
       <SEOHelmet title={title} description={description} url={url} />
 
-      <h1>{isNollywood ? `🇳🇬 Nollywood ${genreConfig.label}` : genreConfig.label}</h1>
+        <h1>{isNollywood ? `🇳🇬 Nollywood ${genreConfig.label}` : genreConfig.label}</h1>
 
-      <MoviesFetch
-        title={genreConfig.label}
-        apiUrl={buildUrl(genre, genreConfig.mediaType, isNollywood)}
-        mode={mode}
-      />
+        {isNollywood && (
+          <div style={{
+            background: "linear-gradient(90deg, #008751, #ffffff22, #008751)",
+            color: "#fff",
+            textAlign: "center",
+            padding: "6px",
+            fontSize: "0.85rem",
+            fontWeight: 600
+          }}>🇳🇬 Now showing Nigerian content</div>
+        )}
+
+        <MoviesFetch
+          title={genreConfig.label}
+          apiUrl={buildUrl(genre, genreConfig.mediaType, isNollywood)}
+          mode={mode}
+        />
     </main>
   );
 }

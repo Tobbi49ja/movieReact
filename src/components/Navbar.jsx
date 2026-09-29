@@ -123,7 +123,9 @@ export default function Navbar() {
     bottom: 0,
     width: "100%",
     height: "100vh",
-    background: "#0a0a0a",
+    background: "rgba(10,10,10,0.85)",
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
     zIndex: 9999,
     overflowY: "auto",
     padding: "80px 20px 40px",
@@ -169,7 +171,7 @@ export default function Navbar() {
           transition: "all 0.2s",
         }}
       >
-        🇺🇸 <span className="mode-label">Hollywood</span>
+        🇺🇸
       </button>
       <button
         onClick={() => setMode("nollywood")}
@@ -185,7 +187,7 @@ export default function Navbar() {
           transition: "all 0.2s",
         }}
       >
-        🇳🇬 <span className="mode-label">Nollywood</span>
+        🇳🇬
       </button>
     </div>
   );
@@ -281,6 +283,10 @@ export default function Navbar() {
         {navOpen && modeToggle}
 
         {/* Mobile search */}
+        <form onSubmit={handleSearch} style={{width:"100%",marginTop:"12px",display:"flex",gap:"8px"}} role="search">
+          <input type="search" placeholder="Search movies..." value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} style={{flex:1,padding:"10px 14px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.08)",color:"white",fontSize:"0.9rem"}}/>
+          <button type="submit" style={{padding:"10px 16px",borderRadius:"8px",background:"#e50914",border:"none",color:"white",cursor:"pointer"}}>🔍</button>
+        </form>
         {isMobile && (
           <form className="search-box mobile-search" onSubmit={handleSearch} role="search">
             <input

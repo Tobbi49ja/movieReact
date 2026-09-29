@@ -27,7 +27,7 @@ export default function TvShows() {
   }, [mode]);
 
   // Nollywood TV shows via TMDB discover filtered by origin country
-  const nollywoodTvUrl = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_origin_country=NG&sort_by=popularity.desc`;
+  const nollywoodTvUrl = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_origin_country=NG&sort_by=first_air_date.desc&vote_count.gte=5`;
 
   return (
     <main className="pulldown">
@@ -44,7 +44,14 @@ export default function TvShows() {
 
       {/* Nollywood banner */}
       {mode === "nollywood" && (
-        <div className="nollywood-banner">🇳🇬 Now showing Nigerian TV shows</div>
+        <div style={{
+          background: "linear-gradient(90deg, #008751, #ffffff22, #008751)",
+          color: "#fff",
+          textAlign: "center",
+          padding: "6px",
+          fontSize: "0.85rem",
+          fontWeight: 600
+        }}>🇳🇬 Now showing Nigerian TV shows</div>
       )}
 
       {/* Airing Today */}

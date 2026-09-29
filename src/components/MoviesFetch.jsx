@@ -19,8 +19,20 @@ export default function MoviesFetch({ title, apiUrl, source, modeSwitching, mode
 
       const results = Array.isArray(data?.results) ? data.results : [];
 
+      const tenYearsAgo = new Date();
+      tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10);
+
       const filtered = results.filter(
-        (item) => (item.title || item.name) && item.poster_path
+        (item) => {
+          if (!item.poster_path) return false;
+          if (!item.title && !item.name) return false;
+          // Only filter by age on first page; old movies appear on Load More
+          if (pageNum > 1) return true;
+          const dateStr = item.release_date || item.first_air_date;
+          if (!dateStr) return true;
+          const itemDate = new Date(dateStr);
+          return itemDate >= tenYearsAgo;
+        }
       );
 
       if (filtered.length === 0) {
@@ -60,11 +72,21 @@ export default function MoviesFetch({ title, apiUrl, source, modeSwitching, mode
       <h2 className="section-title">{title}</h2>
 
       {showNollywoodEmpty ? (
-        <div className="nollywood-empty">
-          <span>🎬</span>
-          <p>No Nigerian content found in this category.</p>
-          <p>Switch to 🇺🇸 Hollywood for more options.</p>
+        <div style={{
+          textAlign: "center",
+          padding: "60px 20px",
+          color: "#888"
+        }}>
+          <div style={{fontSize: "3rem"}}>🎬</div>
+          <p style={{marginTop: "12px", fontSize: "1rem"}}>
+            No Nigerian content found in this category.
+          </p>
+          <p style={{fontSize: "0.85rem", color: "#666"}}>
+            Switch to 🇺🇸 Hollywood for more options.
+          </p>
         </div>
+      ) : movies.length === 0 && mode === "hollywood" ? (
+        <p className="no-more">No more movies to show</p>
       ) : (
         <>
           <div className={`movies-grid${modeSwitching ? " mode-switching" : ""}`}>
