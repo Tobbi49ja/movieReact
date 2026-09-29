@@ -1,6 +1,6 @@
 // src/components/DownloadModal.jsx
 import { useState } from "react";
-import { FiX, FiDownload, FiCopy, FiCheck, FiFilm, FiServer, FiExternalLink } from "react-icons/fi";
+import { FiX, FiDownload, FiCopy, FiCheck, FiFilm, FiServer } from "react-icons/fi";
 import toast from "react-hot-toast";
 
 const BACKEND_URL =
@@ -178,16 +178,6 @@ export default function DownloadModal({
                   <FiDownload /> {downloadingIdx === idx ? "Starting..." : "Download MP4"}
                 </button>
 
-                <a
-                  href={server.externalUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="server-mirror-btn"
-                  title="Open External Mirror"
-                >
-                  <FiExternalLink />
-                </a>
-
                 <button
                   className="server-copy-btn"
                   onClick={() => handleCopyLink(server.proxyUrl, idx)}
@@ -203,7 +193,10 @@ export default function DownloadModal({
         {/* Instructions footer */}
         <div className="download-modal-footer">
           <p className="download-tip">
-            💡 <strong>MovieBox Tip:</strong> Click <strong>"Download MP4"</strong> to trigger direct binary downloading via Tobbihub's proxy server. For 3rd-party download apps (like IDM, 1DM, ADM), click the copy icon to copy the direct link.
+            💡 <strong>TobbiHub Tip:</strong> Click <strong>"Download MP4"</strong> 
+            to download directly via TobbiHub's proxy — no ads, no redirects. 
+            For download managers (IDM, 1DM, ADM), use the copy icon to grab 
+            the direct link.
           </p>
           <p className="download-note">
             ⏱️ First download may take 15–30s while the stream resolves. Subsequent downloads are instant (cached for 30 min).
