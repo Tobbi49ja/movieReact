@@ -1,11 +1,7 @@
 // src/components/DownloadModal.jsx
 import { useState } from "react";
-import { FiX, FiDownload, FiCopy, FiCheck, FiFilm, FiServer } from "react-icons/fi";
+import { FiX, FiDownload, FiFilm, FiServer } from "react-icons/fi";
 import toast from "react-hot-toast";
-
-const BACKEND_URL =
-  import.meta.env.VITE_BACKEND_URL ||
-  (import.meta.env.DEV ? "http://localhost:3001" : "https://moviereact-zzye.onrender.com");
 
 export default function DownloadModal({
   isOpen,
@@ -16,31 +12,19 @@ export default function DownloadModal({
   season = 1,
   episode = 1,
 }) {
-  const [copiedIndex, setCopiedIndex] = useState(null);
   const [downloadingIdx, setDownloadingIdx] = useState(null);
 
   if (!isOpen) return null;
 
   const isTv = type === "tv";
-  const formattedTitle = isTv
-    ? `${itemTitle || "Show"}_S${season}E${episode}`
-    : itemTitle || "Movie";
 
-  const cleanFilename = formattedTitle
-    .replace(/[^a-zA-Z0-9_\-\. ]/g, "")
-    .trim()
-    .replace(/\s+/g, "_");
-
-  // Server targets pointing to Express proxy and fallback mirrors
-  // 2embed is the default (first) server — VidSrc is the fallback.
+  // Download source targets — opens in new tab
   const downloadServers = [
     {
       name: "AutoEmbed HD Gateway",
       badge: "720p / 1080p",
       quality: "720p / 1080p",
       speed: "High Speed",
-      sourceKey: "2embed",
-      proxyUrl: `${BACKEND_URL}/api/download/stream?tmdb=${tmdbId}&type=${type}&s=${season}&e=${episode}&source=2embed&filename=${encodeURIComponent(cleanFilename)}`,
       externalUrl: isTv
         ? `https://www.2embed.cc/embedtv/${tmdbId}&s=${season}&e=${episode}`
         : `https://www.2embed.cc/embed/${tmdbId}`,
@@ -50,8 +34,6 @@ export default function DownloadModal({
       badge: "Direct MP4 Download",
       quality: "1080p Full HD",
       speed: "Ultra Fast",
-      sourceKey: "vidsrc",
-      proxyUrl: `${BACKEND_URL}/api/download/stream?tmdb=${tmdbId}&type=${type}&s=${season}&e=${episode}&source=vidsrc&filename=${encodeURIComponent(cleanFilename)}`,
       externalUrl: isTv
         ? `https://vidsrc.me/download/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`
         : `https://vidsrc.me/download/movie?tmdb=${tmdbId}`,
@@ -61,8 +43,6 @@ export default function DownloadModal({
       badge: "Multi-Quality",
       quality: "1080p / 720p / 480p",
       speed: "Stable",
-      sourceKey: "multiembed",
-      proxyUrl: `${BACKEND_URL}/api/download/stream?tmdb=${tmdbId}&type=${type}&s=${season}&e=${episode}&source=multiembed&filename=${encodeURIComponent(cleanFilename)}`,
       externalUrl: isTv
         ? `https://multiembed.mov/direct-download?tmdb=${tmdbId}&s=${season}&e=${episode}`
         : `https://multiembed.mov/direct-download?tmdb=${tmdbId}`,
@@ -72,52 +52,17 @@ export default function DownloadModal({
       badge: "Standard Mirror",
       quality: "720p HD",
       speed: "Standard",
-      sourceKey: "vidsrcpro",
-      proxyUrl: `${BACKEND_URL}/api/download/stream?tmdb=${tmdbId}&type=${type}&s=${season}&e=${episode}&source=vidsrcpro&filename=${encodeURIComponent(cleanFilename)}`,
       externalUrl: isTv
         ? `https://vidsrc.pro/embed/tv/${tmdbId}?season=${season}&episode=${episode}`
         : `https://vidsrc.pro/embed/movie/${tmdbId}`,
     },
   ];
 
-  const handleStartDownload = async (server, index) => {
+  const handleStartDownload = (server, index) => {
     setDownloadingIdx(index);
-    toast.success(`Starting download for ${formattedTitle}...`);
-
-    try {
-      // Fetch the proxied stream as a blob — works cross-origin because the
-      // backend has CORS enabled. Anchor-tag download attributes are ignored
-      // for cross-origin URLs, so we use object URLs instead.
-      const res = await fetch(server.proxyUrl);
-      if (!res.ok) throw new Error(`Server returned ${res.status}`);
-
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
-
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = `${cleanFilename}.mp4`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-
-      // Revoke the object URL after a short delay so the blob can be freed
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
-    } catch (err) {
-      console.error("Download failed:", err);
-      toast.error(err.message || "Download failed — please try again");
-    } finally {
-      setTimeout(() => {
-        setDownloadingIdx(null);
-      }, 60000);
-    }
-  };
-
-  const handleCopyLink = (url, index) => {
-    navigator.clipboard.writeText(url);
-    setCopiedIndex(index);
-    toast.success("Download link copied to clipboard! (Paste into IDM/1DM/ADM)");
-    setTimeout(() => setCopiedIndex(null), 2500);
+    window.open(server.externalUrl, "_blank", "noopener,noreferrer");
+    setTimeout(() => setDownloadingIdx(null), 2000);
+    toast.success(`Opening ${server.name}...`);
   };
 
   return (
@@ -149,7 +94,7 @@ export default function DownloadModal({
           <span className="quality-pill q-1080">1080p Full HD</span>
           <span className="quality-pill q-720">720p HD</span>
           <span className="quality-pill q-480">480p SD</span>
-          <span className="quality-pill q-multi">Proxy Downloader Active</span>
+          <span className="quality-pill q-multi">Multi Source Available</span>
         </div>
 
         {/* Server List */}
@@ -175,15 +120,7 @@ export default function DownloadModal({
                   onClick={() => handleStartDownload(server, idx)}
                   disabled={downloadingIdx === idx}
                 >
-                  <FiDownload /> {downloadingIdx === idx ? "Starting..." : "Download MP4"}
-                </button>
-
-                <button
-                  className="server-copy-btn"
-                  onClick={() => handleCopyLink(server.proxyUrl, idx)}
-                  title="Copy Direct Link for Download Manager"
-                >
-                  {copiedIndex === idx ? <FiCheck className="copied-icon" /> : <FiCopy />}
+                  <FiDownload /> {downloadingIdx === idx ? "Opening..." : "Watch & Download"}
                 </button>
               </div>
             </div>
@@ -193,13 +130,11 @@ export default function DownloadModal({
         {/* Instructions footer */}
         <div className="download-modal-footer">
           <p className="download-tip">
-            💡 <strong>TobbiHub Tip:</strong> Click <strong>"Download MP4"</strong> 
-            to download directly via TobbiHub's proxy — no ads, no redirects. 
-            For download managers (IDM, 1DM, ADM), use the copy icon to grab 
-            the direct link.
-          </p>
-          <p className="download-note">
-            ⏱️ First download may take 15–30s while the stream resolves. Subsequent downloads are instant (cached for 30 min).
+            💡 <strong>TobbiHub Tip:</strong> Click any server above — 
+            it opens in a new tab. Use 
+            <strong> Video DownloadHelper</strong> browser extension 
+            for one-click downloads, or right-click the video → 
+            "Save video as" as a fallback.
           </p>
         </div>
       </div>
