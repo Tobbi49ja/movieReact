@@ -282,11 +282,13 @@ export default function Navbar() {
         {/* Mode toggle — inside drawer when open, full text on desktop */}
         {navOpen && modeToggle}
 
-        {/* Mobile search */}
-        <form onSubmit={handleSearch} style={{width:"100%",marginTop:"12px",display:"flex",gap:"8px"}} role="search">
-          <input type="search" placeholder="Search movies..." value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} style={{flex:1,padding:"10px 14px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.08)",color:"white",fontSize:"0.9rem"}}/>
-          <button type="submit" style={{padding:"10px 16px",borderRadius:"8px",background:"#e50914",border:"none",color:"white",cursor:"pointer"}}>🔍</button>
-        </form>
+        {/* Mobile search — only inside the open drawer */}
+        {navOpen && (
+          <form onSubmit={handleSearch} style={{width:"100%",marginTop:"12px",display:"flex",gap:"8px"}} role="search">
+            <input type="search" placeholder="Search movies..." value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} style={{flex:1,padding:"10px 14px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.08)",color:"white",fontSize:"0.9rem"}}/>
+            <button type="submit" style={{padding:"10px 16px",borderRadius:"8px",background:"#e50914",border:"none",color:"white",cursor:"pointer"}}>🔍</button>
+          </form>
+        )}
         {isMobile && (
           <form className="search-box mobile-search" onSubmit={handleSearch} role="search">
             <input
