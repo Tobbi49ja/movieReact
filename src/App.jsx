@@ -1,6 +1,5 @@
 import { Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
-import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
 import { ContentModeProvider } from "./context/ContentModeContext";
@@ -25,9 +24,14 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Watchlist from "./pages/Watchlist";
 import AdminPanel from "./pages/Admin/AdminPanel";
+import LiveTV from './pages/LiveTV';
 
 // SEO
 import SEOHelmet from "./components/seo/SEOHelmet";
+
+import Sidebar from './components/Sidebar';
+import BottomNav from './components/BottomNav';
+import './styles/sidebar.css';
 
 function App() {
     useScrollGlow();
@@ -43,13 +47,17 @@ function App() {
 
         <ScrollToTop />
         <Toaster position="top-center" toastOptions={{ style: { background: "#1a1a1a", color: "#fff" } }} />
-        <Navbar />
+        <Sidebar />
+        <BottomNav />
 
-        <Routes>
+        <main className="app-with-sidebar">
+          <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/movies" element={<Movies />} />
           <Route path="/tvshows" element={<TvShows />} />
           <Route path="/search" element={<SearchResults />} />
+
+          <Route path="/livetv" element={<LiveTV />} />
 
           {/* Genres */}
           <Route path="/genres/:genre" element={<GenrePage />} />
@@ -73,6 +81,7 @@ function App() {
           {/* 404 */}
           <Route path="*" element={<ErrorPage />} />
         </Routes>
+        </main>
 
         <Footer />
       </>
