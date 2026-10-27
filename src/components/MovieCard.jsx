@@ -21,6 +21,7 @@ export default function MovieCard({
   mediaType,
   showBookmark = true,
   source,
+  releaseDate,
 }) {
   const { user, token } = useAuth();
   const [inWatchlist, setInWatchlist] = useState(false);

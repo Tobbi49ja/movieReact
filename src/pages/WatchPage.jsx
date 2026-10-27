@@ -40,6 +40,7 @@ export default function WatchPage() {
   const [activeSource, setActiveSource] = useState(0);
   const [deviceType, setDeviceType] = useState("");
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
+  const [similarMovies, setSimilarMovies] = useState([]);
 
   const socketRef = useRef(null);
   const trailerRef = useRef(null);

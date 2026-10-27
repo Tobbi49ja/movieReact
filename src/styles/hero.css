@@ -98,3 +98,59 @@
 .swiper-button-prev:hover {
   color: red;
 }
+
+.nollywood-hero {
+  position: relative;
+  height: 480px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.nollywood-hero-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: brightness(0.5);
+}
+.nollywood-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, rgba(0,135,81,0.6), transparent);
+}
+.nollywood-hero-content {
+  position: relative;
+  z-index: 2;
+  padding: 80px 32px;
+  max-width: 600px;
+}
+.nollywood-hero-badge {
+  background: #008751;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: inline-block;
+  margin-bottom: 12px;
+}
+.nollywood-hero-content h1 {
+  font-size: 2rem;
+  color: white;
+  margin-bottom: 10px;
+}
+.nollywood-hero-content p {
+  color: #ddd;
+  font-size: 0.95rem;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+.nollywood-hero-actions { display: flex; gap: 12px; }
+.hero-watch-btn {
+  background: #008751;
+  color: white;
+  padding: 10px 24px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+}

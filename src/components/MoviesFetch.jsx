@@ -100,10 +100,11 @@ export default function MoviesFetch({ title, apiUrl, source, modeSwitching, mode
                   movie.first_air_date?.split("-")[0] ||
                   "N/A"
                 }
-                image={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
-                mediaType={movie.media_type || (movie.title ? "movie" : "tv")}
-                source={source}
-              />
+    image={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
+    mediaType={movie.media_type || (movie.title ? "movie" : "tv")}
+    releaseDate={movie.release_date || movie.first_air_date}
+    source={source}
+  />
             ))}
           </div>
 

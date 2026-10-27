@@ -4,6 +4,7 @@ import MoviesFetch from "../components/MoviesFetch";
 import SEOHelmet from "../components/seo/SEOHelmet";
 import { useContentMode } from "../context/ContentModeContext";
 import ContinueWatching from "../components/ContinueWatching";
+import NollywoodHero from "../components/NollywoodHero";
 
 const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL ||
@@ -14,6 +15,10 @@ const BACKEND_URL =
 export default function Home() {
   const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
   const { mode } = useContentMode();
+  const [nowPlayingMovies, setNowPlayingMovies] = useState([]);
+  const [popularMovies, setPopularMovies] = useState([]);
+  const [topRatedMovies, setTopRatedMovies] = useState([]);
+  const [nollywoodMovies, setNollywoodMovies] = useState([]);
   const [switching, setSwitching] = useState(false);
   const firstMount = useRef(true);
 
@@ -48,7 +53,7 @@ export default function Home() {
       />
 
       {/* ✅ Hero Section */}
-      <Hero />
+      {mode === 'nollywood' ? <NollywoodHero /> : <Hero />}
   <ContinueWatching />
 
       {/* Nollywood banner */}

@@ -1,0 +1,114 @@
+/* ===== LIVE TV PAGE ===== */
+.livetv-page {
+  padding: 20px 16px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.livetv-player-wrapper {
+  margin-bottom: 24px;
+  background: #0a0a0a;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.livetv-player-wrapper h2 {
+  padding: 12px 16px;
+  color: white;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.livetv-player-wrapper h2::before {
+  content: '🔴';
+  font-size: 0.7rem;
+}
+.livetv-video {
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: #000;
+}
+.livetv-close-btn {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  background: rgba(255,255,255,0.05);
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.livetv-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.livetv-tab {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: transparent;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+  text-transform: capitalize;
+}
+.livetv-tab.active {
+  background: #e50914;
+  border-color: #e50914;
+  color: white;
+}
+.livetv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+.channel-card {
+  background: rgba(255,255,255,0.05);
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s, transform 0.2s;
+  position: relative;
+  text-align: center;
+}
+.channel-card:hover {
+  background: rgba(255,255,255,0.1);
+  transform: translateY(-2px);
+}
+.channel-card img {
+  width: 60px;
+  height: 40px;
+  object-fit: contain;
+  filter: brightness(0.9);
+}
+.channel-card span {
+  color: white;
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+.live-badge {
+  font-size: 0.6rem !important;
+  background: #e50914;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+.channel-card.skeleton {
+  height: 110px;
+  background: linear-gradient(90deg, #1a1a1a 25%, #2a2a2a 50%, #1a1a1a 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@media (max-width: 768px) {
+  .livetv-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+}

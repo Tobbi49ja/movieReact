@@ -23,6 +23,24 @@ export default function AdminPanel() {
   const [commentPage, setCommentPage] = useState(1);
   const [commentPages, setCommentPages] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [nForm, setNForm] = useState({
+    title:'', year:'', genre:'', posterUrl:'',
+    streamUrl:'', downloadUrl:'', tmdbId:'', language:'en'
+  });
+
+  const handleAddNollywood = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post(`${BACKEND_URL}/api/nollywood/manual`, nForm,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success('Movie added!');
+      setNForm({ title:'', year:'', genre:'', posterUrl:'',
+        streamUrl:'', downloadUrl:'', tmdbId:'', language:'en' });
+    } catch(err) {
+      toast.error(err.response?.data?.error || 'Failed to add movie');
+    }
+  };
 
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -282,6 +300,33 @@ export default function AdminPanel() {
           </div>
         </section>
       )}
+      <section className="admin-section">
+        <h2>Add Nollywood Movie</h2>
+        <form className="admin-nollywood-form" onSubmit={handleAddNollywood}>
+          <input placeholder="Title *" value={nForm.title}
+            onChange={e => setNForm({...nForm, title: e.target.value})} required />
+          <input placeholder="Year" value={nForm.year}
+            onChange={e => setNForm({...nForm, year: e.target.value})} />
+          <input placeholder="Genre (e.g. Drama, Comedy)" value={nForm.genre}
+            onChange={e => setNForm({...nForm, genre: e.target.value})} />
+          <input placeholder="Poster URL" value={nForm.posterUrl}
+            onChange={e => setNForm({...nForm, posterUrl: e.target.value})} />
+          <input placeholder="Stream URL" value={nForm.streamUrl}
+            onChange={e => setNForm({...nForm, streamUrl: e.target.value})} />
+          <input placeholder="Download URL" value={nForm.downloadUrl}
+            onChange={e => setNForm({...nForm, downloadUrl: e.target.value})} />
+          <input placeholder="TMDB ID (if known)" value={nForm.tmdbId}
+            onChange={e => setNForm({...nForm, tmdbId: e.target.value})} />
+          <select value={nForm.language}
+            onChange={e => setNForm({...nForm, language: e.target.value})}>
+            <option value="en">English</option>
+            <option value="yo">Yoruba</option>
+            <option value="ig">Igbo</option>
+            <option value="ha">Hausa</option>
+          </select>
+          <button type="submit" className="admin-btn">Add Movie</button>
+        </form>
+      </section>
     </main>
   );
 }
