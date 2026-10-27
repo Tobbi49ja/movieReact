@@ -45,6 +45,8 @@ export default function WatchPage() {
   const socketRef = useRef(null);
   const trailerRef = useRef(null);
   const iframeRef = useRef(null);
+  const playerWrapRef = useRef(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
   // -----------------------------
@@ -326,32 +328,16 @@ export default function WatchPage() {
         </div>
 
         <div className="video-container">
-          <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9' }}>
+          <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9' }} ref={playerWrapRef}>
             <iframe
               ref={iframeRef}
-              key={currentSource}
+              key={reloadKey}
               src={embedUrl}
               onLoad={handleIframeLoad}
               allowFullScreen
-              style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }}
+              style={{ width: '100%', height: '100%', border: 'none' }}
               allow="autoplay; fullscreen; picture-in-picture"
-            />
-            {/* Transparent overlay — blocks redirect clicks, allows fullscreen */}
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                zIndex: 9999,
-                cursor: 'default',
-                background: 'transparent',
-              }}
-              onDoubleClick={() => {
-                const iframe = iframeRef.current;
-                if (iframe?.requestFullscreen) iframe.requestFullscreen();
-              }}
+              sandbox="allow-scripts allow-same-origin allow-presentation allow-forms"
             />
           </div>
         </div>
@@ -367,6 +353,12 @@ export default function WatchPage() {
             <FiDownload /> Download
           </button>
         </div>
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '8px 0' }}>
+        <button className="btn btn-ghost" onClick={() => {
+          if (playerWrapRef.current?.requestFullscreen) playerWrapRef.current.requestFullscreen();
+        }}>⛶ Fullscreen</button>
+        <button className="btn btn-ghost" onClick={() => setReloadKey(k => k + 1)}>⟳ Reload player</button>
       </div>
 
       <VPNBanner />
