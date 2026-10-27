@@ -36,6 +36,7 @@ export default function WatchPage() {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [currentSource, setCurrentSource] = useState("");
+  const [activeSource, setActiveSource] = useState(0);
   const [deviceType, setDeviceType] = useState("");
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
 
@@ -244,6 +245,36 @@ export default function WatchPage() {
     }
   };
 
+  const SOURCES = [
+    { id: "vidrift",  label: "Vidrift",  movieUrl: (id) => `https://embed.vidrift.net/embed/movie/${id}?title=true&hide=next,episodes,cast`,  tvUrl: (id,s,e) => `https://embed.vidrift.net/embed/tv/${id}/${s}/${e}?title=true&hide=next,episodes,cast` },
+    { id: "vidfast",  label: "Vidfast",  movieUrl: (id) => `https://vidfast.vc/movie/${id}?autoPlay=true&pip=hide`,                           tvUrl: (id,s,e) => `https://vidfast.vc/tv/${id}/${s}/${e}?autoPlay=true&pip=hide` },
+    { id: "aether",   label: "Aether",   movieUrl: (id) => `https://aether.ist/media/tmdb-movie-${id}`,                                       tvUrl: (id,s,e) => `https://aether.ist/media/tmdb-tv-${id}/${s}/${e}` },
+    { id: "vidnest",  label: "Vidnest",  movieUrl: (id) => `https://vidnest.fun/movie/${id}`,                                                 tvUrl: (id,s,e) => `https://vidnest.fun/tv/${id}/${s}/${e}` },
+    { id: "vsembed",  label: "VidSrc",   movieUrl: (id) => `https://vsembed.su/embed/movie/${id}?autoplay=1`,                                 tvUrl: (id,s,e) => `https://vsembed.su/embed/tv/${id}/${s}/${e}?autoplay=1` },
+  ];
+
+  const src = SOURCES[activeSource];
+  const embedUrl = mediaType === 'movie'
+    ? src.movieUrl(tmdbId)
+    : src.tvUrl(tmdbId, season, episode);
+
+  const handleIframeLoad = () => {
+    try {
+      const iframe = iframeRef.current;
+      if (!iframe) return;
+      iframe.contentDocument?.head?.insertAdjacentHTML('beforeend', `
+        <style>
+          .ad, .ads, [class*="ad-"], [class*="popup"], 
+          [id*="banner"], .overlay, [class*="overlay"]:not(video),
+          iframe[src*="ads"], iframe[src*="doubleclick"] {
+            display: none !important;
+            visibility: hidden !important;
+          }
+        </style>
+      `);
+    } catch {} // Cross-origin iframes will throw — ignore silently
+  };
+
   if (loading) return <Loader />;
   if (!movie) return <p className="loading">Movie not found.</p>;
 
@@ -274,14 +305,22 @@ export default function WatchPage() {
       {/* Player Section */}
       <div className="watch-player">
         <h2>Now Playing</h2>
-        <div className="source-buttons">
-          {Object.entries(sources).map(([name, url]) => (
+        <div style={{display:'flex',gap:'8px',marginBottom:'8px',flexWrap:'wrap'}}>
+          {SOURCES.map((s, i) => (
             <button
-              key={name}
-              className={`source-btn ${currentSource === url ? "active-source" : ""}`}
-              onClick={() => setCurrentSource(url)}
+              key={s.id}
+              onClick={() => setActiveSource(i)}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '6px',
+                border: 'none',
+                background: activeSource === i ? '#e50914' : 'rgba(255,255,255,0.1)',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '0.8rem'
+              }}
             >
-              {name}
+              {s.label}
             </button>
           ))}
         </div>
@@ -290,7 +329,8 @@ export default function WatchPage() {
           <iframe
             ref={iframeRef}
             key={currentSource}
-            src={currentSource}
+            src={embedUrl}
+            onLoad={handleIframeLoad}
             title="Movie Player"
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             referrerPolicy="no-referrer-when-downgrade"

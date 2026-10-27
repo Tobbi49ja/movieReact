@@ -44,6 +44,7 @@ export default function TVShowWatchPage() {
   const [newComment, setNewComment] = useState("");
   const [deviceType, setDeviceType] = useState("");
   const [currentSource, setCurrentSource] = useState("");
+  const [activeSource, setActiveSource] = useState(0);
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
 
   const socketRef = useRef(null);
@@ -282,6 +283,17 @@ export default function TVShowWatchPage() {
 
   if (loading || !show) return <Loader />;
 
+  const SOURCES = [
+    { id: "vidrift",  label: "Vidrift",  movieUrl: (id) => `https://embed.vidrift.net/embed/movie/${id}?title=true&hide=next,episodes,cast`,  tvUrl: (id,s,e) => `https://embed.vidrift.net/embed/tv/${id}/${s}/${e}?title=true&hide=next,episodes,cast` },
+    { id: "vidfast",  label: "Vidfast",  movieUrl: (id) => `https://vidfast.vc/movie/${id}?autoPlay=true&pip=hide`,                           tvUrl: (id,s,e) => `https://vidfast.vc/tv/${id}/${s}/${e}?autoPlay=true&pip=hide` },
+    { id: "aether",   label: "Aether",   movieUrl: (id) => `https://aether.ist/media/tmdb-movie-${id}`,                                       tvUrl: (id,s,e) => `https://aether.ist/media/tmdb-tv-${id}/${s}/${e}` },
+    { id: "vidnest",  label: "Vidnest",  movieUrl: (id) => `https://vidnest.fun/movie/${id}`,                                                 tvUrl: (id,s,e) => `https://vidnest.fun/tv/${id}/${s}/${e}` },
+    { id: "vsembed",  label: "VidSrc",   movieUrl: (id) => `https://vsembed.su/embed/movie/${id}?autoplay=1`,                                 tvUrl: (id,s,e) => `https://vsembed.su/embed/tv/${id}/${s}/${e}?autoplay=1` },
+  ];
+
+  const src = SOURCES[activeSource];
+  const embedUrl = src.tvUrl(id, selectedSeason, selectedEpisode?.episode_number || 1);
+
   const handleEpisodeSelect = (ep) => {
     setSelectedEpisode(ep);
     setCurrentSource(Object.values(sources(selectedSeason, ep.episode_number))[0]);
@@ -328,19 +340,24 @@ export default function TVShowWatchPage() {
           )}
         </h2>
 
-        <div className="source-buttons">
-          {selectedEpisode &&
-            Object.entries(sources(selectedSeason, selectedEpisode.episode_number)).map(
-              ([name, url]) => (
-                <button
-                  key={name}
-                  className={`source-btn ${currentSource === url ? "active-source" : ""}`}
-                  onClick={() => setCurrentSource(url)}
-                >
-                  {name}
-                </button>
-              )
-            )}
+        <div style={{display:'flex',gap:'8px',marginBottom:'8px',flexWrap:'wrap'}}>
+          {SOURCES.map((s, i) => (
+            <button
+              key={s.id}
+              onClick={() => setActiveSource(i)}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '6px',
+                border: 'none',
+                background: activeSource === i ? '#e50914' : 'rgba(255,255,255,0.1)',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '0.8rem'
+              }}
+            >
+              {s.label}
+            </button>
+          ))}
         </div>
 
         <div className="video-container">
@@ -348,7 +365,7 @@ export default function TVShowWatchPage() {
             <iframe
               ref={iframeRef}
               key={currentSource}
-              src={currentSource}
+              src={embedUrl}
               title={selectedEpisode ? `S${selectedSeason} E${selectedEpisode.episode_number} - ${selectedEpisode.name}` : "TV Player"}
               allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
               referrerPolicy="no-referrer-when-downgrade"
