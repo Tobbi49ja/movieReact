@@ -333,7 +333,6 @@ export default function WatchPage() {
               allowFullScreen
               style={{ width: '100%', height: '100%', border: 'none' }}
               allow="autoplay; fullscreen; picture-in-picture"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups-to-escape-sandbox"
             />
             {/* Transparent overlay — blocks redirect clicks, allows fullscreen */}
             <div
