@@ -254,9 +254,7 @@ export default function WatchPage() {
   ];
 
   const src = SOURCES[activeSource];
-  const embedUrl = mediaType === 'movie'
-    ? src.movieUrl(tmdbId)
-    : src.tvUrl(tmdbId, season, episode);
+  const embedUrl = src.movieUrl(id);
 
   const handleIframeLoad = () => {
     try {
