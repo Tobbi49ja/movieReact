@@ -324,16 +324,34 @@ export default function WatchPage() {
         </div>
 
         <div className="video-container">
-          <iframe
-            ref={iframeRef}
-            key={currentSource}
-            src={embedUrl}
-            onLoad={handleIframeLoad}
-            title="Movie Player"
-            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-            referrerPolicy="no-referrer-when-downgrade"
-            style={{ border: "none" }}
-          />
+          <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9' }}>
+            <iframe
+              ref={iframeRef}
+              key={currentSource}
+              src={embedUrl}
+              onLoad={handleIframeLoad}
+              allowFullScreen
+              style={{ width: '100%', height: '100%', border: 'none' }}
+              allow="autoplay; fullscreen; picture-in-picture"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups-to-escape-sandbox"
+            />
+            {/* Transparent overlay — blocks redirect clicks, allows fullscreen */}
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 1,
+                cursor: 'default',
+              }}
+              onDoubleClick={() => {
+                const iframe = iframeRef.current;
+                if (iframe?.requestFullscreen) iframe.requestFullscreen();
+              }}
+            />
+          </div>
         </div>
         <div className="player-actions">
           <button className="fullscreen-btn" onClick={handleFullscreen} aria-label="Fullscreen">
