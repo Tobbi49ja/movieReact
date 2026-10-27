@@ -331,7 +331,7 @@ export default function WatchPage() {
               src={embedUrl}
               onLoad={handleIframeLoad}
               allowFullScreen
-              style={{ width: '100%', height: '100%', border: 'none' }}
+              style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }}
               allow="autoplay; fullscreen; picture-in-picture"
             />
             {/* Transparent overlay — blocks redirect clicks, allows fullscreen */}
@@ -342,8 +342,9 @@ export default function WatchPage() {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                zIndex: 1,
+                zIndex: 9999,
                 cursor: 'default',
+                background: 'transparent',
               }}
               onDoubleClick={() => {
                 const iframe = iframeRef.current;
