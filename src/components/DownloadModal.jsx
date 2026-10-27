@@ -21,40 +21,40 @@ export default function DownloadModal({
   // Download source targets — opens in new tab
   const downloadServers = [
     {
-      name: "AutoEmbed HD Gateway",
-      badge: "720p / 1080p",
-      quality: "720p / 1080p",
-      speed: "High Speed",
-      externalUrl: isTv
-        ? `https://www.2embed.cc/embedtv/${tmdbId}&s=${season}&e=${episode}`
-        : `https://www.2embed.cc/embed/${tmdbId}`,
-    },
-    {
-      name: "Tobbihub Direct Proxy",
-      badge: "Direct MP4 Download",
+      name: "VidSrc Direct",
+      badge: "1080p HD",
       quality: "1080p Full HD",
-      speed: "Ultra Fast",
+      speed: "Fast",
       externalUrl: isTv
-        ? `https://vidsrc.me/download/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`
-        : `https://vidsrc.me/download/movie?tmdb=${tmdbId}`,
+        ? `https://vsembed.su/embed/tv/${tmdbId}/${season}/${episode}`
+        : `https://vsembed.su/embed/movie/${tmdbId}`,
     },
     {
-      name: "MultiEmbed Mirror",
-      badge: "Multi-Quality",
-      quality: "1080p / 720p / 480p",
+      name: "Vidnest Mirror",
+      badge: "Multi Quality",
+      quality: "1080p / 720p",
       speed: "Stable",
       externalUrl: isTv
-        ? `https://multiembed.mov/direct-download?tmdb=${tmdbId}&s=${season}&e=${episode}`
-        : `https://multiembed.mov/direct-download?tmdb=${tmdbId}`,
+        ? `https://vidnest.fun/tv/${tmdbId}/${season}/${episode}`
+        : `https://vidnest.fun/movie/${tmdbId}`,
     },
     {
-      name: "VidSrc Pro Direct",
-      badge: "Standard Mirror",
-      quality: "720p HD",
+      name: "Aether Stream",
+      badge: "Multi Lang",
+      quality: "1080p",
+      speed: "High Speed",
+      externalUrl: isTv
+        ? `https://aether.ist/media/tmdb-tv-${tmdbId}/${season}/${episode}`
+        : `https://aether.ist/media/tmdb-movie-${tmdbId}`,
+    },
+    {
+      name: "Vidrift Player",
+      badge: "Standard",
+      quality: "720p / 1080p",
       speed: "Standard",
       externalUrl: isTv
-        ? `https://vidsrc.pro/embed/tv/${tmdbId}?season=${season}&episode=${episode}`
-        : `https://vidsrc.pro/embed/movie/${tmdbId}`,
+        ? `https://embed.vidrift.net/embed/tv/${tmdbId}/${season}/${episode}`
+        : `https://embed.vidrift.net/embed/movie/${tmdbId}`,
     },
   ];
 
