@@ -17,6 +17,7 @@ import AdNoticeMarquee from "../components/AdNoticeMarquee";
 import VPNBanner from "../components/VPNBanner";
 import DownloadModal from "../components/DownloadModal";
 import StarRating from "../components/StarRating";
+import { useContinueWatching } from "../hooks/useContinueWatching";
 
 // -----------------------------
 // Dynamic backend URL

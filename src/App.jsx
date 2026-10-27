@@ -3,6 +3,7 @@ import { Toaster } from "react-hot-toast";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
 import { ContentModeProvider } from "./context/ContentModeContext";
+import { AuthProvider } from "./context/AuthContext";
 
 import useScrollGlow from "./hooks/useScrollGlow";
 

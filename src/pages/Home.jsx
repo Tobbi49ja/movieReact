@@ -3,6 +3,7 @@ import Hero from "../components/Hero";
 import MoviesFetch from "../components/MoviesFetch";
 import SEOHelmet from "../components/seo/SEOHelmet";
 import { useContentMode } from "../context/ContentModeContext";
+import ContinueWatching from "../components/ContinueWatching";
 
 const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL ||
@@ -48,6 +49,7 @@ export default function Home() {
 
       {/* ✅ Hero Section */}
       <Hero />
+  <ContinueWatching />
 
       {/* Nollywood banner */}
       {mode === "nollywood" && (

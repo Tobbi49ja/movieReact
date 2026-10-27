@@ -46,6 +46,7 @@ export default function TVShowWatchPage() {
   const [currentSource, setCurrentSource] = useState("");
   const [activeSource, setActiveSource] = useState(0);
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
+  const [autoNextCountdown, setAutoNextCountdown] = useState(null);
 
   const socketRef = useRef(null);
   const trailerRef = useRef(null);
@@ -68,15 +69,7 @@ export default function TVShowWatchPage() {
     setDeviceType(storedName);
   }, []);
 
-  // -----------------------------
-  // Sources — VidSrc default (most content)
-  // -----------------------------
-  const sources = (season, episode) => ({
-    VidSrc:  `https://vidsrc.xyz/embed/tv?tmdb=${id}&season=${season}&episode=${episode}`,
-    VidSrc2: `https://vidsrc.me/embed/tv?tmdb=${id}&season=${season}&episode=${episode}`,
-    TwoEmbed:`https://www.2embed.cc/embedtv/${id}&s=${season}&e=${episode}`,
-    VidSrc3: `https://vidsrc.pro/embed/tv/${id}?season=${season}&episode=${episode}`,
-  });
+
 
   // -----------------------------
   // Fetch show details + trailer
@@ -360,23 +353,29 @@ export default function TVShowWatchPage() {
           ))}
         </div>
 
-        <div className="video-container">
-          {currentSource ? (
-            <iframe
-              ref={iframeRef}
-              key={currentSource}
-              src={embedUrl}
-              title={selectedEpisode ? `S${selectedSeason} E${selectedEpisode.episode_number} - ${selectedEpisode.name}` : "TV Player"}
-              allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-              referrerPolicy="no-referrer-when-downgrade"
-              style={{ border: "none" }}
-            />
-          ) : (
-            <div className="player-placeholder">
-              <p>Select an episode below to start watching</p>
-            </div>
-          )}
-        </div>
+  <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9' }}>
+    <iframe
+      ref={iframeRef}
+      src={embedUrl}
+      title={selectedEpisode ? `S${selectedSeason} E${selectedEpisode.episode_number}` : "TV Player"}
+      allow="autoplay; fullscreen; picture-in-picture"
+      allowFullScreen
+      style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }}
+    />
+    <div
+      style={{
+        position: 'absolute',
+        top: 0, left: 0, right: 0, bottom: 0,
+        zIndex: 9999,
+        cursor: 'default',
+        background: 'transparent',
+      }}
+      onDoubleClick={() => {
+        const iframe = iframeRef.current;
+        if (iframe?.requestFullscreen) iframe.requestFullscreen();
+      }}
+    />
+  </div>
         {currentSource && (
           <div className="player-actions">
             <button className="fullscreen-btn" onClick={handleFullscreen} aria-label="Fullscreen">
