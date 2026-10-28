@@ -17,12 +17,32 @@ import {
 } from "react-icons/fi";
 
 export default function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      const stored = localStorage.getItem("sidebar-collapsed");
+      return stored === "true";
+    } catch {
+      return false;
+    }
+  });
   const [searchTerm, setSearchTerm] = useState("");
   const { user, logout } = useAuth();
   const { mode, setMode } = useContentMode();
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.documentElement.dataset.sidebar = collapsed ? "collapsed" : "open";
+    try {
+      localStorage.setItem("sidebar-collapsed", collapsed ? "true" : "false");
+    } catch {
+      // ignore
+    }
+  }, [collapsed]);
+
+  useEffect(() => {
+    document.documentElement.dataset.sidebar = collapsed ? "collapsed" : "open";
+  }, []);
 
   const handleSearch = (e) => {
     e.preventDefault();

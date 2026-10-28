@@ -172,18 +172,27 @@
     display: none;
   }
 
-  /* Hero Section */
-  .hero-slider,
+@media (max-width: 767px) {
   .hero-slide {
-    height: 95vh;
+    height: 50svh;
+    min-height: 50svh;
   }
-
+  .hero-slider {
+    height: 50svh;
+    min-height: 50svh;
+  }
   .hero-image {
-    object-fit: contain;
-    object-position: center center;
-    height: 100%;
+    object-fit: cover;
     width: 100%;
+    height: 100%;
   }
+  .hero-overlay {
+    bottom: 12%;
+  }
+  .movies-section {
+    margin-top: 0;
+  }
+}
 
   .hero-overlay {
     bottom: 15%;

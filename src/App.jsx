@@ -82,9 +82,8 @@ function App() {
           {/* 404 */}
           <Route path="*" element={<ErrorPage />} />
         </Routes>
-        </main>
-
         <Footer />
+        </main>
       </>
     </ContentModeProvider>
   );

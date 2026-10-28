@@ -1,5 +1,23 @@
 @import url("https://fonts.googleapis.com/css2?family=Bungee+Spice&family=New+Rocker&family=Poppins:wght@400;600;700&display=swap");
 
+:root {
+  --sidebar-w: 220px;
+}
+:root[data-sidebar="collapsed"] {
+  --sidebar-w: 64px;
+}
+
+@media (min-width: 768px) {
+  .app-with-sidebar {
+    margin-left: var(--sidebar-w);
+    width: calc(100% - var(--sidebar-w));
+    transition: margin-left .25s ease, width .25s ease;
+  }
+}
+@media (max-width: 767px) {
+  .app-with-sidebar { margin-left: 0; width: 100%; }
+}
+
 * {
   margin: 0;
   padding: 0;
