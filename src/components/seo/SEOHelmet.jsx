@@ -1,5 +1,6 @@
 import { Helmet } from "react-helmet-async";
 import { useContentMode } from "../../context/ContentModeContext";
+import { tmdbImg } from "../../utils/tmdb";
 
 const SITE_URL = "https://moviereact-zzye.onrender.com";
 
@@ -21,7 +22,7 @@ export default function SEOHelmet({ item, title, description, keywords, image, u
     : description || "Watch free movies and TV shows on Tobbihub.";
 
   const dynamicImage = item
-    ? `https://image.tmdb.org/t/p/w500${item.poster_path || item.backdrop_path}`
+    ? tmdbImg(item.poster_path || item.backdrop_path, "w500")
     : image || `${SITE_URL}/Logo.png`;
 
   const dynamicUrl = url || (typeof window !== "undefined" ? window.location.href : SITE_URL);

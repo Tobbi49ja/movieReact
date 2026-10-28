@@ -4,6 +4,7 @@ import { Autoplay, Navigation, EffectFade } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/effect-fade";
+import { tmdbImg, tmdbImgSrcSet } from "../utils/tmdb";
 
 export default function Hero() {
   const swiperRef = useRef(null);
@@ -81,10 +82,13 @@ export default function Hero() {
             <div className="hero-slide">
 
               <img
-                src={`https://image.tmdb.org/t/p/original${movie.backdrop_path}`}
+                src={tmdbImg(movie.backdrop_path, "w780")}
+                srcSet={`${tmdbImgSrcSet(movie.backdrop_path, ["w500", "w780"])}, ${tmdbImg(movie.backdrop_path, "original")} 2000w`}
+                sizes="(max-width: 767px) 100vw, 1920px"
                 alt={`${movie.title} backdrop`}
                 className="hero-image"
                 loading={index === 0 ? "eager" : "lazy"}
+                decoding={index === 0 ? "sync" : "async"}
                 fetchpriority={index === 0 ? "high" : "low"}
                 width="1920"
                 height="1080"

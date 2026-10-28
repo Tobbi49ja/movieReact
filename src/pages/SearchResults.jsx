@@ -3,8 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import SEOHelmet from "../components/seo/SEOHelmet";
 import { useContentMode } from "../context/ContentModeContext";
+import { tmdbImg, tmdbImgSrcSet } from "../utils/tmdb";
 
-const TMDB_IMG = "https://image.tmdb.org/t/p/w342";
 const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
 const BACKEND_URL =
@@ -221,9 +221,12 @@ export default function SearchResults() {
                 <div className="search-card-poster">
                   {item.poster_path ? (
                     <img
-                      src={`${TMDB_IMG}${item.poster_path}`}
+                      src={tmdbImg(item.poster_path, "w342")}
+                      srcSet={tmdbImgSrcSet(item.poster_path, ["w185", "w342"])}
+                      sizes="(max-width: 767px) 185px, 342px"
                       alt={title}
                       loading="lazy"
+                      decoding="async"
                     />
                   ) : (
                     <div className="search-no-poster" aria-hidden="true">

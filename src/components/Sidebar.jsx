@@ -126,7 +126,15 @@ export default function Sidebar() {
         <form onSubmit={handleSearch} className="sidebar-search-form">
           <FiSearch
             className="sidebar-search-icon"
-            onClick={() => collapsed && setCollapsed(false)}
+            onClick={() => {
+              if (collapsed) {
+                setCollapsed(false);
+              } else {
+                // if already expanded, allow normal submit
+              }
+            }}
+            title="Search"
+            aria-label="Search"
           />
           {!collapsed && (
             <input
@@ -134,6 +142,7 @@ export default function Sidebar() {
               placeholder="Search..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Search"
             />
           )}
         </form>
@@ -147,6 +156,7 @@ export default function Sidebar() {
             onClick={() => setMode("hollywood")}
             className={mode === "hollywood" ? "active-hollywood" : ""}
             aria-label="Hollywood mode"
+            title="Hollywood"
           >
             🇺🇸 {!collapsed && "Hollywood"}
           </button>
@@ -154,6 +164,7 @@ export default function Sidebar() {
             onClick={() => setMode("nollywood")}
             className={mode === "nollywood" ? "active-nollywood" : ""}
             aria-label="Nollywood mode"
+            title="Nollywood"
           >
             🇳🇬 {!collapsed && "Nollywood"}
           </button>

@@ -4,28 +4,29 @@ import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
 import { ContentModeProvider } from "./context/ContentModeContext";
 import { AuthProvider } from "./context/AuthContext";
+import React, { Suspense, lazy } from "react";
 
 import useScrollGlow from "./hooks/useScrollGlow";
 
 
 // pages
-import Home from "./pages/Home";
-import Movies from "./pages/Movies";
-import TvShows from "./pages/TvShows";
-import GenrePage from "./pages/Genres/GenrePage";
-import SearchResults from "./pages/SearchResults";
-import WatchPage from "./pages/WatchPage";
-import TVShowWatchPage from "./pages/TVShowWatchPage";
-import Sitemap from "./pages/Sitemap";
-import Terms from "./pages/Terms";
-import Contact from "./pages/Contact";
-import About from "./pages/About";
-import ErrorPage from "./pages/ErrorPage";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Watchlist from "./pages/Watchlist";
-import AdminPanel from "./pages/Admin/AdminPanel";
-import LiveTV from './pages/LiveTV';
+const Home = lazy(() => import("./pages/Home"));
+const Movies = lazy(() => import("./pages/Movies"));
+const TvShows = lazy(() => import("./pages/TvShows"));
+const GenrePage = lazy(() => import("./pages/Genres/GenrePage"));
+const SearchResults = lazy(() => import("./pages/SearchResults"));
+const WatchPage = lazy(() => import("./pages/WatchPage"));
+const TVShowWatchPage = lazy(() => import("./pages/TVShowWatchPage"));
+const Sitemap = lazy(() => import("./pages/Sitemap"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Contact = lazy(() => import("./pages/Contact"));
+const About = lazy(() => import("./pages/About"));
+const ErrorPage = lazy(() => import("./pages/ErrorPage"));
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const Watchlist = lazy(() => import("./pages/Watchlist"));
+const AdminPanel = lazy(() => import("./pages/Admin/AdminPanel"));
+const LiveTV = lazy(() => import("./pages/LiveTV"));
 
 // SEO
 import SEOHelmet from "./components/seo/SEOHelmet";
@@ -52,6 +53,7 @@ function App() {
         <BottomNav />
 
         <main className="app-with-sidebar">
+          <Suspense fallback={<div style={{minHeight:'60vh',display:'flex',alignItems:'center',justifyContent:'center',color:'#aaa'}}>Loading...</div>}>
           <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/movies" element={<Movies />} />
@@ -82,6 +84,7 @@ function App() {
           {/* 404 */}
           <Route path="*" element={<ErrorPage />} />
         </Routes>
+          </Suspense>
         <Footer />
         </main>
       </>

@@ -1,6 +1,6 @@
 // src/pages/TVShowWatchPage.jsx
 import { useParams } from "react-router-dom";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, lazy, Suspense } from "react";
 import axios from "axios";
 import { io } from "socket.io-client";
 import Loader from "../components/Loader";
@@ -15,8 +15,10 @@ import {
 import AdNoticeMarquee from "../components/AdNoticeMarquee";
 import SEOHelmet from "../components/seo/SEOHelmet";
 import VPNBanner from "../components/VPNBanner";
-import DownloadModal from "../components/DownloadModal";
+const DownloadModal = lazy(() => import("../components/DownloadModal"));
 import StarRating from "../components/StarRating";
+import { tmdbImg, tmdbImgSrcSet } from "../utils/tmdb";
+import { useInView } from "../hooks/useInView";
 
 // -----------------------------
 // Dynamic backend URL
@@ -43,14 +45,19 @@ export default function TVShowWatchPage() {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [deviceType, setDeviceType] = useState("");
-  const [currentSource, setCurrentSource] = useState("");
   const [activeSource, setActiveSource] = useState(0);
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [autoNextCountdown, setAutoNextCountdown] = useState(null);
 
   const socketRef = useRef(null);
   const trailerRef = useRef(null);
+  const trailerIframeRef = useRef(null);
   const iframeRef = useRef(null);
+  const commentsSectionRef = useRef(null);
+  const [commentsInView, setCommentsInView] = useState(false);
+
+  const inView = useInView(commentsSectionRef, { rootMargin: "300px" });
+  useEffect(() => { setCommentsInView(inView); }, [inView]);
 
   // -----------------------------
   // Detect device type (persisted in localStorage)
@@ -75,14 +82,17 @@ export default function TVShowWatchPage() {
   // Fetch show details + trailer
   // -----------------------------
   useEffect(() => {
+    const controller = new AbortController();
     const fetchShow = async () => {
       try {
         const [showRes, videosRes] = await Promise.all([
           fetch(
-            `https://api.themoviedb.org/3/tv/${id}?api_key=${API_KEY}&language=en-US`
+            `https://api.themoviedb.org/3/tv/${id}?api_key=${API_KEY}&language=en-US`,
+            { signal: controller.signal }
           ),
           fetch(
-            `https://api.themoviedb.org/3/tv/${id}/videos?api_key=${API_KEY}&language=en-US`
+            `https://api.themoviedb.org/3/tv/${id}/videos?api_key=${API_KEY}&language=en-US`,
+            { signal: controller.signal }
           ),
         ]);
 
@@ -100,62 +110,65 @@ export default function TVShowWatchPage() {
         );
         if (trailer) setTrailerKey(trailer.key);
       } catch (err) {
-        console.error("Error fetching TV show:", err);
+        if (err.name !== "AbortError") console.error("Error fetching TV show:", err);
       }
     };
     fetchShow();
+    return () => controller.abort();
   }, [id, API_KEY]);
 
   // -----------------------------
   // Fetch episodes for selected season
   // -----------------------------
   useEffect(() => {
+    const controller = new AbortController();
     const fetchEpisodes = async () => {
       setLoading(true);
       try {
         const res = await fetch(
-          `https://api.themoviedb.org/3/tv/${id}/season/${selectedSeason}?api_key=${API_KEY}&language=en-US`
+          `https://api.themoviedb.org/3/tv/${id}/season/${selectedSeason}?api_key=${API_KEY}&language=en-US`,
+          { signal: controller.signal }
         );
         const data = await res.json();
         const episodeList = Array.isArray(data?.episodes) ? data.episodes : [];
         setEpisodes(episodeList);
         setSelectedEpisode(episodeList[0] || null);
-
-        if (episodeList[0]) {
-          const firstEp = episodeList[0];
-          const firstSource = Object.values(
-            sources(selectedSeason, firstEp.episode_number)
-          )[0];
-          setCurrentSource(firstSource);
-        }
       } catch (err) {
-        console.error("Error fetching episodes:", err);
+        if (err.name !== "AbortError") console.error("Error fetching episodes:", err);
       } finally {
         setLoading(false);
       }
     };
     if (selectedSeason) fetchEpisodes();
+    return () => controller.abort();
   }, [selectedSeason, id, API_KEY]);
 
   // -----------------------------
   // Fetch comments
   // -----------------------------
   useEffect(() => {
+    if (!commentsInView) return;
+    const controller = new AbortController();
     const fetchComments = async () => {
       try {
-        const res = await axios.get(`${BACKEND_URL}/api/comments/tv/${id}`);
+        const res = await axios.get(
+          `${BACKEND_URL}/api/comments/tv/${id}`,
+          { signal: controller.signal }
+        );
         setComments(res.data);
       } catch (err) {
-        console.error("Error loading comments:", err);
+        if (err.name !== "AbortError") console.error("Error loading comments:", err);
       }
     };
     fetchComments();
-  }, [id]);
+    return () => controller.abort();
+  }, [id, commentsInView]);
 
   // -----------------------------
   // Socket.io live updates
   // -----------------------------
   useEffect(() => {
+    if (!commentsInView) return;
     const socket = io(BACKEND_URL, { transports: ["websocket"] });
     socketRef.current = socket;
 
@@ -177,7 +190,7 @@ export default function TVShowWatchPage() {
       socket.off("comment_liked");
       socket.disconnect();
     };
-  }, [id]);
+  }, [id, commentsInView]);
 
   // -----------------------------
   // Handlers
@@ -196,20 +209,24 @@ export default function TVShowWatchPage() {
 
   // Fetch reaction counts + this user's reaction from DB
   useEffect(() => {
+    if (!commentsInView) return;
+    const controller = new AbortController();
     const fetchReactions = async () => {
       try {
         const res = await axios.get(
-          `${BACKEND_URL}/api/reactions/tv/${id}?deviceId=${deviceId}`
+          `${BACKEND_URL}/api/reactions/tv/${id}?deviceId=${deviceId}`,
+          { signal: controller.signal }
         );
         setLikes(res.data.likes);
         setDislikes(res.data.dislikes);
         setUserReaction(res.data.userReaction);
       } catch (err) {
-        console.error("Error fetching reactions:", err);
+        if (err.name !== "AbortError") console.error("Error fetching reactions:", err);
       }
     };
     fetchReactions();
-  }, [id]);
+    return () => controller.abort();
+  }, [id, commentsInView]);
 
   const handleReaction = async (reaction) => {
     try {
@@ -237,7 +254,12 @@ export default function TVShowWatchPage() {
   };
 
   const handleTrailerToggle = () => {
-    setShowTrailer((prev) => !prev);
+    setShowTrailer((prev) => {
+      if (prev && trailerIframeRef.current) {
+        try { trailerIframeRef.current.src = "about:blank"; } catch {}
+      }
+      return !prev;
+    });
     if (!showTrailer && trailerRef.current) {
       trailerRef.current.scrollIntoView({ behavior: "smooth" });
     }
@@ -274,7 +296,21 @@ export default function TVShowWatchPage() {
     }
   };
 
-  if (loading || !show) return <Loader />;
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+
+  useEffect(() => {
+    setIframeLoaded(false);
+  }, [id, activeSource, selectedSeason, selectedEpisode?.episode_number]);
+
+  useEffect(() => {
+    return () => {
+      if (iframeRef.current) {
+        try {
+          iframeRef.current.src = "about:blank";
+        } catch {}
+      }
+    };
+  }, []);
 
   const SOURCES = [
     { id: "vidrift",  label: "Vidrift",  movieUrl: (id) => `https://embed.vidrift.net/embed/movie/${id}?title=true&hide=next,episodes,cast`,  tvUrl: (id,s,e) => `https://embed.vidrift.net/embed/tv/${id}/${s}/${e}?title=true&hide=next,episodes,cast` },
@@ -286,10 +322,10 @@ export default function TVShowWatchPage() {
 
   const src = SOURCES[activeSource];
   const embedUrl = src.tvUrl(id, selectedSeason, selectedEpisode?.episode_number || 1);
+  const currentSource = embedUrl;
 
   const handleEpisodeSelect = (ep) => {
     setSelectedEpisode(ep);
-    setCurrentSource(Object.values(sources(selectedSeason, ep.episode_number))[0]);
     setShowEpisodePanel(false); // collapse after picking
   };
 
@@ -313,9 +349,13 @@ export default function TVShowWatchPage() {
       {/* Hero */}
       <div className="watch-hero">
         <img
-          src={`https://image.tmdb.org/t/p/original${show.backdrop_path}`}
+          src={tmdbImg(show.backdrop_path, "w780")}
+          srcSet={`${tmdbImgSrcSet(show.backdrop_path, ["w500", "w780"])} , ${tmdbImg(show.backdrop_path, "original")} 2000w`}
+          sizes="(max-width: 767px) 100vw, 100vw"
           alt={show.name}
           className="watch-bg"
+          loading="lazy"
+          decoding="async"
         />
         <div className="watch-overlay">
           <p>{show.overview}</p>
@@ -353,29 +393,69 @@ export default function TVShowWatchPage() {
           ))}
         </div>
 
-  <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9' }}>
-    <iframe
-      ref={iframeRef}
-      src={embedUrl}
-      title={selectedEpisode ? `S${selectedSeason} E${selectedEpisode.episode_number}` : "TV Player"}
-      allow="autoplay; fullscreen; picture-in-picture"
-      allowFullScreen
-      style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }}
-    />
-    <div
-      style={{
-        position: 'absolute',
-        top: 0, left: 0, right: 0, bottom: 0,
-        zIndex: 9999,
-        cursor: 'default',
-        background: 'transparent',
-      }}
-      onDoubleClick={() => {
-        const iframe = iframeRef.current;
-        if (iframe?.requestFullscreen) iframe.requestFullscreen();
-      }}
-    />
-  </div>
+        <div className="video-container">
+          <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', maxHeight: '80svh' }}>
+            {!iframeLoaded ? (
+              <button
+                onClick={() => setIframeLoaded(true)}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  border: 'none',
+                  background: `url(${tmdbImg(show.backdrop_path, "w780")}) center/cover no-repeat`,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                aria-label="Play video"
+              >
+                <span
+                  style={{
+                    width: 70,
+                    height: 70,
+                    borderRadius: '50%',
+                    background: 'rgba(229,9,20,0.9)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 0 0 8px rgba(229,9,20,0.25)'
+                  }}
+                >
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </span>
+              </button>
+            ) : (
+              <iframe
+                ref={iframeRef}
+                key={`${activeSource}-${selectedSeason}-${selectedEpisode?.episode_number}`}
+                src={embedUrl}
+                title={selectedEpisode ? `S${selectedSeason} E${selectedEpisode.episode_number}` : "TV Player"}
+                allow="autoplay; fullscreen; picture-in-picture"
+                allowFullScreen
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }}
+              />
+            )}
+            <div
+              style={{
+                position: 'absolute',
+                top: 0, left: 0, right: 0, bottom: 0,
+                zIndex: 9999,
+                cursor: 'default',
+                background: 'transparent',
+                pointerEvents: iframeLoaded ? 'auto' : 'none'
+              }}
+              onDoubleClick={() => {
+                const iframe = iframeRef.current;
+                if (iframe?.requestFullscreen) iframe.requestFullscreen();
+              }}
+            />
+          </div>
+        </div>
         {currentSource && (
           <div className="player-actions">
             <button className="fullscreen-btn" onClick={handleFullscreen} aria-label="Fullscreen">
@@ -481,22 +561,23 @@ export default function TVShowWatchPage() {
         <button className="trailer-toggle" onClick={handleTrailerToggle}>
           {showTrailer ? <>Hide Trailer <FiChevronUp /></> : <>Watch Trailer <FiChevronDown /></>}
         </button>
-        {showTrailer && trailerKey && (
-          <div className="trailer-container">
-            <iframe
-              src={`https://www.youtube.com/embed/${trailerKey}`}
-              title={`${show.name} Trailer`}
-              allow="autoplay; encrypted-media; fullscreen"
-              className="trailer-iframe"
-              style={{ border: "none" }}
-            />
-          </div>
-        )}
+{showTrailer && trailerKey && (
+            <div className="trailer-container">
+              <iframe
+                ref={trailerIframeRef}
+                src={`https://www.youtube.com/embed/${trailerKey}`}
+                title={`${show.name} Trailer`}
+                allow="autoplay; encrypted-media; fullscreen"
+                className="trailer-iframe"
+                style={{ border: "none" }}
+              />
+            </div>
+          )}
         {showTrailer && !trailerKey && <p className="no-trailer">Trailer not available.</p>}
       </div>
 
       {/* Comments */}
-      <section className="comment-section" aria-label="Comments">
+      <section className="comment-section" aria-label="Comments" ref={commentsSectionRef} style={{ minHeight: commentsInView ? "auto" : "200px" }}>
         <h2>Comments</h2>
         <form onSubmit={handleCommentSubmit} className="comment-form">
           <label htmlFor="tv-comment-input" className="sr-only">Add a comment</label>
@@ -533,15 +614,17 @@ export default function TVShowWatchPage() {
       </section>
 
       {/* MovieBox Download Modal */}
+      <Suspense fallback={null}>
       <DownloadModal
         isOpen={isDownloadModalOpen}
         onClose={() => setIsDownloadModalOpen(false)}
         itemTitle={show?.name}
         type="tv"
         tmdbId={id}
-        season={selectedSeason}
-        episode={selectedEpisode?.episode_number || 1}
+        season={season}
+        episode={episode}
       />
+      </Suspense>
     </main>
   );
 }

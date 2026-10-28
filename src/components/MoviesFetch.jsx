@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import MovieCard from "./MovieCard";
 import Loader from "./Loader";
+import { tmdbImg, tmdbImgSrcSet } from "../utils/tmdb";
 
 export default function MoviesFetch({ title, apiUrl, source, modeSwitching, mode }) {
   const [movies, setMovies] = useState([]);
@@ -100,11 +101,12 @@ export default function MoviesFetch({ title, apiUrl, source, modeSwitching, mode
                   movie.first_air_date?.split("-")[0] ||
                   "N/A"
                 }
-    image={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
-    mediaType={movie.media_type || (movie.title ? "movie" : "tv")}
-    releaseDate={movie.release_date || movie.first_air_date}
-    source={source}
-  />
+                image={tmdbImg(movie.poster_path, "w342")}
+                imageSrcSet={tmdbImgSrcSet(movie.poster_path, ["w185", "w342"])}
+                mediaType={movie.media_type || (movie.title ? "movie" : "tv")}
+                releaseDate={movie.release_date || movie.first_air_date}
+                source={source}
+              />
             ))}
           </div>
 

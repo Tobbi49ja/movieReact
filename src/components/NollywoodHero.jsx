@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { tmdbImg } from "../utils/tmdb";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ||
   "https://moviereact-zzye.onrender.com";
@@ -24,7 +25,7 @@ export default function NollywoodHero() {
       <div
         className="nollywood-hero-bg"
         style={{
-          backgroundImage: `url(https://image.tmdb.org/t/p/original${featured.backdrop_path})`
+          backgroundImage: `url(${tmdbImg(featured.backdrop_path, "w780")})`
         }}
       />
       <div className="nollywood-hero-overlay" />

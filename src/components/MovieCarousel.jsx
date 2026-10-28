@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import { tmdbImg, tmdbImgSrcSet } from "../utils/tmdb";
 import MovieCard from "./MovieCard";
 
 export default function MovieCarousel({ title, movies = [], source }) {
@@ -32,7 +33,8 @@ export default function MovieCarousel({ title, movies = [], source }) {
               id={m.id}
               title={m.title || m.name}
               year={m.release_date?.split('-')[0] || m.first_air_date?.split('-')[0]}
-              image={`https://image.tmdb.org/t/p/w300${m.poster_path}`}
+              image={tmdbImg(m.poster_path, "w342")}
+              imageSrcSet={tmdbImgSrcSet(m.poster_path, ["w185", "w342"])}
               mediaType={m.media_type || (m.title ? 'movie' : 'tv')}
               releaseDate={m.release_date || m.first_air_date}
               source={source}

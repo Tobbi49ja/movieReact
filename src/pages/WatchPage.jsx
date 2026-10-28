@@ -1,6 +1,6 @@
 // src/pages/WatchPage.jsx
 import { useParams } from "react-router-dom";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, lazy, Suspense } from "react";
 import axios from "axios";
 import { io } from "socket.io-client";
 import Loader from "../components/Loader";
@@ -15,9 +15,11 @@ import {
 import SEOHelmet from "../components/seo/SEOHelmet";
 import AdNoticeMarquee from "../components/AdNoticeMarquee";
 import VPNBanner from "../components/VPNBanner";
-import DownloadModal from "../components/DownloadModal";
+const DownloadModal = lazy(() => import("../components/DownloadModal"));
 import StarRating from "../components/StarRating";
 import { useContinueWatching } from "../hooks/useContinueWatching";
+import { useInView } from "../hooks/useInView";
+import { cachedAxiosGet } from "../utils/cachedAxios";
 
 // -----------------------------
 // Dynamic backend URL
@@ -36,7 +38,6 @@ export default function WatchPage() {
   const [dislikes, setDislikes] = useState(0);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
-  const [currentSource, setCurrentSource] = useState("");
   const [activeSource, setActiveSource] = useState(0);
   const [deviceType, setDeviceType] = useState("");
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
@@ -44,20 +45,13 @@ export default function WatchPage() {
 
   const socketRef = useRef(null);
   const trailerRef = useRef(null);
-  const iframeRef = useRef(null);
-  const playerWrapRef = useRef(null);
+  const trailerIframeRef = useRef(null);
+  const commentsSectionRef = useRef(null);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
-  // -----------------------------
-  // Sources — VidSrc default (most content)
-  // -----------------------------
-  const sources = {
-    VidSrc:  `https://vidsrc.xyz/embed/movie?tmdb=${id}`,
-    VidSrc2: `https://vidsrc.me/embed/movie?tmdb=${id}`,
-    TwoEmbed:`https://www.2embed.cc/embed/${id}`,
-    VidSrc3: `https://vidsrc.pro/embed/movie/${id}`,
-  };
+  const commentsInView = useInView(commentsSectionRef, { rootMargin: "300px" });
 
   // -----------------------------
   // Detect device type (persisted in localStorage)
@@ -80,14 +74,17 @@ export default function WatchPage() {
   // Fetch Movie Details + trailer
   // -----------------------------
   useEffect(() => {
+    const controller = new AbortController();
     const fetchMovie = async () => {
       try {
         const [res, videosRes] = await Promise.all([
           fetch(
-            `https://api.themoviedb.org/3/movie/${id}?api_key=${TMDB_KEY}&language=en-US`
+            `https://api.themoviedb.org/3/movie/${id}?api_key=${TMDB_KEY}&language=en-US`,
+            { signal: controller.signal }
           ),
           fetch(
-            `https://api.themoviedb.org/3/movie/${id}/videos?api_key=${TMDB_KEY}&language=en-US`
+            `https://api.themoviedb.org/3/movie/${id}/videos?api_key=${TMDB_KEY}&language=en-US`,
+            { signal: controller.signal }
           ),
         ]);
 
@@ -100,37 +97,43 @@ export default function WatchPage() {
           (vid) => vid.type === "Trailer" && vid.site === "YouTube"
         );
         if (trailer) setTrailerKey(trailer.key);
-
-        setCurrentSource(Object.values(sources)[0]);
       } catch (err) {
-        console.error("Error fetching movie:", err);
+        if (err.name !== "AbortError") console.error("Error fetching movie:", err);
       } finally {
         setLoading(false);
       }
     };
     fetchMovie();
+    return () => controller.abort();
   }, [id, TMDB_KEY]);
 
-  // -----------------------------
-  // Fetch comments
-  // -----------------------------
   useEffect(() => {
+    setIframeLoaded(false);
+  }, [id, activeSource]);
+  useEffect(() => {
+    if (!commentsInView) return;
+    const controller = new AbortController();
     const fetchComments = async () => {
       try {
-        const res = await axios.get(`${BACKEND_URL}/api/comments/movie/${id}`);
+        const res = await cachedAxiosGet(
+          `${BACKEND_URL}/api/comments/movie/${id}`,
+          { signal: controller.signal }
+        );
         const list = Array.isArray(res.data) ? res.data : [];
         setComments([...list].reverse());
       } catch (err) {
-        console.error("Error loading comments:", err);
+        if (err.name !== "AbortError") console.error("Error loading comments:", err);
       }
     };
     fetchComments();
-  }, [id]);
+    return () => controller.abort();
+  }, [id, commentsInView]);
 
   // -----------------------------
   // Socket.io live updates
   // -----------------------------
   useEffect(() => {
+    if (!commentsInView) return;
     const socket = io(BACKEND_URL, { transports: ["websocket"] });
     socketRef.current = socket;
 
@@ -152,7 +155,7 @@ export default function WatchPage() {
       socket.off("comment_liked");
       socket.disconnect();
     };
-  }, [id]);
+  }, [id, commentsInView]);
 
   // Stable device ID — generated once, lives in localStorage forever
   const deviceId = (() => {
@@ -168,20 +171,24 @@ export default function WatchPage() {
 
   // Fetch reaction counts + this user's reaction from DB
   useEffect(() => {
+    if (!commentsInView) return;
+    const controller = new AbortController();
     const fetchReactions = async () => {
       try {
-        const res = await axios.get(
-          `${BACKEND_URL}/api/reactions/movie/${id}?deviceId=${deviceId}`
+        const res = await cachedAxiosGet(
+          `${BACKEND_URL}/api/reactions/movie/${id}?deviceId=${deviceId}`,
+          { signal: controller.signal }
         );
         setLikes(res.data.likes);
         setDislikes(res.data.dislikes);
         setUserReaction(res.data.userReaction);
       } catch (err) {
-        console.error("Error fetching reactions:", err);
+        if (err.name !== "AbortError") console.error("Error fetching reactions:", err);
       }
     };
     fetchReactions();
-  }, [id]);
+    return () => controller.abort();
+  }, [id, commentsInView]);
 
   // -----------------------------
   // Handlers
@@ -233,17 +240,17 @@ export default function WatchPage() {
     }
   };
 
-  const handleFullscreen = () => {
-    const el = iframeRef.current;
-    if (!el) return;
-    if (el.requestFullscreen) el.requestFullscreen();
-    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-    else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
-    else if (el.msRequestFullscreen) el.msRequestFullscreen();
-  };
+  useEffect(() => {
+    setIframeLoaded(false);
+  }, [id, activeSource]);
 
   const handleTrailerToggle = () => {
-    setShowTrailer((prev) => !prev);
+    setShowTrailer((prev) => {
+      if (prev && trailerIframeRef.current) {
+        try { trailerIframeRef.current.src = "about:blank"; } catch {}
+      }
+      return !prev;
+    });
     if (!showTrailer && trailerRef.current) {
       trailerRef.current.scrollIntoView({ behavior: "smooth" });
     }
@@ -295,9 +302,13 @@ export default function WatchPage() {
 
       <div className="watch-hero">
         <img
-          src={`https://image.tmdb.org/t/p/original${movie.backdrop_path}`}
+          src={tmdbImg(movie.backdrop_path, "w780")}
+          srcSet={`${tmdbImgSrcSet(movie.backdrop_path, ["w500", "w780"])} , ${tmdbImg(movie.backdrop_path, "original")} 2000w`}
+          sizes="(max-width: 767px) 100vw, 100vw"
           alt={movie.title}
           className="watch-bg"
+          loading="lazy"
+          decoding="async"
         />
         <div className="watch-overlay">
           <p>{movie.overview}</p>
@@ -328,16 +339,52 @@ export default function WatchPage() {
         </div>
 
         <div className="video-container">
-          <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9' }} ref={playerWrapRef}>
-            <iframe
-              ref={iframeRef}
-              key={reloadKey}
-              src={embedUrl}
-              onLoad={handleIframeLoad}
-              allowFullScreen
-              style={{ width: '100%', height: '100%', border: 'none' }}
-              allow="autoplay; fullscreen; picture-in-picture"
-            />
+          <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', maxHeight: '80svh' }} ref={playerWrapRef}>
+            {!iframeLoaded ? (
+              <button
+                onClick={() => setIframeLoaded(true)}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  border: 'none',
+                  background: `url(${tmdbImg(movie.backdrop_path, "w780")}) center/cover no-repeat`,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                aria-label="Play video"
+              >
+                <span
+                  style={{
+                    width: 70,
+                    height: 70,
+                    borderRadius: '50%',
+                    background: 'rgba(229,9,20,0.9)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 0 0 8px rgba(229,9,20,0.25)'
+                  }}
+                >
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </span>
+              </button>
+            ) : (
+              <iframe
+                ref={iframeRef}
+                key={`${activeSource}-${reloadKey}`}
+                src={embedUrl}
+                onLoad={handleIframeLoad}
+                allowFullScreen
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
+                allow="autoplay; fullscreen; picture-in-picture"
+              />
+            )}
           </div>
         </div>
         <div className="player-actions">
@@ -392,22 +439,23 @@ export default function WatchPage() {
         <button className="trailer-toggle" onClick={handleTrailerToggle}>
           {showTrailer ? <>Hide Trailer <FiChevronUp /></> : <>Watch Trailer <FiChevronDown /></>}
         </button>
-        {showTrailer && trailerKey && (
-          <div className="trailer-container">
-            <iframe
-              src={`https://www.youtube.com/embed/${trailerKey}`}
-              title={`${movie.title} trailer`}
-              allow="autoplay; encrypted-media; fullscreen"
-              className="trailer-iframe"
-              style={{ border: "none" }}
-            />
-          </div>
-        )}
+{showTrailer && trailerKey && (
+            <div className="trailer-container">
+              <iframe
+                ref={trailerIframeRef}
+                src={`https://www.youtube.com/embed/${trailerKey}`}
+                title={`${movie.title} trailer`}
+                allow="autoplay; encrypted-media; fullscreen"
+                className="trailer-iframe"
+                style={{ border: "none" }}
+              />
+            </div>
+          )}
         {showTrailer && !trailerKey && <p className="no-trailer">Trailer not available.</p>}
       </div>
 
       {/* Comments Section */}
-      <section className="comment-section" aria-label="Comments">
+      <section className="comment-section" aria-label="Comments" ref={commentsSectionRef} style={{ minHeight: commentsInView ? "auto" : "200px" }}>
         <h2>Comments</h2>
         <form onSubmit={handleCommentSubmit} className="comment-form">
           <label htmlFor="comment-input" className="sr-only">Add a comment</label>
@@ -444,6 +492,7 @@ export default function WatchPage() {
       </section>
 
       {/* MovieBox Download Modal */}
+      <Suspense fallback={null}>
       <DownloadModal
         isOpen={isDownloadModalOpen}
         onClose={() => setIsDownloadModalOpen(false)}
@@ -451,6 +500,7 @@ export default function WatchPage() {
         type="movie"
         tmdbId={id}
       />
+      </Suspense>
     </main>
   );
 }

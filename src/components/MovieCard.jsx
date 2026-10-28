@@ -17,6 +17,7 @@ export default function MovieCard({
   name,
   year,
   image,
+  imageSrcSet,
   quality,
   mediaType,
   showBookmark = true,
@@ -103,7 +104,7 @@ export default function MovieCard({
     <article className="movie-card">
       <div className="img-card">
         <Link to={linkPath} aria-label={`View ${displayTitle}`} tabIndex={-1} aria-hidden="true">
-          <img src={image} alt={displayTitle} loading="lazy" className="card" width="195" height="293" />
+          <img src={image} srcSet={imageSrcSet} sizes="(max-width: 767px) 185px, 342px" alt={displayTitle} loading="lazy" decoding="async" className="card" width="195" height="293" />
           {quality && <span className="quality-tag">{quality}</span>}
         </Link>
 
