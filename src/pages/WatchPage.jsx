@@ -15,11 +15,11 @@ import {
 import SEOHelmet from "../components/seo/SEOHelmet";
 import AdNoticeMarquee from "../components/AdNoticeMarquee";
 import VPNBanner from "../components/VPNBanner";
-const DownloadModal = lazy(() => import("../components/DownloadModal"));
+const AppPromptModal = lazy(() => import("../components/AppPromptModal"));
 import StarRating from "../components/StarRating";
 import { useContinueWatching } from "../hooks/useContinueWatching";
 import { useInView } from "../hooks/useInView";
-import { cachedAxiosGet } from "../utils/cachedAxios";
+  import { cachedAxiosGet, invalidate } from "../utils/cachedAxios";
 
 // -----------------------------
 // Dynamic backend URL
@@ -190,6 +190,31 @@ export default function WatchPage() {
     return () => controller.abort();
   }, [id, commentsInView]);
 
+  const refetchComments = async () => {
+    if (!commentsInView) return;
+    try {
+      const res = await cachedAxiosGet(`${BACKEND_URL}/api/comments/movie/${id}`);
+      const list = Array.isArray(res.data) ? res.data : [];
+      setComments([...list].reverse());
+    } catch (err) {
+      if (err.name !== "AbortError") console.error("Error refetching comments:", err);
+    }
+  };
+
+  const refetchReactions = async () => {
+    if (!commentsInView) return;
+    try {
+      const res = await cachedAxiosGet(
+        `${BACKEND_URL}/api/reactions/movie/${id}?deviceId=${deviceId}`
+      );
+      setLikes(res.data.likes);
+      setDislikes(res.data.dislikes);
+      setUserReaction(res.data.userReaction);
+    } catch (err) {
+      if (err.name !== "AbortError") console.error("Error refetching reactions:", err);
+    }
+  };
+
   // -----------------------------
   // Handlers
   // -----------------------------
@@ -204,6 +229,8 @@ export default function WatchPage() {
       setLikes(res.data.likes);
       setDislikes(res.data.dislikes);
       setUserReaction(res.data.userReaction);
+      invalidate(`${BACKEND_URL}/api/reactions/movie/${id}`);
+      refetchReactions();
     } catch (err) {
       console.error("Error saving reaction:", err);
     }
@@ -224,6 +251,8 @@ export default function WatchPage() {
       socketRef.current?.emit("send_comment", res.data);
       setNewComment("");
       setComments((prev) => [res.data, ...prev]);
+      invalidate(`${BACKEND_URL}/api/comments/movie/${id}`);
+      refetchComments();
     } catch (err) {
       console.error("Error posting comment:", err);
     }
@@ -235,6 +264,8 @@ export default function WatchPage() {
         `${BACKEND_URL}/api/comments/like/${commentId}`
       );
       socketRef.current?.emit("like_comment", res.data);
+      invalidate(`${BACKEND_URL}/api/comments/movie/${id}`);
+      refetchComments();
     } catch (err) {
       console.error("Error liking comment:", err);
     }
@@ -493,12 +524,10 @@ export default function WatchPage() {
 
       {/* MovieBox Download Modal */}
       <Suspense fallback={null}>
-      <DownloadModal
+      <AppPromptModal
         isOpen={isDownloadModalOpen}
         onClose={() => setIsDownloadModalOpen(false)}
         itemTitle={movie.title}
-        type="movie"
-        tmdbId={id}
       />
       </Suspense>
     </main>

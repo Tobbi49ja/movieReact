@@ -15,10 +15,11 @@ import {
 import AdNoticeMarquee from "../components/AdNoticeMarquee";
 import SEOHelmet from "../components/seo/SEOHelmet";
 import VPNBanner from "../components/VPNBanner";
-const DownloadModal = lazy(() => import("../components/DownloadModal"));
-import StarRating from "../components/StarRating";
+const AppPromptModal = lazy(() => import("../components/AppPromptModal"));
+  import StarRating from "../components/StarRating";
 import { tmdbImg, tmdbImgSrcSet } from "../utils/tmdb";
 import { useInView } from "../hooks/useInView";
+import { cachedAxiosGet, invalidate } from "../utils/cachedAxios";
 
 // -----------------------------
 // Dynamic backend URL
@@ -151,7 +152,7 @@ export default function TVShowWatchPage() {
     const controller = new AbortController();
     const fetchComments = async () => {
       try {
-        const res = await axios.get(
+        const res = await cachedAxiosGet(
           `${BACKEND_URL}/api/comments/tv/${id}`,
           { signal: controller.signal }
         );
@@ -213,7 +214,7 @@ export default function TVShowWatchPage() {
     const controller = new AbortController();
     const fetchReactions = async () => {
       try {
-        const res = await axios.get(
+        const res = await cachedAxiosGet(
           `${BACKEND_URL}/api/reactions/tv/${id}?deviceId=${deviceId}`,
           { signal: controller.signal }
         );
@@ -228,6 +229,30 @@ export default function TVShowWatchPage() {
     return () => controller.abort();
   }, [id, commentsInView]);
 
+  const refetchComments = async () => {
+    if (!commentsInView) return;
+    try {
+      const res = await cachedAxiosGet(`${BACKEND_URL}/api/comments/tv/${id}`);
+      setComments(res.data);
+    } catch (err) {
+      if (err.name !== "AbortError") console.error("Error refetching comments:", err);
+    }
+  };
+
+  const refetchReactions = async () => {
+    if (!commentsInView) return;
+    try {
+      const res = await cachedAxiosGet(
+        `${BACKEND_URL}/api/reactions/tv/${id}?deviceId=${deviceId}`
+      );
+      setLikes(res.data.likes);
+      setDislikes(res.data.dislikes);
+      setUserReaction(res.data.userReaction);
+    } catch (err) {
+      if (err.name !== "AbortError") console.error("Error refetching reactions:", err);
+    }
+  };
+
   const handleReaction = async (reaction) => {
     try {
       const res = await axios.post(`${BACKEND_URL}/api/reactions`, {
@@ -239,6 +264,8 @@ export default function TVShowWatchPage() {
       setLikes(res.data.likes);
       setDislikes(res.data.dislikes);
       setUserReaction(res.data.userReaction);
+      invalidate(`${BACKEND_URL}/api/reactions/tv/${id}`);
+      refetchReactions();
     } catch (err) {
       console.error("Error saving reaction:", err);
     }
@@ -280,6 +307,8 @@ export default function TVShowWatchPage() {
       socketRef.current?.emit("send_comment", res.data);
       setNewComment("");
       setComments((prev) => [res.data, ...prev]);
+      invalidate(`${BACKEND_URL}/api/comments/tv/${id}`);
+      refetchComments();
     } catch (err) {
       console.error("Error posting comment:", err);
     }
@@ -291,6 +320,8 @@ export default function TVShowWatchPage() {
         `${BACKEND_URL}/api/comments/like/${commentId}`
       );
       socketRef.current?.emit("like_comment", res.data);
+      invalidate(`${BACKEND_URL}/api/comments/tv/${id}`);
+      refetchComments();
     } catch (err) {
       console.error("Error liking comment:", err);
     }
@@ -615,14 +646,10 @@ export default function TVShowWatchPage() {
 
       {/* MovieBox Download Modal */}
       <Suspense fallback={null}>
-      <DownloadModal
+      <AppPromptModal
         isOpen={isDownloadModalOpen}
         onClose={() => setIsDownloadModalOpen(false)}
         itemTitle={show?.name}
-        type="tv"
-        tmdbId={id}
-        season={season}
-        episode={episode}
       />
       </Suspense>
     </main>

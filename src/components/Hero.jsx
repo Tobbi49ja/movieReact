@@ -83,8 +83,8 @@ export default function Hero() {
 
               <img
                 src={tmdbImg(movie.backdrop_path, "w780")}
-                srcSet={`${tmdbImgSrcSet(movie.backdrop_path, ["w500", "w780"])}, ${tmdbImg(movie.backdrop_path, "original")} 2000w`}
-                sizes="(max-width: 767px) 100vw, 1920px"
+                srcSet={`${tmdbImg(movie.backdrop_path, "w500")} 640w, ${tmdbImg(movie.backdrop_path, "w780")} 780w, ${tmdbImg(movie.backdrop_path, "w1280")} 1280w`}
+                sizes="100vw"
                 alt={`${movie.title} backdrop`}
                 className="hero-image"
                 loading={index === 0 ? "eager" : "lazy"}

@@ -20,3 +20,12 @@ export function cachedAxiosGet(url, config = {}) {
   inflight.set(key, p);
   return p;
 }
+
+export function invalidate(urlPrefix) {
+  for (const key of cache.keys()) {
+    if (key.startsWith(urlPrefix)) cache.delete(key);
+  }
+  for (const key of inflight.keys()) {
+    if (key.startsWith(urlPrefix)) inflight.delete(key);
+  }
+}
