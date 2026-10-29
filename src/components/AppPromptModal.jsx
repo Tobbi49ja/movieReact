@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 import { isNativeApp, APP_URL } from "../utils/platform";
 
 export default function AppPromptModal({ isOpen, onClose, itemTitle }) {
-  const primaryRef = useRef(null);
+  if (isNativeApp()) return null;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -62,6 +62,13 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle }) {
             Downloads are available in the app only. Stream here on the web;
             install the app to save movies and episodes for offline viewing.
           </p>
+          {hasAppUrl && !isNativeApp() && (
+            <ol className="app-install-steps" style={{ margin: "0.75rem 0 0", padding: "0 0 0 1.2rem", fontSize: "0.85rem", lineHeight: 1.5 }}>
+              <li>Tap Get the app and open the downloaded file.</li>
+              <li>If Android asks, allow installs from this browser.</li>
+              <li>If Play Protect warns, choose Install anyway.</li>
+            </ol>
+          )}
         </div>
 
         <div className="download-modal-footer" style={{ display: "flex", gap: "0.6rem", justifyContent: "flex-end", flexWrap: "wrap" }}>
@@ -77,6 +84,7 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle }) {
             <a
               ref={primaryRef}
               href={APP_URL}
+              download
               target="_blank"
               rel="noopener noreferrer"
               className="server-download-btn"

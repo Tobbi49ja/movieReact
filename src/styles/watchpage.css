@@ -417,6 +417,7 @@
 }
 
   /* Modal Footer */
+  body.is-app .download-modal-overlay { display: none !important; }
   .download-modal-footer {
     background: #18181f;
     border-radius: 10px;

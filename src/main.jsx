@@ -5,6 +5,11 @@ import { HelmetProvider } from "react-helmet-async";
 
 import App from "./App.jsx";
 import { AuthProvider } from "./context/AuthContext";
+import { isNativeApp } from "./utils/platform";
+
+if (isNativeApp()) {
+  document.body.classList.add("is-app");
+}
 
 // your styles
 import "./styles/base.css";
