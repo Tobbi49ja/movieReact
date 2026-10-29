@@ -19,7 +19,8 @@ const AppPromptModal = lazy(() => import("../components/AppPromptModal"));
 import StarRating from "../components/StarRating";
 import { useContinueWatching } from "../hooks/useContinueWatching";
 import { useInView } from "../hooks/useInView";
-  import { cachedAxiosGet, invalidate } from "../utils/cachedAxios";
+import { cachedAxiosGet, invalidate } from "../utils/cachedAxios";
+import { tmdbImg, tmdbImgSrcSet } from "../utils/tmdb";
 
 // -----------------------------
 // Dynamic backend URL
@@ -46,12 +47,23 @@ export default function WatchPage() {
   const socketRef = useRef(null);
   const trailerRef = useRef(null);
   const trailerIframeRef = useRef(null);
+  const iframeRef = useRef(null);
+  const playerWrapRef = useRef(null);
   const commentsSectionRef = useRef(null);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
   const commentsInView = useInView(commentsSectionRef, { rootMargin: "300px" });
+
+  const handleFullscreen = () => {
+    const el = playerWrapRef.current || iframeRef.current;
+    if (!el) return;
+    if (el.requestFullscreen) el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
+    else if (el.msRequestFullscreen) el.msRequestFullscreen();
+  };
 
   // -----------------------------
   // Detect device type (persisted in localStorage)
@@ -278,7 +290,7 @@ export default function WatchPage() {
   const handleTrailerToggle = () => {
     setShowTrailer((prev) => {
       if (prev && trailerIframeRef.current) {
-        try { trailerIframeRef.current.src = "about:blank"; } catch {}
+        try { trailerIframeRef.current.src = "about:blank"; } catch { /* cross-origin */ }
       }
       return !prev;
     });
@@ -312,7 +324,7 @@ export default function WatchPage() {
           }
         </style>
       `);
-    } catch {} // Cross-origin iframes will throw — ignore silently
+    } catch { /* Cross-origin iframes will throw — ignore silently */ }
   };
 
   if (loading) return <Loader />;
@@ -333,8 +345,8 @@ export default function WatchPage() {
 
       <div className="watch-hero">
         <img
-          src={tmdbImg(movie.backdrop_path, "w780")}
-          srcSet={`${tmdbImgSrcSet(movie.backdrop_path, ["w500", "w780"])} , ${tmdbImg(movie.backdrop_path, "original")} 2000w`}
+          src={tmdbImg(movie.backdrop_path, "w780", "backdrop")}
+          srcSet={`${tmdbImgSrcSet(movie.backdrop_path, ["w780", "w1280"], "backdrop")} , ${tmdbImg(movie.backdrop_path, "original", "backdrop")} 2000w`}
           sizes="(max-width: 767px) 100vw, 100vw"
           alt={movie.title}
           className="watch-bg"
@@ -380,7 +392,7 @@ export default function WatchPage() {
                   width: '100%',
                   height: '100%',
                   border: 'none',
-                  background: `url(${tmdbImg(movie.backdrop_path, "w780")}) center/cover no-repeat`,
+                  background: `url(${tmdbImg(movie.backdrop_path, "w780", "backdrop")}) center/cover no-repeat`,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',

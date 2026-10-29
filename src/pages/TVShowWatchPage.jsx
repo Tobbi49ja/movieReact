@@ -16,7 +16,7 @@ import AdNoticeMarquee from "../components/AdNoticeMarquee";
 import SEOHelmet from "../components/seo/SEOHelmet";
 import VPNBanner from "../components/VPNBanner";
 const AppPromptModal = lazy(() => import("../components/AppPromptModal"));
-  import StarRating from "../components/StarRating";
+import StarRating from "../components/StarRating";
 import { tmdbImg, tmdbImgSrcSet } from "../utils/tmdb";
 import { useInView } from "../hooks/useInView";
 import { cachedAxiosGet, invalidate } from "../utils/cachedAxios";
@@ -283,7 +283,7 @@ export default function TVShowWatchPage() {
   const handleTrailerToggle = () => {
     setShowTrailer((prev) => {
       if (prev && trailerIframeRef.current) {
-        try { trailerIframeRef.current.src = "about:blank"; } catch {}
+        try { trailerIframeRef.current.src = "about:blank"; } catch { /* cross-origin */ }
       }
       return !prev;
     });
@@ -338,7 +338,7 @@ export default function TVShowWatchPage() {
       if (iframeRef.current) {
         try {
           iframeRef.current.src = "about:blank";
-        } catch {}
+        } catch { /* cross-origin */ }
       }
     };
   }, []);
@@ -380,8 +380,8 @@ export default function TVShowWatchPage() {
       {/* Hero */}
       <div className="watch-hero">
         <img
-          src={tmdbImg(show.backdrop_path, "w780")}
-          srcSet={`${tmdbImgSrcSet(show.backdrop_path, ["w500", "w780"])} , ${tmdbImg(show.backdrop_path, "original")} 2000w`}
+          src={tmdbImg(show.backdrop_path, "w780", "backdrop")}
+          srcSet={`${tmdbImgSrcSet(show.backdrop_path, ["w780", "w1280"], "backdrop")} , ${tmdbImg(show.backdrop_path, "original", "backdrop")} 2000w`}
           sizes="(max-width: 767px) 100vw, 100vw"
           alt={show.name}
           className="watch-bg"
@@ -435,7 +435,7 @@ export default function TVShowWatchPage() {
                   width: '100%',
                   height: '100%',
                   border: 'none',
-                  background: `url(${tmdbImg(show.backdrop_path, "w780")}) center/cover no-repeat`,
+                  background: `url(${tmdbImg(show.backdrop_path, "w780", "backdrop")}) center/cover no-repeat`,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',

@@ -25,7 +25,7 @@ export default function NollywoodHero() {
       <div
         className="nollywood-hero-bg"
         style={{
-          backgroundImage: `url(${tmdbImg(featured.backdrop_path, "w780")})`
+          backgroundImage: `url(${tmdbImg(featured.backdrop_path, "w780", "backdrop")})`
         }}
       />
       <div className="nollywood-hero-overlay" />

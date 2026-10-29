@@ -82,8 +82,8 @@ export default function Hero() {
             <div className="hero-slide">
 
               <img
-                src={tmdbImg(movie.backdrop_path, "w780")}
-                srcSet={`${tmdbImg(movie.backdrop_path, "w500")} 640w, ${tmdbImg(movie.backdrop_path, "w780")} 780w, ${tmdbImg(movie.backdrop_path, "w1280")} 1280w`}
+                src={tmdbImg(movie.backdrop_path, "w780", "backdrop")}
+                srcSet={`${tmdbImg(movie.backdrop_path, "w780", "backdrop")} 780w, ${tmdbImg(movie.backdrop_path, "w1280", "backdrop")} 1280w`}
                 sizes="100vw"
                 alt={`${movie.title} backdrop`}
                 className="hero-image"

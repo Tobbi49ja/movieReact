@@ -22,7 +22,11 @@ export default function SEOHelmet({ item, title, description, keywords, image, u
     : description || "Watch free movies and TV shows on Tobbihub.";
 
   const dynamicImage = item
-    ? tmdbImg(item.poster_path || item.backdrop_path, "w500")
+    ? item.poster_path
+      ? tmdbImg(item.poster_path, "w500", "poster")
+      : item.backdrop_path
+        ? tmdbImg(item.backdrop_path, "w780", "backdrop")
+        : image || `${SITE_URL}/Logo.png`
     : image || `${SITE_URL}/Logo.png`;
 
   const dynamicUrl = url || (typeof window !== "undefined" ? window.location.href : SITE_URL);
