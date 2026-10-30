@@ -1,5 +1,10 @@
 import { useState, useEffect } from "react";
-import { isNativeApp } from "./platform";
+
+export function isNativeApp() {
+  return typeof window !== "undefined" && !!window.Capacitor?.isNativePlatform?.();
+}
+
+export const APP_URL = import.meta.env.VITE_APP_URL || "https://moviereact-zzye.onrender.com";
 
 const STORAGE_KEY = "tb_datasaver";
 const DEFAULT_ON = true;
