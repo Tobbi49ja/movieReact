@@ -1,19 +1,22 @@
 import { Link } from "react-router-dom";
+import { useSevenTap } from "../hooks/useSevenTap";
 
 export default function Footer() {
+  const handleSevenTap = useSevenTap();
+
   return (
     <footer role="contentinfo">
 
       <div className="end-info">
         <div className="info-info">
           <div className="logo-container2">
-            <Link to="/" aria-label="TobbiHub - Go to homepage">
+            <Link to="/" aria-label="TobbiHub - Go to homepage" onClick={handleSevenTap} style={{ cursor: "pointer" }}>
               <img className="logo2" src="/Logo.png" alt="TobbiHub Logo" />
             </Link>
           </div>
         </div>
         <div className="info-info">
-          <p className="copywrite-tobbihub">© TobbiHub {new Date().getFullYear()}</p>
+          <p className="copywrite-tobbihub" onClick={handleSevenTap} style={{ cursor: "pointer" }}>© TobbiHub {new Date().getFullYear()}</p>
         </div>
       </div>
 

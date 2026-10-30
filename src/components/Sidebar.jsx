@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useContentMode } from "../context/ContentModeContext";
 import { useDataSaver } from "../utils/dataSaver";
+import { useSevenTap } from "../hooks/useSevenTap";
 import {
   FiHome,
   FiFilm,
@@ -34,6 +35,8 @@ export default function Sidebar() {
   const { enabled: dataSaver, toggle: toggleDataSaver } = useDataSaver();
   const location = useLocation();
   const navigate = useNavigate();
+
+  const handleLogoTap = useSevenTap();
 
   useEffect(() => {
     document.documentElement.dataset.sidebar = collapsed ? "collapsed" : "open";
@@ -67,23 +70,6 @@ export default function Sidebar() {
     { to: "/livetv", label: "Live TV", icon: FiRadio },
     { to: "/watchlist", label: "Watchlist", icon: FiBookmark, auth: true },
   ];
-
-  const tapsRef = useRef({ count: 0, first: 0 });
-  const handleLogoTap = () => {
-    try {
-      const now = Date.now();
-      const t = tapsRef.current;
-      if (now - t.first > 4000) { t.first = now; t.count = 0; }
-      t.count += 1;
-      if (t.count >= 7) {
-        t.count = 0;
-        if (localStorage.getItem('tb_debug') === '1') localStorage.removeItem('tb_debug');
-        else localStorage.setItem('tb_debug', '1');
-        window.location.reload();
-      }
-    } catch { /* ignore */ }
-  };
-
   return (
     <aside className={collapsed ? "sidebar collapsed" : "sidebar"}>
       {/* TOP SECTION */}

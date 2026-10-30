@@ -306,11 +306,11 @@ export default function WatchPage() {
   };
 
   const SOURCES = [
-    { id: "vidrift",  label: "Vidrift",  movieUrl: (id) => `https://embed.vidrift.net/embed/movie/${id, sandbox: false }?title=true&hide=next,episodes,cast`,  tvUrl: (id,s,e) => `https://embed.vidrift.net/embed/tv/${id, sandbox: false }/${s, sandbox: false }/${e, sandbox: false }?title=true&hide=next,episodes,cast` },
-    { id: "vidfast",  label: "Vidfast",  movieUrl: (id) => `https://vidfast.vc/movie/${id, sandbox: false }?autoPlay=true&pip=hide`,                           tvUrl: (id,s,e) => `https://vidfast.vc/tv/${id, sandbox: false }/${s, sandbox: false }/${e, sandbox: false }?autoPlay=true&pip=hide` },
-    { id: "aether",   label: "Aether",   movieUrl: (id) => `https://aether.ist/media/tmdb-movie-${id, sandbox: false }`,                                       tvUrl: (id,s,e) => `https://aether.ist/media/tmdb-tv-${id, sandbox: false }/${s, sandbox: false }/${e, sandbox: false }` },
-    { id: "vidnest",  label: "Vidnest",  movieUrl: (id) => `https://vidnest.fun/movie/${id, sandbox: false }`,                                                 tvUrl: (id,s,e) => `https://vidnest.fun/tv/${id, sandbox: false }/${s, sandbox: false }/${e, sandbox: false }` },
-    { id: "vsembed",  label: "VidSrc",   movieUrl: (id) => `https://vsembed.su/embed/movie/${id, sandbox: false }?autoplay=1`,                                 tvUrl: (id,s,e) => `https://vsembed.su/embed/tv/${id, sandbox: false }/${s, sandbox: false }/${e, sandbox: false }?autoplay=1` },
+    { id: "vidrift",  label: "Vidrift",  movieUrl: (id) => `https://embed.vidrift.net/embed/movie/${id}?title=true&hide=next,episodes,cast`,  tvUrl: (id,s,e) => `https://embed.vidrift.net/embed/tv/${id}/${s}/${e}?title=true&hide=next,episodes,cast`, sandbox: false },
+    { id: "vidfast",  label: "Vidfast",  movieUrl: (id) => `https://vidfast.vc/movie/${id}?autoPlay=true&pip=hide`,                           tvUrl: (id,s,e) => `https://vidfast.vc/tv/${id}/${s}/${e}?autoPlay=true&pip=hide`, sandbox: false },
+    { id: "aether",   label: "Aether",   movieUrl: (id) => `https://aether.ist/media/tmdb-movie-${id}`,                                       tvUrl: (id,s,e) => `https://aether.ist/media/tmdb-tv-${id}/${s}/${e}`, sandbox: false },
+    { id: "vidnest",  label: "Vidnest",  movieUrl: (id) => `https://vidnest.fun/movie/${id}`,                                                 tvUrl: (id,s,e) => `https://vidnest.fun/tv/${id}/${s}/${e}`, sandbox: false },
+    { id: "vsembed",  label: "VidSrc",   movieUrl: (id) => `https://vsembed.su/embed/movie/${id}?autoplay=1`,                                 tvUrl: (id,s,e) => `https://vsembed.su/embed/tv/${id}/${s}/${e}?autoplay=1`, sandbox: false },
   ];
 
   const src = SOURCES[activeSource];
