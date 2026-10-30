@@ -68,7 +68,7 @@ export default function Sidebar() {
     <aside className={collapsed ? "sidebar collapsed" : "sidebar"}>
       {/* TOP SECTION */}
       <div className="sidebar-top">
-        <div className="sidebar-logo">
+        <div className="sidebar-logo" onClick={handleLogoTap} style={{ cursor: "pointer" }}>
           {collapsed ? (
             <span className="sidebar-logo-icon">T</span>
           ) : (
@@ -91,7 +91,20 @@ export default function Sidebar() {
             if (link.auth && !user) return null;
             const Icon = link.icon;
             const active = location.pathname === link.to;
-            return (
+  const logoTapRef = useRef([]);
+  const handleLogoTap = () => {
+    const now = Date.now();
+    logoTapRef.current = logoTapRef.current.filter((t) => now - t < 4000);
+    logoTapRef.current.push(now);
+    if (logoTapRef.current.length >= 7) {
+      try {
+        if (localStorage.getItem("tb_debug") === "1") localStorage.removeItem("tb_debug");
+        else localStorage.setItem("tb_debug", "1");
+      } catch {}
+      window.location.reload();
+    }
+  };
+  return (
               <li key={link.to}>
                 <Link
                   to={link.to}

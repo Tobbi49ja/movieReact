@@ -12,9 +12,7 @@ import {
   FiMaximize,
   FiDownload,
 } from "react-icons/fi";
-import AdNoticeMarquee from "../components/AdNoticeMarquee";
 import SEOHelmet from "../components/seo/SEOHelmet";
-import VPNBanner from "../components/VPNBanner";
 const AppPromptModal = lazy(() => import("../components/AppPromptModal"));
 import StarRating from "../components/StarRating";
 import { tmdbImg, tmdbImgSrcSet } from "../utils/tmdb";
@@ -366,7 +364,6 @@ export default function TVShowWatchPage() {
   return (
     <main id="main-content" className="watch-page pulldown2">
       <SEOHelmet item={show} url={`https://moviereact-zzye.onrender.com/tv/${id}`} />
-      <AdNoticeMarquee />
 
       {/* Title */}
       <div className="watch-sticky-info">
@@ -560,7 +557,7 @@ export default function TVShowWatchPage() {
         )}
       </div>
 
-      <VPNBanner />
+      </div>
 
       {/* Reactions */}
       <div className="reaction-section" aria-label="Show reactions">

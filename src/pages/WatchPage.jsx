@@ -13,8 +13,7 @@ import {
   FiDownload,
 } from "react-icons/fi";
 import SEOHelmet from "../components/seo/SEOHelmet";
-import AdNoticeMarquee from "../components/AdNoticeMarquee";
-import VPNBanner from "../components/VPNBanner";
+
 const AppPromptModal = lazy(() => import("../components/AppPromptModal"));
 import StarRating from "../components/StarRating";
 import { useContinueWatching } from "../hooks/useContinueWatching";
@@ -333,7 +332,6 @@ export default function WatchPage() {
   return (
     <main id="main-content" className="watch-page pulldown2">
       <SEOHelmet item={movie} url={`https://moviereact-zzye.onrender.com/watch/${id}`} />
-      <AdNoticeMarquee />
 
       <div className="watch-sticky-info">
         <h1>{movie.title}</h1>
@@ -449,8 +447,6 @@ export default function WatchPage() {
         }}>⛶ Fullscreen</button>
         <button className="btn btn-ghost" onClick={() => setReloadKey(k => k + 1)}>⟳ Reload player</button>
       </div>
-
-      <VPNBanner />
 
       {/* Reactions */}
       <div className="reaction-section" aria-label="Movie reactions">
