@@ -1,10 +1,15 @@
 // src/components/AppPromptModal.jsx
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FiX, FiDownload } from "react-icons/fi";
 import toast from "react-hot-toast";
 import { isNativeApp, APP_URL } from "../utils/platform";
+import { fetchAppConfig } from "../utils/appConfig";
 
 export default function AppPromptModal({ isOpen, onClose, itemTitle }) {
+  const [appUrl, setAppUrl] = useState(APP_URL);
+  useEffect(() => {
+    fetchAppConfig().then((c) => { if (c?.apkUrl) setAppUrl(c.apkUrl); });
+  }, []);
   if (isNativeApp()) return null;
 
   useEffect(() => {
@@ -26,7 +31,7 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle }) {
 
   if (!isOpen) return null;
 
-  const hasAppUrl = !!APP_URL;
+  const hasAppUrl = !!appUrl;
 
   return (
     <div
@@ -83,7 +88,7 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle }) {
           ) : hasAppUrl ? (
             <a
               ref={primaryRef}
-              href={APP_URL}
+               href={appUrl}
               download
               target="_blank"
               rel="noopener noreferrer"

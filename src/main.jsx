@@ -50,7 +50,8 @@ if (clarityId) {
     y = l.getElementsByTagName(r)[0]; y.parentNode.insertBefore(t, y);
   })(window, document, "clarity", "script", clarityId);
 }
-createRoot(document.getElementById("root")).render(
+const root = createRoot(document.getElementById("root"));
+root.render(
   <StrictMode>
     <HelmetProvider>
       <BrowserRouter>
@@ -61,3 +62,12 @@ createRoot(document.getElementById("root")).render(
     </HelmetProvider>
   </StrictMode>
 );
+
+if (isNativeApp()) {
+  requestAnimationFrame(async () => {
+    try {
+      const { SplashScreen } = await import("@capacitor/splash-screen");
+      await SplashScreen.hide({ fadeOutDuration: 200 });
+    } catch {}
+  });
+}

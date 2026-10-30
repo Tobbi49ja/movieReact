@@ -31,7 +31,7 @@ const LiveTV = lazy(() => import("./pages/LiveTV"));
 // SEO
 import SEOHelmet from "./components/seo/SEOHelmet";
 
-import Sidebar from './components/Sidebar';
+import UpdateMarquee from "./components/UpdateMarquee";
 import BottomNav from './components/BottomNav';
 import './styles/sidebar.css';
 
@@ -53,6 +53,7 @@ function App() {
         <BottomNav />
 
         <main className="app-with-sidebar">
+          <UpdateMarquee />
           <Suspense fallback={<div style={{minHeight:'60vh',display:'flex',alignItems:'center',justifyContent:'center',color:'#aaa'}}>Loading...</div>}>
           <Routes>
           <Route path="/" element={<Home />} />

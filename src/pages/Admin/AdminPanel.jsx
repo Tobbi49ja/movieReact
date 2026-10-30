@@ -23,6 +23,13 @@ export default function AdminPanel() {
   const [commentPage, setCommentPage] = useState(1);
   const [commentPages, setCommentPages] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [appConfig, setAppConfig] = useState({
+    latestVersionName: '',
+    latestVersionCode: 1,
+    apkUrl: '',
+    updateNotice: '',
+    externalLinks: [],
+  });
   const [nForm, setNForm] = useState({
     title:'', year:'', genre:'', posterUrl:'',
     streamUrl:'', downloadUrl:'', tmdbId:'', language:'en'
@@ -79,11 +86,50 @@ export default function AdminPanel() {
     }
   };
 
+  const fetchAppConfig = async () => {
+    try {
+      const res = await axios.get(`${BACKEND_URL}/api/app-config`, { headers });
+      const d = res.data?.data || {};
+      setAppConfig({
+        latestVersionName: d.latestVersionName || '',
+        latestVersionCode: d.latestVersionCode || 1,
+        apkUrl: d.apkUrl || '',
+        updateNotice: d.updateNotice || '',
+        externalLinks: Array.isArray(d.externalLinks) ? d.externalLinks : [],
+      });
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to load app config');
+    }
+  };
+
+  const handleSaveAppConfig = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.put(`${BACKEND_URL}/api/app-config`, appConfig, { headers });
+      toast.success('App config saved');
+      fetchAppConfig();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to save app config');
+    }
+  };
+
+  const addLink = () => setAppConfig((c) => ({
+    ...c, externalLinks: [...c.externalLinks, { label: '', url: '', kind: 'other' }]
+  }));
+  const removeLink = (i) => setAppConfig((c) => ({
+    ...c, externalLinks: c.externalLinks.filter((_, idx) => idx !== i)
+  }));
+  const updateLink = (i, field, val) => setAppConfig((c) => {
+    const links = [...c.externalLinks];
+    links[i] = { ...links[i], [field]: val };
+    return { ...c, externalLinks: links };
+  });
   useEffect(() => {
     setLoading(true);
     if (tab === "overview") fetchStats();
     if (tab === "users") fetchUsers(1);
     if (tab === "comments") fetchComments(1);
+    if (tab === "app") fetchAppConfig();
     setLoading(false);
   }, [tab]);
 
@@ -173,6 +219,14 @@ export default function AdminPanel() {
         >
           Comments
         </button>
+        <button
+          className={`admin-tab ${tab === "app" ? "active" : ""}`}
+          onClick={() => setTab("app")}
+          role="tab"
+          aria-selected={tab === "app"}
+        >
+          App & Links
+        </button>
       </div>
 
       {loading && !stats && !users.length && !comments.length ? (
@@ -183,7 +237,7 @@ export default function AdminPanel() {
             <div key={card.label} className="stat-card">
               <span className="stat-value">{card.value}</span>
               <span className="stat-label">{card.label}</span>
-            </div>
+          </div>
           ))}
         </div>
       ) : tab === "users" ? (
@@ -248,6 +302,32 @@ export default function AdminPanel() {
               Next
             </button>
           </div>
+        </section>
+      ) : tab === "app" ? (
+        <section className="admin-section" aria-label="App & Links">
+          <form onSubmit={handleSaveAppConfig} className="admin-nollywood-form">
+            <input placeholder="Latest Version Name" value={appConfig.latestVersionName}
+              onChange={e => setAppConfig({...appConfig, latestVersionName: e.target.value})} />
+            <input placeholder="Version Code" type="number" value={appConfig.latestVersionCode}
+              onChange={e => setAppConfig({...appConfig, latestVersionCode: Number(e.target.value)})} />
+            <input placeholder="APK URL" value={appConfig.apkUrl}
+              onChange={e => setAppConfig({...appConfig, apkUrl: e.target.value})} />
+            <input placeholder="Update Notice" value={appConfig.updateNotice}
+              onChange={e => setAppConfig({...appConfig, updateNotice: e.target.value})} />
+            <h3>External Links</h3>
+            {appConfig.externalLinks.map((l, i) => (
+              <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                <input placeholder="Label" value={l.label} onChange={e => updateLink(i, 'label', e.target.value)} />
+                <input placeholder="URL" value={l.url} onChange={e => updateLink(i, 'url', e.target.value)} />
+                <select value={l.kind} onChange={e => updateLink(i, 'kind', e.target.value)}>
+                  {['whatsapp','telegram','email','social','other'].map(k => <option key={k} value={k}>{k}</option>)}
+                </select>
+                <button type="button" className="admin-btn admin-btn-danger" onClick={() => removeLink(i)}>Remove</button>
+              </div>
+            ))}
+            <button type="button" className="admin-btn" onClick={addLink}>Add Link</button>
+            <button type="submit" className="admin-btn">Save</button>
+          </form>
         </section>
       ) : (
         <section className="admin-section" aria-label="Comments">
