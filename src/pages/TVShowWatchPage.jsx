@@ -557,8 +557,6 @@ export default function TVShowWatchPage() {
         )}
       </div>
 
-      </div>
-
       {/* Reactions */}
       <div className="reaction-section" aria-label="Show reactions">
         <button
