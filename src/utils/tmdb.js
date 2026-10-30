@@ -37,3 +37,23 @@ export function tmdbImgSrcSet(path, sizes = ["w185", "w342"], type = "poster") {
     .map((s) => `${TMDB_BASE}/${resolveSize(s, type)}${path}`)
     .join(", ");
 }
+
+export function tmdbImgForDataSaver(path, type = "poster", dataSaver = false) {
+  if (!path) return "";
+  if (dataSaver) {
+    if (type === "backdrop") {
+      return `${TMDB_BASE}/w300${path}`;
+    }
+    return `${TMDB_BASE}/w185${path}`;
+  }
+  if (type === "backdrop") return `${TMDB_BASE}/w780${path}`;
+  return `${TMDB_BASE}/w342${path}`;
+}
+
+export function tmdbImgSrcSetForDataSaver(path, type = "poster", dataSaver = false) {
+  if (!path || dataSaver) return "";
+  if (type === "backdrop") {
+    return `${TMDB_BASE}/w780${path} 780w, ${TMDB_BASE}/w1280${path} 1280w`;
+  }
+  return `${TMDB_BASE}/w185${path} 185w, ${TMDB_BASE}/w342${path} 342w`;
+}

@@ -1,16 +1,20 @@
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useDataSaver } from "../utils/dataSaver";
 import {
   FiHome,
   FiFilm,
   FiRadio,
   FiSearch,
   FiUser,
+  FiWifiOff,
+  FiWifi,
 } from "react-icons/fi";
 
 export default function BottomNav() {
   const location = useLocation();
   const { user } = useAuth();
+  const { enabled: dataSaver, toggle: toggleDataSaver } = useDataSaver();
 
   const isActive = (path) => location.pathname === path;
 
@@ -39,6 +43,15 @@ export default function BottomNav() {
           </Link>
         );
       })}
+      <button
+        className="bottom-tab"
+        onClick={toggleDataSaver}
+        aria-label={dataSaver ? "Disable data saver" : "Enable data saver"}
+        title={dataSaver ? "Data saver: On" : "Data saver: Off"}
+      >
+        {dataSaver ? <FiWifiOff /> : <FiWifi />}
+        <span>Data Saver</span>
+      </button>
     </nav>
   );
 }

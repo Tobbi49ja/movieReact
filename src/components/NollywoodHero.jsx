@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { tmdbImg } from "../utils/tmdb";
+import { tmdbImgForDataSaver } from "../utils/tmdb";
+import { useDataSaver } from "../utils/dataSaver";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ||
   "https://moviereact-zzye.onrender.com";
 
 export default function NollywoodHero() {
   const [featured, setFeatured] = useState(null);
+  const { enabled: dataSaver } = useDataSaver();
 
   useEffect(() => {
     fetch(`${BACKEND_URL}/api/nollywood/trending`)
@@ -25,7 +27,7 @@ export default function NollywoodHero() {
       <div
         className="nollywood-hero-bg"
         style={{
-          backgroundImage: `url(${tmdbImg(featured.backdrop_path, "w780", "backdrop")})`
+          backgroundImage: `url(${tmdbImgForDataSaver(featured.backdrop_path, "backdrop", dataSaver)})`
         }}
       />
       <div className="nollywood-hero-overlay" />

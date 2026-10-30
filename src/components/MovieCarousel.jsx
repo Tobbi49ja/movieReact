@@ -1,10 +1,12 @@
 import { useRef } from "react";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
-import { tmdbImg, tmdbImgSrcSet } from "../utils/tmdb";
+import { tmdbImgForDataSaver, tmdbImgSrcSetForDataSaver } from "../utils/tmdb";
+import { useDataSaver } from "../utils/dataSaver";
 import MovieCard from "./MovieCard";
 
 export default function MovieCarousel({ title, movies = [], source }) {
   const rowRef = useRef(null);
+  const { enabled: dataSaver } = useDataSaver();
 
   const scroll = (dir) => {
     if (!rowRef.current) return;
@@ -12,6 +14,8 @@ export default function MovieCarousel({ title, movies = [], source }) {
   };
 
   if (!movies.length) return null;
+
+  const displayMovies = dataSaver ? movies.slice(0, 12) : movies;
 
   return (
     <section className="carousel-section">
@@ -27,14 +31,14 @@ export default function MovieCarousel({ title, movies = [], source }) {
         </div>
       </div>
       <div className="carousel-row" ref={rowRef}>
-        {movies.map(m => (
+        {displayMovies.map(m => (
           <div className="carousel-item" key={m.id}>
             <MovieCard
               id={m.id}
               title={m.title || m.name}
               year={m.release_date?.split('-')[0] || m.first_air_date?.split('-')[0]}
-              image={tmdbImg(m.poster_path, "w342")}
-              imageSrcSet={tmdbImgSrcSet(m.poster_path, ["w185", "w342"])}
+              image={tmdbImgForDataSaver(m.poster_path, "poster", dataSaver)}
+              imageSrcSet={tmdbImgSrcSetForDataSaver(m.poster_path, "poster", dataSaver)}
               mediaType={m.media_type || (m.title ? 'movie' : 'tv')}
               releaseDate={m.release_date || m.first_air_date}
               source={source}

@@ -4,13 +4,15 @@ import { Autoplay, Navigation, EffectFade } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/effect-fade";
-import { tmdbImg, tmdbImgSrcSet } from "../utils/tmdb";
+import { tmdbImg, tmdbImgSrcSetForDataSaver, tmdbImgForDataSaver } from "../utils/tmdb";
+import { useDataSaver } from "../utils/dataSaver";
 
 export default function Hero() {
   const swiperRef = useRef(null);
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const apiKey = import.meta.env.VITE_TMDB_API_KEY;
+  const { enabled: dataSaver } = useDataSaver();
 
   useEffect(() => {
     const fetchHeroMovies = async () => {
@@ -72,7 +74,7 @@ export default function Hero() {
         effect="fade"
         loop={true}
         navigation
-        autoplay={{ delay: 6000, disableOnInteraction: false }}
+        autoplay={dataSaver ? false : { delay: 6000, disableOnInteraction: false }}
         onSwiper={(swiper) => (swiperRef.current = swiper)}
         className="hero-swiper"
         a11y={{ prevSlideMessage: "Previous movie", nextSlideMessage: "Next movie" }}
@@ -82,12 +84,12 @@ export default function Hero() {
             <div className="hero-slide">
 
               <img
-                src={tmdbImg(movie.backdrop_path, "w780", "backdrop")}
-                srcSet={`${tmdbImg(movie.backdrop_path, "w780", "backdrop")} 780w, ${tmdbImg(movie.backdrop_path, "w1280", "backdrop")} 1280w`}
+                src={dataSaver ? tmdbImgForDataSaver(movie.backdrop_path, "backdrop", true) : tmdbImgForDataSaver(movie.backdrop_path, "backdrop", false)}
+                srcSet={dataSaver ? "" : tmdbImgSrcSetForDataSaver(movie.backdrop_path, "backdrop", false)}
                 sizes="100vw"
                 alt={`${movie.title} backdrop`}
                 className="hero-image"
-                loading={index === 0 ? "eager" : "lazy"}
+                loading={index === 0 ? "eager" : (dataSaver ? "lazy" : "lazy")}
                 decoding={index === 0 ? "sync" : "async"}
                 fetchpriority={index === 0 ? "high" : "low"}
                 width="1920"

@@ -35,6 +35,33 @@
     <link rel="preconnect" href="https://api.themoviedb.org" />
     <link rel="preconnect" href="https://image.tmdb.org" />
 
+    <link rel="preload" as="image" href="/logo-192.webp" />
+
+    <style>
+      @media (prefers-reduced-motion: reduce) {
+        .preloader-logo { animation: none !important; }
+      }
+      @keyframes preloader-pulse {
+        0% { transform: scale(1); opacity: 0.7; }
+        50% { transform: scale(1.08); opacity: 1; }
+        100% { transform: scale(1); opacity: 0.7; }
+      }
+      .preloader {
+        position: fixed;
+        inset: 0;
+        background: #000000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+      .preloader-logo {
+        width: 96px;
+        height: 96px;
+        animation: preloader-pulse 1.2s ease-in-out infinite;
+      }
+    </style>
+
     <!-- Google Analytics 4 — replace G-XXXXXXXXXX with your Measurement ID -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
     <script>
@@ -47,7 +74,11 @@
   </head>
   <body>
     <a href="#main-content" class="skip-link">Skip to main content</a>
-    <div id="root"></div>
+    <div id="root">
+      <div class="preloader" aria-live="polite" aria-busy="true">
+        <img src="/logo-192.webp" width="96" height="96" alt="" class="preloader-logo" />
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

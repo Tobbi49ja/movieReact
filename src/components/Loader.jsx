@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import logo from "../assets/Logo.png";
 
 const Loader = () => {
   const [fadeOut, setFadeOut] = useState(false);
@@ -20,7 +19,7 @@ const Loader = () => {
 
   return (
     <div className={`loader-container ${fadeOut ? "fade-out" : ""}`}>
-      <img src={logo} alt="Loading..." className="loader-logo" />
+      <img src="/logo-192.webp" alt="Loading..." className="loader-logo" />
     </div>
   );
 };

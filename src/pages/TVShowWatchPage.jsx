@@ -15,9 +15,12 @@ import {
 import SEOHelmet from "../components/seo/SEOHelmet";
 const AppPromptModal = lazy(() => import("../components/AppPromptModal"));
 import StarRating from "../components/StarRating";
-import { tmdbImg, tmdbImgSrcSet } from "../utils/tmdb";
+import { tmdbImgForDataSaver, tmdbImgSrcSetForDataSaver } from "../utils/tmdb";
 import { useInView } from "../hooks/useInView";
 import { cachedAxiosGet, invalidate } from "../utils/cachedAxios";
+import { useDataSaver } from "../utils/dataSaver";
+import MovieCard from "../components/MovieCard";
+import { getSandbox } from "../utils/player";
 
 // -----------------------------
 // Dynamic backend URL
@@ -47,6 +50,8 @@ export default function TVShowWatchPage() {
   const [activeSource, setActiveSource] = useState(0);
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [autoNextCountdown, setAutoNextCountdown] = useState(null);
+  const [commentsLoaded, setCommentsLoaded] = useState(false);
+  const [similarShows, setSimilarShows] = useState([]);
 
   const socketRef = useRef(null);
   const trailerRef = useRef(null);
@@ -56,6 +61,7 @@ export default function TVShowWatchPage() {
   const [commentsInView, setCommentsInView] = useState(false);
 
   const inView = useInView(commentsSectionRef, { rootMargin: "300px" });
+  const { enabled: dataSaver } = useDataSaver();
   useEffect(() => { setCommentsInView(inView); }, [inView]);
 
   // -----------------------------
@@ -84,26 +90,19 @@ export default function TVShowWatchPage() {
     const controller = new AbortController();
     const fetchShow = async () => {
       try {
-        const [showRes, videosRes] = await Promise.all([
-          fetch(
-            `https://api.themoviedb.org/3/tv/${id}?api_key=${API_KEY}&language=en-US`,
-            { signal: controller.signal }
-          ),
-          fetch(
-            `https://api.themoviedb.org/3/tv/${id}/videos?api_key=${API_KEY}&language=en-US`,
-            { signal: controller.signal }
-          ),
-        ]);
+        const res = await fetch(
+          `https://api.themoviedb.org/3/tv/${id}?api_key=${API_KEY}&language=en-US&append_to_response=videos`,
+          { signal: controller.signal }
+        );
 
-        const showData = await showRes.json();
-        const videoData = await videosRes.json();
+        const showData = await res.json();
 
         setShow(showData);
         const seasonList = Array.isArray(showData?.seasons) ? showData.seasons : [];
         setSeasons(seasonList);
         setSelectedSeason(seasonList[0]?.season_number || 1);
 
-        const videos = Array.isArray(videoData?.results) ? videoData.results : [];
+        const videos = Array.isArray(showData?.videos?.results) ? showData.videos.results : [];
         const trailer = videos.find(
           (vid) => vid.type === "Trailer" && vid.site === "YouTube"
         );
@@ -116,9 +115,24 @@ export default function TVShowWatchPage() {
     return () => controller.abort();
   }, [id, API_KEY]);
 
-  // -----------------------------
-  // Fetch episodes for selected season
-  // -----------------------------
+  useEffect(() => {
+    if (dataSaver && !commentsInView) return;
+    const controller = new AbortController();
+    const fetchSimilar = async () => {
+      try {
+        const res = await cachedAxiosGet(
+          `https://api.themoviedb.org/3/tv/${id}/similar?api_key=${API_KEY}&language=en-US&page=1`,
+          { signal: controller.signal }
+        );
+        const list = Array.isArray(res.data?.results) ? res.data.results.slice(0, 12) : [];
+        setSimilarShows(list);
+      } catch (err) {
+        if (err.name !== "AbortError") console.error("Error fetching similar shows:", err);
+      }
+    };
+    fetchSimilar();
+    return () => controller.abort();
+  }, [id, API_KEY, dataSaver, commentsInView]);
   useEffect(() => {
     const controller = new AbortController();
     const fetchEpisodes = async () => {
@@ -146,7 +160,11 @@ export default function TVShowWatchPage() {
   // Fetch comments
   // -----------------------------
   useEffect(() => {
-    if (!commentsInView) return;
+    if (dataSaver) {
+      if (!commentsInView || !commentsLoaded) return;
+    } else {
+      if (!commentsInView) return;
+    }
     const controller = new AbortController();
     const fetchComments = async () => {
       try {
@@ -154,20 +172,26 @@ export default function TVShowWatchPage() {
           `${BACKEND_URL}/api/comments/tv/${id}`,
           { signal: controller.signal }
         );
-        setComments(res.data);
+        const list = Array.isArray(res.data) ? res.data : [];
+        setComments([...list].reverse());
+        setCommentsLoaded(true);
       } catch (err) {
         if (err.name !== "AbortError") console.error("Error loading comments:", err);
       }
     };
     fetchComments();
     return () => controller.abort();
-  }, [id, commentsInView]);
+  }, [id, commentsInView, dataSaver, commentsLoaded]);
 
   // -----------------------------
   // Socket.io live updates
   // -----------------------------
   useEffect(() => {
-    if (!commentsInView) return;
+    if (dataSaver) {
+      if (!commentsInView || !commentsLoaded) return;
+    } else {
+      if (!commentsInView) return;
+    }
     const socket = io(BACKEND_URL, { transports: ["websocket"] });
     socketRef.current = socket;
 
@@ -342,11 +366,11 @@ export default function TVShowWatchPage() {
   }, []);
 
   const SOURCES = [
-    { id: "vidrift",  label: "Vidrift",  movieUrl: (id) => `https://embed.vidrift.net/embed/movie/${id}?title=true&hide=next,episodes,cast`,  tvUrl: (id,s,e) => `https://embed.vidrift.net/embed/tv/${id}/${s}/${e}?title=true&hide=next,episodes,cast` },
-    { id: "vidfast",  label: "Vidfast",  movieUrl: (id) => `https://vidfast.vc/movie/${id}?autoPlay=true&pip=hide`,                           tvUrl: (id,s,e) => `https://vidfast.vc/tv/${id}/${s}/${e}?autoPlay=true&pip=hide` },
-    { id: "aether",   label: "Aether",   movieUrl: (id) => `https://aether.ist/media/tmdb-movie-${id}`,                                       tvUrl: (id,s,e) => `https://aether.ist/media/tmdb-tv-${id}/${s}/${e}` },
-    { id: "vidnest",  label: "Vidnest",  movieUrl: (id) => `https://vidnest.fun/movie/${id}`,                                                 tvUrl: (id,s,e) => `https://vidnest.fun/tv/${id}/${s}/${e}` },
-    { id: "vsembed",  label: "VidSrc",   movieUrl: (id) => `https://vsembed.su/embed/movie/${id}?autoplay=1`,                                 tvUrl: (id,s,e) => `https://vsembed.su/embed/tv/${id}/${s}/${e}?autoplay=1` },
+    { id: "vidrift",  label: "Vidrift",  movieUrl: (id) => `https://embed.vidrift.net/embed/movie/${id, sandbox: false }?title=true&hide=next,episodes,cast`,  tvUrl: (id,s,e) => `https://embed.vidrift.net/embed/tv/${id, sandbox: false }/${s, sandbox: false }/${e, sandbox: false }?title=true&hide=next,episodes,cast` },
+    { id: "vidfast",  label: "Vidfast",  movieUrl: (id) => `https://vidfast.vc/movie/${id, sandbox: false }?autoPlay=true&pip=hide`,                           tvUrl: (id,s,e) => `https://vidfast.vc/tv/${id, sandbox: false }/${s, sandbox: false }/${e, sandbox: false }?autoPlay=true&pip=hide` },
+    { id: "aether",   label: "Aether",   movieUrl: (id) => `https://aether.ist/media/tmdb-movie-${id, sandbox: false }`,                                       tvUrl: (id,s,e) => `https://aether.ist/media/tmdb-tv-${id, sandbox: false }/${s, sandbox: false }/${e, sandbox: false }` },
+    { id: "vidnest",  label: "Vidnest",  movieUrl: (id) => `https://vidnest.fun/movie/${id, sandbox: false }`,                                                 tvUrl: (id,s,e) => `https://vidnest.fun/tv/${id, sandbox: false }/${s, sandbox: false }/${e, sandbox: false }` },
+    { id: "vsembed",  label: "VidSrc",   movieUrl: (id) => `https://vsembed.su/embed/movie/${id, sandbox: false }?autoplay=1`,                                 tvUrl: (id,s,e) => `https://vsembed.su/embed/tv/${id, sandbox: false }/${s, sandbox: false }/${e, sandbox: false }?autoplay=1` },
   ];
 
   const src = SOURCES[activeSource];
@@ -466,6 +490,7 @@ export default function TVShowWatchPage() {
                 allow="autoplay; fullscreen; picture-in-picture"
                 allowFullScreen
                 style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }}
+                {...(getSandbox(SOURCES[activeSource]) ? { sandbox: getSandbox(SOURCES[activeSource]) } : {})}
               />
             )}
             <div
@@ -605,39 +630,75 @@ export default function TVShowWatchPage() {
       {/* Comments */}
       <section className="comment-section" aria-label="Comments" ref={commentsSectionRef} style={{ minHeight: commentsInView ? "auto" : "200px" }}>
         <h2>Comments</h2>
-        <form onSubmit={handleCommentSubmit} className="comment-form">
-          <label htmlFor="tv-comment-input" className="sr-only">Add a comment</label>
-          <input
-            id="tv-comment-input"
-            type="text"
-            placeholder="Add a comment..."
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            className="comment-input"
-            maxLength={500}
-          />
-          <button type="submit" className="comment-btn">Post</button>
-        </form>
+        {dataSaver && !commentsLoaded ? (
+          <button
+            className="btn btn-ghost"
+            onClick={() => {
+              setCommentsLoaded(true);
+            }}
+            style={{ marginBottom: "1rem" }}
+          >
+            Load comments
+          </button>
+        ) : (
+          <>
+            <form onSubmit={handleCommentSubmit} className="comment-form">
+              <label htmlFor="tv-comment-input" className="sr-only">Add a comment</label>
+              <input
+                id="tv-comment-input"
+                type="text"
+                placeholder="Add a comment..."
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                className="comment-input"
+                maxLength={500}
+              />
+              <button type="submit" className="comment-btn">Post</button>
+            </form>
 
-        <div className="comment-list" aria-live="polite" aria-label="Comments list">
-          {comments.length === 0 ? (
-            <p className="no-comments">No comments yet. Be the first!</p>
-          ) : (
-            comments.map((c) => (
-              <div key={c._id} className="comment-item">
-                <strong>{c.username}</strong>
-                <p>{c.comment}</p>
-                <button
-                  onClick={() => handleLikeComment(c._id)}
-                  aria-label={`Like comment by ${c.username}, ${c.likes || 0} likes`}
-                >
-                  ❤️ {c.likes || 0}
-                </button>
-              </div>
-            ))
-          )}
-        </div>
+            <div className="comment-list" aria-live="polite" aria-label="Comments list">
+              {comments.length === 0 ? (
+                <p className="no-comments">No comments yet. Be the first!</p>
+              ) : (
+                comments.map((c) => (
+                  <div key={c._id} className="comment-item">
+                    <strong>{c.username}</strong>
+                    <p>{c.comment}</p>
+                    <button
+                      onClick={() => handleLikeComment(c._id)}
+                      aria-label={`Like comment by ${c.username}, ${c.likes || 0} likes`}
+                    >
+                      ❤️ {c.likes || 0}
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        )}
       </section>
+
+      {/* Similar Shows */}
+      <div className="similar-section" ref={commentsSectionRef}>
+        {(!dataSaver || commentsInView) && similarShows.length > 0 && (
+          <>
+            <h2 className="similar-title">More Like This</h2>
+            <div className="similar-grid">
+              {similarShows.map((showItem) => (
+                <MovieCard
+                  key={showItem.id}
+                  id={showItem.id}
+                  title={showItem.name || showItem.title}
+                  year={showItem.first_air_date?.split("-")[0]}
+                  image={tmdbImgForDataSaver(showItem.poster_path, "poster", dataSaver)}
+                  imageSrcSet={tmdbImgSrcSetForDataSaver(showItem.poster_path, "poster", dataSaver)}
+                  mediaType="tv"
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
 
       {/* MovieBox Download Modal */}
       <Suspense fallback={null}>

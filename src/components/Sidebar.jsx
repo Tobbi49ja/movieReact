@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useContentMode } from "../context/ContentModeContext";
+import { useDataSaver } from "../utils/dataSaver";
 import {
   FiHome,
   FiFilm,
@@ -14,6 +15,8 @@ import {
   FiLogOut,
   FiChevronLeft,
   FiChevronRight,
+  FiWifiOff,
+  FiWifi,
 } from "react-icons/fi";
 
 export default function Sidebar() {
@@ -28,6 +31,7 @@ export default function Sidebar() {
   const [searchTerm, setSearchTerm] = useState("");
   const { user, logout } = useAuth();
   const { mode, setMode } = useContentMode();
+  const { enabled: dataSaver, toggle: toggleDataSaver } = useDataSaver();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -166,6 +170,18 @@ export default function Sidebar() {
 
       {/* BOTTOM SECTION */}
       <div className="sidebar-bottom">
+        {/* Data saver toggle */}
+        <button
+          className="sidebar-link"
+          onClick={toggleDataSaver}
+          aria-label={dataSaver ? "Disable data saver" : "Enable data saver"}
+          title={collapsed ? "Data saver" : (dataSaver ? "Data saver: On" : "Data saver: Off")}
+          style={{ width: "100%", justifyContent: collapsed ? "center" : "flex-start", border: "none", background: "transparent", cursor: "pointer", padding: "0.5rem 0.75rem" }}
+        >
+          {dataSaver ? <FiWifiOff className="sidebar-link-icon" /> : <FiWifi className="sidebar-link-icon" />}
+          {!collapsed && <span className="sidebar-link-label">Data saver {dataSaver ? "On" : "Off"}</span>}
+        </button>
+
         {/* Mode toggle pill */}
         <div className="sidebar-mode-toggle">
           <button

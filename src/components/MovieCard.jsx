@@ -4,6 +4,7 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { FiBookmark } from "react-icons/fi";
 import { useAuth } from "../context/AuthContext";
+import { useDataSaver } from "../utils/dataSaver";
 
 const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL ||
@@ -25,6 +26,7 @@ export default function MovieCard({
   releaseDate,
 }) {
   const { user, token } = useAuth();
+  const { enabled: dataSaver } = useDataSaver();
   const [inWatchlist, setInWatchlist] = useState(false);
 
   const displayTitle = title || name || "Untitled";
@@ -104,7 +106,7 @@ export default function MovieCard({
     <article className="movie-card">
       <div className="img-card">
         <Link to={linkPath} aria-label={`View ${displayTitle}`} tabIndex={-1} aria-hidden="true">
-          <img src={image} srcSet={imageSrcSet} sizes="(max-width: 767px) 185px, 342px" alt={displayTitle} loading="lazy" decoding="async" className="card" width="195" height="293" />
+          <img src={image} srcSet={dataSaver ? undefined : imageSrcSet} sizes="(max-width: 767px) 185px, 342px" alt={displayTitle} loading="lazy" decoding="async" className="card" width="195" height="293" />
           {quality && <span className="quality-tag">{quality}</span>}
         </Link>
 
