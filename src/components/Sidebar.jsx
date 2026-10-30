@@ -64,6 +64,22 @@ export default function Sidebar() {
     { to: "/watchlist", label: "Watchlist", icon: FiBookmark, auth: true },
   ];
 
+  const tapsRef = useRef({ count: 0, first: 0 });
+  const handleLogoTap = () => {
+    try {
+      const now = Date.now();
+      const t = tapsRef.current;
+      if (now - t.first > 4000) { t.first = now; t.count = 0; }
+      t.count += 1;
+      if (t.count >= 7) {
+        t.count = 0;
+        if (localStorage.getItem('tb_debug') === '1') localStorage.removeItem('tb_debug');
+        else localStorage.setItem('tb_debug', '1');
+        window.location.reload();
+      }
+    } catch { /* ignore */ }
+  };
+
   return (
     <aside className={collapsed ? "sidebar collapsed" : "sidebar"}>
       {/* TOP SECTION */}
@@ -91,19 +107,6 @@ export default function Sidebar() {
             if (link.auth && !user) return null;
             const Icon = link.icon;
             const active = location.pathname === link.to;
-  const logoTapRef = useRef([]);
-  const handleLogoTap = () => {
-    const now = Date.now();
-    logoTapRef.current = logoTapRef.current.filter((t) => now - t < 4000);
-    logoTapRef.current.push(now);
-    if (logoTapRef.current.length >= 7) {
-      try {
-        if (localStorage.getItem("tb_debug") === "1") localStorage.removeItem("tb_debug");
-        else localStorage.setItem("tb_debug", "1");
-      } catch {}
-      window.location.reload();
-    }
-  };
   return (
               <li key={link.to}>
                 <Link
