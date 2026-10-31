@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
+import Sidebar from "./components/Sidebar";
 import { ContentModeProvider } from "./context/ContentModeContext";
 import { AuthProvider } from "./context/AuthContext";
 import React, { Suspense, lazy } from "react";

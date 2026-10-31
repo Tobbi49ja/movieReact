@@ -19,7 +19,7 @@ import StarRating from "../components/StarRating";
 import { useContinueWatching } from "../hooks/useContinueWatching";
 import { useInView } from "../hooks/useInView";
 import { cachedAxiosGet, invalidate } from "../utils/cachedAxios";
-import { tmdbImgForDataSaver, tmdbImgSrcSetForDataSaver } from "../utils/tmdb";
+import { tmdbImg, tmdbImgSrcSet, tmdbImgForDataSaver, tmdbImgSrcSetForDataSaver } from "../utils/tmdb";
 import { useDataSaver } from "../utils/dataSaver";
 import MovieCard from "../components/MovieCard";
 import { getSandbox } from "../utils/player";

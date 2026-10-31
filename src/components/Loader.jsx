@@ -19,7 +19,15 @@ const Loader = () => {
 
   return (
     <div className={`loader-container ${fadeOut ? "fade-out" : ""}`}>
-      <img src="/logo-192.webp" alt="Loading..." className="loader-logo" />
+      <img
+        src="/logo-192.webp"
+        alt="Loading..."
+        className="loader-logo"
+        onError={(e) => {
+          e.target.onerror = null;
+          e.target.src = "/Logo.png";
+        }}
+      />
     </div>
   );
 };

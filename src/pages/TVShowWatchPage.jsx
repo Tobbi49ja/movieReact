@@ -15,7 +15,7 @@ import {
 import SEOHelmet from "../components/seo/SEOHelmet";
 const AppPromptModal = lazy(() => import("../components/AppPromptModal"));
 import StarRating from "../components/StarRating";
-import { tmdbImgForDataSaver, tmdbImgSrcSetForDataSaver } from "../utils/tmdb";
+import { tmdbImg, tmdbImgSrcSet, tmdbImgForDataSaver, tmdbImgSrcSetForDataSaver } from "../utils/tmdb";
 import { useInView } from "../hooks/useInView";
 import { cachedAxiosGet, invalidate } from "../utils/cachedAxios";
 import { useDataSaver } from "../utils/dataSaver";

@@ -105,15 +105,21 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .marquee-ad,
+  .marquee-ad *,
+  .vpn-banner,
+  .vpn-banner * {
     animation: none !important;
     transition: none !important;
   }
 }
 
 @media (max-width: 480px) {
+  .marquee-ad {
     flex-wrap: wrap;
     gap: 6px;
   }
+  .vpn-banner {
     width: 100%;
   }
 }

@@ -6,11 +6,11 @@ import { isNativeApp, APP_URL } from "../utils/platform";
 import { fetchAppConfig } from "../utils/appConfig";
 
 export default function AppPromptModal({ isOpen, onClose, itemTitle }) {
+  const primaryRef = useRef(null);
   const [appUrl, setAppUrl] = useState(APP_URL);
   useEffect(() => {
     fetchAppConfig().then((c) => { if (c?.apkUrl) setAppUrl(c.apkUrl); });
   }, []);
-  if (isNativeApp()) return null;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -29,6 +29,7 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle }) {
     toast("Coming soon");
   };
 
+  if (isNativeApp()) return null;
   if (!isOpen) return null;
 
   const hasAppUrl = !!appUrl;
