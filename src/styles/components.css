@@ -41,58 +41,6 @@
   }
 }
 
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  padding: 10px 14px;
-  margin: 12px 0;
-  font-family: "Poppins", sans-serif;
-  font-size: 0.85rem;
-  color: #ccc;
-  animation: fadeInUp 0.4s ease;
-  will-change: transform, opacity;
-}
-
-  font-size: 1rem;
-  flex-shrink: 0;
-}
-
-  flex: 1;
-  margin: 0;
-  line-height: 1.3;
-}
-
-  flex-shrink: 0;
-  background: #e50914;
-  color: white;
-  text-decoration: none;
-  padding: 5px 12px;
-  border-radius: 5px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  transition: background 0.2s;
-  white-space: nowrap;
-}
-
-  background: #c0070f;
-}
-
-  background: none;
-  border: none;
-  color: #666;
-  cursor: pointer;
-  font-size: 0.85rem;
-  padding: 2px 4px;
-  flex-shrink: 0;
-  transition: color 0.2s;
-}
-
-  color: #ccc;
-}
-
 @keyframes fadeInUp {
   from {
     opacity: 0;
