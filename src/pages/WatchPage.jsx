@@ -34,6 +34,7 @@ export default function WatchPage() {
   const { id } = useParams();
   const [movie, setMovie] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showTrailer, setShowTrailer] = useState(false);
   const [trailerKey, setTrailerKey] = useState(null);
   const [userReaction, setUserReaction] = useState(null);
@@ -91,27 +92,32 @@ export default function WatchPage() {
   // -----------------------------
   useEffect(() => {
     const controller = new AbortController();
-    const fetchMovie = async () => {
-      try {
-        const res = await fetch(
-          `https://api.themoviedb.org/3/movie/${id}?api_key=${TMDB_KEY}&language=en-US&append_to_response=videos,credits`,
-          { signal: controller.signal }
-        );
+     const fetchMovie = async () => {
+       setLoading(true);
+       setError(null);
+       try {
+         const res = await fetch(
+           `https://api.themoviedb.org/3/movie/${id}?api_key=${TMDB_KEY}&language=en-US&append_to_response=videos,credits`,
+           { signal: controller.signal }
+         );
 
-        const data = await res.json();
-        setMovie(data);
+         const data = await res.json();
+         setMovie(data);
 
-        const videos = Array.isArray(data?.videos?.results) ? data.videos.results : [];
-        const trailer = videos.find(
-          (vid) => vid.type === "Trailer" && vid.site === "YouTube"
-        );
-        if (trailer) setTrailerKey(trailer.key);
-      } catch (err) {
-        if (err.name !== "AbortError") console.error("Error fetching movie:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+         const videos = Array.isArray(data?.videos?.results) ? data.videos.results : [];
+         const trailer = videos.find(
+           (vid) => vid.type === "Trailer" && vid.site === "YouTube"
+         );
+         if (trailer) setTrailerKey(trailer.key);
+       } catch (err) {
+         if (err.name !== "AbortError") {
+           console.error("Error fetching movie:", err);
+           setError(err?.message || "Failed to load movie");
+         }
+       } finally {
+         setLoading(false);
+       }
+     };
     fetchMovie();
     return () => controller.abort();
   }, [id, TMDB_KEY]);
@@ -333,7 +339,15 @@ export default function WatchPage() {
     } catch { /* Cross-origin iframes will throw — ignore silently */ }
   };
 
-  if (loading) return <Loader />;
+  if (loading && !movie) return <Loader />;
+  if (error) {
+    return (
+      <main id="main-content" className="watch-page pulldown2">
+        <p className="loading">{error}</p>
+        <button className="btn btn-ghost" onClick={() => window.location.reload()}>Retry</button>
+      </main>
+    );
+  }
   if (!movie) return <p className="loading">Movie not found.</p>;
 
   return (
@@ -341,7 +355,7 @@ export default function WatchPage() {
       <SEOHelmet item={movie} url={`https://moviereact-zzye.onrender.com/watch/${id}`} />
 
       <div className="watch-sticky-info">
-        <h1>{movie.title}</h1>
+        <h1>{movie?.title || ""}</h1>
         <p className="watch-meta">
           <strong>Release:</strong> {movie.release_date} |{" "}
           <strong>Rating:</strong> {movie.vote_average?.toFixed(1)}
@@ -353,7 +367,7 @@ export default function WatchPage() {
           src={tmdbImg(movie.backdrop_path, "w780", "backdrop")}
           srcSet={`${tmdbImgSrcSet(movie.backdrop_path, ["w780", "w1280"], "backdrop")} , ${tmdbImg(movie.backdrop_path, "original", "backdrop")} 2000w`}
           sizes="(max-width: 767px) 100vw, 100vw"
-          alt={movie.title}
+          alt={movie?.title || ""}
           className="watch-bg"
           loading="lazy"
           decoding="async"
@@ -491,7 +505,7 @@ export default function WatchPage() {
               <iframe
                 ref={trailerIframeRef}
                 src={`https://www.youtube.com/embed/${trailerKey}`}
-                title={`${movie.title} trailer`}
+                title={`${movie?.title || ""} trailer`}
                 allow="autoplay; encrypted-media; fullscreen"
                 className="trailer-iframe"
                 style={{ border: "none" }}
@@ -579,7 +593,7 @@ export default function WatchPage() {
       <AppPromptModal
         isOpen={isDownloadModalOpen}
         onClose={() => setIsDownloadModalOpen(false)}
-        itemTitle={movie.title}
+        itemTitle={movie?.title || ""}
       />
       </Suspense>
     </main>

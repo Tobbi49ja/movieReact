@@ -3,7 +3,7 @@ import { Toaster } from "react-hot-toast";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
 import Sidebar from "./components/Sidebar";
-import { ContentModeProvider } from "./context/ContentModeContext";
+import ErrorBoundary from "./components/ErrorBoundary";
 import { AuthProvider } from "./context/AuthContext";
 import React, { Suspense, lazy } from "react";
 
@@ -56,6 +56,7 @@ function App() {
         <main className="app-with-sidebar">
           <UpdateMarquee />
           <Suspense fallback={<div style={{minHeight:'60vh',display:'flex',alignItems:'center',justifyContent:'center',color:'#aaa'}}>Loading...</div>}>
+<ErrorBoundary>
           <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/movies" element={<Movies />} />
@@ -85,7 +86,8 @@ function App() {
 
           {/* 404 */}
           <Route path="*" element={<ErrorPage />} />
-        </Routes>
+          </Routes>
+          </ErrorBoundary>
           </Suspense>
         <Footer />
         </main>

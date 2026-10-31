@@ -41,6 +41,8 @@ export default function TVShowWatchPage() {
   const [showTrailer, setShowTrailer] = useState(false);
   const [showEpisodePanel, setShowEpisodePanel] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showLoading, setShowLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [userReaction, setUserReaction] = useState(null);
   const [likes, setLikes] = useState(0);
   const [dislikes, setDislikes] = useState(0);
@@ -88,29 +90,36 @@ export default function TVShowWatchPage() {
   // -----------------------------
   useEffect(() => {
     const controller = new AbortController();
-    const fetchShow = async () => {
-      try {
-        const res = await fetch(
-          `https://api.themoviedb.org/3/tv/${id}?api_key=${API_KEY}&language=en-US&append_to_response=videos`,
-          { signal: controller.signal }
-        );
+     const fetchShow = async () => {
+       setShowLoading(true);
+       setError(null);
+       try {
+         const res = await fetch(
+           `https://api.themoviedb.org/3/tv/${id}?api_key=${API_KEY}&language=en-US&append_to_response=videos`,
+           { signal: controller.signal }
+         );
 
-        const showData = await res.json();
+         const showData = await res.json();
 
-        setShow(showData);
-        const seasonList = Array.isArray(showData?.seasons) ? showData.seasons : [];
-        setSeasons(seasonList);
-        setSelectedSeason(seasonList[0]?.season_number || 1);
+         setShow(showData);
+         const seasonList = Array.isArray(showData?.seasons) ? showData.seasons : [];
+         setSeasons(seasonList);
+         setSelectedSeason(seasonList[0]?.season_number || 1);
 
-        const videos = Array.isArray(showData?.videos?.results) ? showData.videos.results : [];
-        const trailer = videos.find(
-          (vid) => vid.type === "Trailer" && vid.site === "YouTube"
-        );
-        if (trailer) setTrailerKey(trailer.key);
-      } catch (err) {
-        if (err.name !== "AbortError") console.error("Error fetching TV show:", err);
-      }
-    };
+         const videos = Array.isArray(showData?.videos?.results) ? showData.videos.results : [];
+         const trailer = videos.find(
+           (vid) => vid.type === "Trailer" && vid.site === "YouTube"
+         );
+         if (trailer) setTrailerKey(trailer.key);
+       } catch (err) {
+         if (err.name !== "AbortError") {
+           console.error("Error fetching TV show:", err);
+           setError(err?.message || "Failed to load show");
+         }
+       } finally {
+         setShowLoading(false);
+       }
+     };
     fetchShow();
     return () => controller.abort();
   }, [id, API_KEY]);
@@ -382,16 +391,23 @@ export default function TVShowWatchPage() {
     setShowEpisodePanel(false); // collapse after picking
   };
 
-  // -----------------------------
-  // Render
-  // -----------------------------
+  if (showLoading && !show) return <Loader />;
+  if (error) {
+    return (
+      <main id="main-content" className="watch-page pulldown2">
+        <p className="loading">{error}</p>
+        <button className="btn btn-ghost" onClick={() => window.location.reload()}>Retry</button>
+      </main>
+    );
+  }
+  if (!show) return <Loader />;
   return (
     <main id="main-content" className="watch-page pulldown2">
       <SEOHelmet item={show} url={`https://moviereact-zzye.onrender.com/tv/${id}`} />
 
       {/* Title */}
       <div className="watch-sticky-info">
-        <h1 className="watch-title">{show.name}</h1>
+        <h1 className="watch-title">{show?.name || ""}</h1>
         <p className="watch-meta">
           <strong>First Air Date:</strong> {show.first_air_date} |{" "}
           <strong>Rating:</strong> {show.vote_average?.toFixed(1)}
@@ -404,7 +420,7 @@ export default function TVShowWatchPage() {
           src={tmdbImg(show.backdrop_path, "w780", "backdrop")}
           srcSet={`${tmdbImgSrcSet(show.backdrop_path, ["w780", "w1280"], "backdrop")} , ${tmdbImg(show.backdrop_path, "original", "backdrop")} 2000w`}
           sizes="(max-width: 767px) 100vw, 100vw"
-          alt={show.name}
+          alt={show?.name || ""}
           className="watch-bg"
           loading="lazy"
           decoding="async"
@@ -420,7 +436,7 @@ export default function TVShowWatchPage() {
           Now Playing
           {selectedEpisode && (
             <span className="now-playing-ep">
-              {" "}— S{selectedSeason} E{selectedEpisode.episode_number}: {selectedEpisode.name}
+              {" "}— S{selectedSeason} E{selectedEpisode?.episode_number}: {selectedEpisode?.name || ""}
             </span>
           )}
         </h2>
@@ -542,7 +558,7 @@ export default function TVShowWatchPage() {
             >
               {(Array.isArray(seasons) ? seasons : []).map((season) => (
                 <option key={season.id} value={season.season_number}>
-                  {season.name}
+                  {season?.name || ""}
                 </option>
               ))}
             </select>
@@ -574,7 +590,7 @@ export default function TVShowWatchPage() {
                 onClick={() => handleEpisodeSelect(ep)}
               >
                 <span className="ep-number">E{ep.episode_number}</span>
-                <span className="ep-name">{ep.name}</span>
+                <span className="ep-name">{ep?.name || ""}</span>
                 {ep.runtime && <span className="ep-runtime">{ep.runtime}m</span>}
               </li>
             ))}
@@ -617,7 +633,7 @@ export default function TVShowWatchPage() {
               <iframe
                 ref={trailerIframeRef}
                 src={`https://www.youtube.com/embed/${trailerKey}`}
-                title={`${show.name} Trailer`}
+                title={`${show?.name || ""} Trailer`}
                 allow="autoplay; encrypted-media; fullscreen"
                 className="trailer-iframe"
                 style={{ border: "none" }}

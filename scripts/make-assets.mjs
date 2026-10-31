@@ -24,17 +24,23 @@ function readBgColor() {
   }
 }
 
-const BG = readBgColor();
+function hexToRgba(color) {
+  const c = color.trim().toLowerCase();
+  if (c === "black") return { r: 0, g: 0, b: 0, alpha: 1 };
+  const hex = c.replace("#", "");
+  const full = hex.length === 3 ? hex.split("").map((x) => x + x).join("") : hex;
+  const n = parseInt(full, 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255, alpha: 1 };
+}
+
+const BG = hexToRgba(readBgColor());
 const LOGO = resolve(root, "public/Logo.png");
 const ASSETS = resolve(root, "assets");
 const PUBLIC = resolve(root, "public");
 
 async function ensureDir(dir) {
-  await sharp({ create: { w: 1, h: 1, channels: 4, background: BG } })
-    .png()
-    .toBuffer();
-  const { mkdir } = await import("fs/promises");
-  await mkdir(dir, { recursive: true });
+  const { mkdirSync } = await import("fs");
+  mkdirSync(dir, { recursive: true });
 }
 
 async function main() {
@@ -44,12 +50,11 @@ async function main() {
 
   // 1. icon-only.png — 1024x1024, BG fill, logo contained at ~70%, centered
   await logo
-    .resize({ width: Math.round(1024 * 0.7), withoutExtension: true })
-    .max()
+.resize({ width: Math.round(1024 * 0.7), withoutExtension: true })
     .toBuffer()
     .then((buf) =>
       sharp({
-        create: { w: 1024, h: 1024, channels: 4, background: BG },
+        create: { width: 1024, height: 1024, channels: 4, background: BG },
       })
         .composite([{ input: buf, gravity: "center" }])
         .png()
@@ -58,12 +63,11 @@ async function main() {
 
   // 2. icon-foreground.png — 1024x1024 transparent, logo within central 55%
   await logo
-    .resize({ width: Math.round(1024 * 0.55), withoutExtension: true })
-    .max()
+.resize({ width: Math.round(1024 * 0.55), withoutExtension: true })
     .toBuffer()
     .then((buf) =>
       sharp({
-        create: { w: 1024, h: 1024, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+        create: { width: 1024, height: 1024, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
       })
         .composite([{ input: buf, gravity: "center" }])
         .png()
@@ -72,7 +76,7 @@ async function main() {
 
   // 3. icon-background.png — 1024x1024 solid BG
   await sharp({
-    create: { w: 1024, h: 1024, channels: 4, background: BG },
+    create: { width: 1024, height: 1024, channels: 4, background: BG },
   })
     .png()
     .toFile(resolve(ASSETS, "icon-background.png"));
@@ -81,7 +85,7 @@ async function main() {
   const splashLogo = await logo.resize({ width: 800 }).toBuffer();
   for (const name of ["splash.png", "splash-dark.png"]) {
     await sharp({
-      create: { w: 2732, h: 2732, channels: 4, background: BG },
+      create: { width: 2732, height: 2732, channels: 4, background: BG },
     })
       .composite([{ input: splashLogo, gravity: "center" }])
       .png()
