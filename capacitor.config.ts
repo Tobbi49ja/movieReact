@@ -4,7 +4,7 @@ const config: CapacitorConfig = {
   appId: 'com.tobbihub.app',
   appName: 'Tobbihub',
   webDir: 'dist',
-  backgroundColor: '#0a0a0a',
+  backgroundColor: '#000000',
   server: {
     url: 'https://moviereact-zzye.onrender.com',
     cleartext: false,
@@ -18,7 +18,7 @@ const config: CapacitorConfig = {
       launchAutoHide: true,
       launchShowDuration: 10000,
       launchFadeOutDuration: 250,
-      backgroundColor: '#0a0a0a',
+      backgroundColor: '#000000',
       showSpinner: false,
       androidScaleType: 'CENTER_INSIDE',
     },

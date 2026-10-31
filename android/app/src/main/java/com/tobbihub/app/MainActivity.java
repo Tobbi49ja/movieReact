@@ -2,17 +2,14 @@ package com.tobbihub.app;
 
 import android.os.Bundle;
 import android.util.Log;
-import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
-import android.webkit.WebViewClient;
+import android.net.Uri;
 
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.Bridge;
 import com.getcapacitor.BridgeWebChromeClient;
 import com.getcapacitor.BridgeWebViewClient;
-
-import android.net.Uri;
 
 public class MainActivity extends BridgeActivity {
     @Override
@@ -26,7 +23,13 @@ public class MainActivity extends BridgeActivity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 if (!request.isForMainFrame()) {
-                    return super.shouldOverrideUrlLoading(view, request);
+                    Uri uri = request.getUrl();
+                    String scheme = uri != null ? uri.getScheme() : null;
+                    if (scheme == null || (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme))) {
+                        Log.d("MainActivity", "Blocked subframe scheme: " + uri);
+                        return true;
+                    }
+                    return false;
                 }
                 Uri uri = request.getUrl();
                 String scheme = uri.getScheme();
