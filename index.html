@@ -38,28 +38,41 @@
     <link rel="preload" as="image" href="/logo-192.webp" />
 
     <style>
-      @media (prefers-reduced-motion: reduce) {
-        .preloader-logo { animation: none !important; }
-      }
+       @media (prefers-reduced-motion: reduce) {
+         .preloader-logo { animation: none !important; }
+         .preloader-text { animation: none !important; opacity: 1; }
+       }
       @keyframes preloader-pulse {
         0% { transform: scale(1); opacity: 0.7; }
         50% { transform: scale(1.08); opacity: 1; }
         100% { transform: scale(1); opacity: 0.7; }
       }
-      .preloader {
-        position: fixed;
-        inset: 0;
-        background: #000000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-      }
-      .preloader-logo {
-        width: 96px;
-        height: 96px;
-        animation: preloader-pulse 1.2s ease-in-out infinite;
-      }
+       .preloader {
+         position: fixed;
+         inset: 0;
+         background: #000000;
+         display: flex;
+         flex-direction: column;
+         align-items: center;
+         justify-content: center;
+         z-index: 9999;
+       }
+       .preloader-logo {
+         width: 96px;
+         height: 96px;
+         animation: preloader-pulse 1.2s ease-in-out infinite;
+       }
+       .preloader-text {
+         display: none;
+         color: #fff;
+         font-size: 18px;
+         letter-spacing: .5px;
+         margin-top: 12px;
+         opacity: 0;
+         animation: preloader-fade 400ms ease forwards;
+       }
+       html.is-app .preloader-text { display: block; }
+       @keyframes preloader-fade { to { opacity: 1; } }
     </style>
 
     <!-- Google Analytics 4 — replace G-XXXXXXXXXX with your Measurement ID -->
@@ -71,12 +84,15 @@
       gtag('config', 'G-XXXXXXXXXX');
     </script>
 
-  </head>
+    <script>
+      try { if (window.Capacitor?.isNativePlatform?.()) document.documentElement.classList.add("is-app"); } catch {}
+    </script>
   <body>
     <a href="#main-content" class="skip-link">Skip to main content</a>
     <div id="root">
       <div class="preloader" aria-live="polite" aria-busy="true">
         <img src="/logo-192.webp" width="96" height="96" alt="" class="preloader-logo" onerror="this.onerror=null;this.src='/Logo.png'" />
+        <div class="preloader-text">Welcome to Tobbihub</div>
       </div>
     </div>
     <script type="module" src="/src/main.jsx"></script>

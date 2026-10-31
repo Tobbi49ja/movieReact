@@ -8,7 +8,15 @@ import { AuthProvider } from "./context/AuthContext";
 import { isNativeApp } from "./utils/platform";
 
 if (isNativeApp()) {
-  document.body.classList.add("is-app");
+  try {
+    document.body.classList.add("is-app");
+    (async () => {
+      try {
+        const { SplashScreen } = await import("@capacitor/splash-screen");
+        await SplashScreen.hide({ fadeOutDuration: 200 });
+      } catch {}
+    })();
+  } catch {}
 }
 
 // Debug console (opt-in)
@@ -51,23 +59,30 @@ if (clarityId) {
   })(window, document, "clarity", "script", clarityId);
 }
 const root = createRoot(document.getElementById("root"));
-root.render(
-  <StrictMode>
-    <HelmetProvider>
-      <BrowserRouter>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </BrowserRouter>
-    </HelmetProvider>
-  </StrictMode>
-);
+const doRender = () => {
+  root.render(
+    <StrictMode>
+      <HelmetProvider>
+        <BrowserRouter>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </BrowserRouter>
+      </HelmetProvider>
+    </StrictMode>
+  );
+};
 
-if (isNativeApp()) {
-  requestAnimationFrame(async () => {
-    try {
-      const { SplashScreen } = await import("@capacitor/splash-screen");
-      await SplashScreen.hide({ fadeOutDuration: 200 });
-    } catch {}
-  });
+try {
+  if (isNativeApp() && !sessionStorage.getItem("tb_welcomed")) {
+    const remaining = Math.max(0, 2500 - performance.now());
+    setTimeout(() => {
+      try { sessionStorage.setItem("tb_welcomed", "1"); } catch {}
+      doRender();
+    }, remaining);
+  } else {
+    doRender();
+  }
+} catch {
+  doRender();
 }
