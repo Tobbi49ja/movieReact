@@ -25,9 +25,12 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle }) {
     };
   }, [isOpen, onClose]);
 
-  const onNativeDownload = () => {
-    toast("Coming soon");
-  };
+  useEffect(() => {
+    if (isOpen && isNativeApp()) {
+      toast("Downloads are coming in the next app update");
+      onClose();
+    }
+  }, [isOpen, onClose]);
 
   if (isNativeApp()) return null;
   if (!isOpen) return null;
@@ -82,7 +85,7 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle }) {
             <button
               ref={primaryRef}
               className="server-download-btn"
-              onClick={onNativeDownload}
+              onClick={onClose}
             >
               <FiDownload /> Coming soon
             </button>

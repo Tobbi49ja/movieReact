@@ -75,11 +75,16 @@ const doRender = () => {
 
 try {
   if (isNativeApp() && !sessionStorage.getItem("tb_welcomed")) {
-    const remaining = Math.max(0, 2500 - performance.now());
-    setTimeout(() => {
-      try { sessionStorage.setItem("tb_welcomed", "1"); } catch {}
-      doRender();
-    }, remaining);
+    (async () => {
+      try {
+        const { SplashScreen } = await import("@capacitor/splash-screen");
+        await SplashScreen.hide({ fadeOutDuration: 200 });
+      } catch {}
+      setTimeout(() => {
+        try { sessionStorage.setItem("tb_welcomed", "1"); } catch {}
+        doRender();
+      }, 2500);
+    })();
   } else {
     doRender();
   }
