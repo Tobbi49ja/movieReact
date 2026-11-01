@@ -41,6 +41,11 @@
   }
 }
 
+@keyframes loader-fade-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -59,6 +64,9 @@
   .vpn-banner * {
     animation: none !important;
     transition: none !important;
+  }
+  .loader-logo {
+    animation: loader-fade-pulse 1.6s ease-in-out infinite;
   }
 }
 

@@ -38,15 +38,11 @@
     <link rel="preload" as="image" href="/logo-192.webp" />
 
     <style>
-       @media (prefers-reduced-motion: reduce) {
-         .preloader-logo { animation: none !important; }
-         .preloader-text { animation: none !important; opacity: 1; }
+       @keyframes preloader-pulse {
+         0% { transform: scale(1); opacity: 0.7; }
+         50% { transform: scale(1.08); opacity: 1; }
+         100% { transform: scale(1); opacity: 0.7; }
        }
-      @keyframes preloader-pulse {
-        0% { transform: scale(1); opacity: 0.7; }
-        50% { transform: scale(1.08); opacity: 1; }
-        100% { transform: scale(1); opacity: 0.7; }
-      }
        .preloader {
          position: fixed;
          inset: 0;
@@ -73,7 +69,15 @@
        }
        html.is-app .preloader-text { display: block; }
        @keyframes preloader-fade { to { opacity: 1; } }
-    </style>
+       @keyframes preloader-fade-pulse {
+         0%,100% { opacity: .6 }
+         50% { opacity: 1 }
+       }
+       @media (prefers-reduced-motion: reduce) {
+         .preloader-logo { animation: preloader-fade-pulse 1.6s ease-in-out infinite; }
+         .preloader-text { animation: none; opacity: 1; }
+       }
+     </style>
 
     <!-- Google Analytics 4 — replace G-XXXXXXXXXX with your Measurement ID -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
