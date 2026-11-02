@@ -219,3 +219,29 @@
   color: #aaa;
   font-size: 0.9rem;
 }
+
+.admin-link-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+}
+.admin-link-row input,
+.admin-link-row select,
+.admin-link-row button { width: 100%; min-width: 0; min-height: 44px; }
+.admin-link-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+.admin-link-actions .admin-btn { min-height: 44px; }
+.admin-msg-ok { color: #4ade80; margin: 0.5rem 0; }
+.admin-msg-err { color: #f87171; margin: 0.5rem 0; }
+@media (min-width: 768px) {
+  .admin-link-row {
+    grid-template-columns: 1fr 2fr 9rem auto;
+    align-items: center;
+    padding: 0;
+    border: 0;
+  }
+  .admin-link-row button { width: auto; padding-inline: 1rem; }
+}

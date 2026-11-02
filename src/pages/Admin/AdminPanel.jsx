@@ -12,6 +12,8 @@ const BACKEND_URL =
     ? "http://localhost:3001"
     : "https://moviereact-zzye.onrender.com");
 
+const PRESET_LABELS = { whatsapp: 'WhatsApp', telegram: 'Telegram', email: 'Email', social: '', other: '' };
+
 export default function AdminPanel() {
   const { user, token } = useAuth();
   const [tab, setTab] = useState("overview");
@@ -30,6 +32,7 @@ export default function AdminPanel() {
     updateNotice: '',
     externalLinks: [],
   });
+  const [appMsg, setAppMsg] = useState(null); // {type:'ok'|'err', text}
   const [nForm, setNForm] = useState({
     title:'', year:'', genre:'', posterUrl:'',
     streamUrl:'', downloadUrl:'', tmdbId:'', language:'en'
@@ -104,17 +107,31 @@ export default function AdminPanel() {
 
   const handleSaveAppConfig = async (e) => {
     e.preventDefault();
+    if (!Number.isInteger(Number(appConfig.latestVersionCode)) || Number(appConfig.latestVersionCode) < 1) {
+      setAppMsg({type:'err', text:'Version code must be a whole number, 1 or higher'});
+      return;
+    }
     try {
-      await axios.put(`${BACKEND_URL}/api/app-config`, appConfig, { headers });
-      toast.success('App config saved');
-      fetchAppConfig();
+      const res = await axios.put(`${BACKEND_URL}/api/app-config`, {
+        ...appConfig,
+        latestVersionCode: Number(appConfig.latestVersionCode),
+      }, { headers });
+      const d = res.data?.data || {};
+      setAppConfig({
+        latestVersionName: d.latestVersionName || '',
+        latestVersionCode: d.latestVersionCode || 1,
+        apkUrl: d.apkUrl || '',
+        updateNotice: d.updateNotice || '',
+        externalLinks: Array.isArray(d.externalLinks) ? d.externalLinks : [],
+      });
+      setAppMsg({type:'ok', text:'Saved. The app picks this up within about a minute.'});
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to save app config');
+      setAppMsg({type:'err', text: err.response?.data?.error || 'Save failed'});
     }
   };
 
-  const addLink = () => setAppConfig((c) => ({
-    ...c, externalLinks: [...c.externalLinks, { label: '', url: '', kind: 'other' }]
+  const addLink = (kind = 'other') => setAppConfig((c) => ({
+    ...c, externalLinks: [...(c.externalLinks || []), { label: PRESET_LABELS[kind] || '', url: '', kind }]
   }));
   const removeLink = (i) => setAppConfig((c) => ({
     ...c, externalLinks: c.externalLinks.filter((_, idx) => idx !== i)
@@ -308,27 +325,33 @@ export default function AdminPanel() {
       ) : tab === "app" ? (
         <section className="admin-section" aria-label="App & Links">
           <form onSubmit={handleSaveAppConfig} className="admin-nollywood-form">
-            <input placeholder="Latest Version Name" value={appConfig.latestVersionName}
+            <input placeholder="Latest version name (e.g. 1.1)" value={appConfig.latestVersionName}
               onChange={e => setAppConfig({...appConfig, latestVersionName: e.target.value})} />
-            <input placeholder="Version Code" type="number" value={appConfig.latestVersionCode}
+            <input placeholder="Version code (whole number, higher than installed)" type="number" value={appConfig.latestVersionCode}
               onChange={e => setAppConfig({...appConfig, latestVersionCode: Number(e.target.value)})} />
-            <input placeholder="APK URL" value={appConfig.apkUrl}
+            <input placeholder="APK URL (e.g. /app/tobbihub.apk)" value={appConfig.apkUrl}
               onChange={e => setAppConfig({...appConfig, apkUrl: e.target.value})} />
-            <input placeholder="Update Notice" value={appConfig.updateNotice}
+            <input placeholder="Update notice (shown in the app marquee)" value={appConfig.updateNotice}
               onChange={e => setAppConfig({...appConfig, updateNotice: e.target.value})} />
             <h3>External Links</h3>
-            {appConfig.externalLinks.map((l, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                <input placeholder="Label" value={l.label} onChange={e => updateLink(i, 'label', e.target.value)} />
-                <input placeholder="URL" value={l.url} onChange={e => updateLink(i, 'url', e.target.value)} />
+            {(appConfig.externalLinks || []).map((l, i) => (
+              <div key={i} className="admin-link-row">
+                <input placeholder="Label (e.g. WhatsApp)" value={l.label} onChange={e => updateLink(i, 'label', e.target.value)} />
+                <input placeholder="https://wa.me/234XXXXXXXXXX" value={l.url} onChange={e => updateLink(i, 'url', e.target.value)} />
                 <select value={l.kind} onChange={e => updateLink(i, 'kind', e.target.value)}>
                   {['whatsapp','telegram','email','social','other'].map(k => <option key={k} value={k}>{k}</option>)}
                 </select>
                 <button type="button" className="admin-btn admin-btn-danger" onClick={() => removeLink(i)}>Remove</button>
               </div>
             ))}
-            <button type="button" className="admin-btn" onClick={addLink}>Add Link</button>
-            <button type="submit" className="admin-btn">Save</button>
+            {appMsg && <p role="status" className={appMsg.type === 'ok' ? 'admin-msg-ok' : 'admin-msg-err'}>{appMsg.text}</p>}
+            <div className="admin-link-actions">
+              <button type="button" className="admin-btn" onClick={() => addLink('whatsapp')}>Add WhatsApp</button>
+              <button type="button" className="admin-btn" onClick={() => addLink('telegram')}>Add Telegram</button>
+              <button type="button" className="admin-btn" onClick={() => addLink('social')}>Add Social</button>
+              <button type="button" className="admin-btn" onClick={() => addLink('other')}>Add Other</button>
+              <button type="submit" className="admin-btn">Save</button>
+            </div>
           </form>
         </section>
       ) : (
