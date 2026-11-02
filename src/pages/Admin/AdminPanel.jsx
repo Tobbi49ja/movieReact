@@ -242,49 +242,51 @@ export default function AdminPanel() {
         </div>
       ) : tab === "users" ? (
         <section className="admin-section" aria-label="Users">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Joined</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => (
-                <tr key={u._id}>
-                  <td>{u.name}</td>
-                  <td>{u.email}</td>
-                  <td>
-                    <span className={`role-badge role-${u.role}`}>{u.role}</span>
-                  </td>
-                  <td>{formatDate(u.createdAt)}</td>
-                  <td className="admin-actions">
-                    {u._id !== user._id ? (
-                      <>
-                        {u.role !== "admin" ? (
-                          <button className="admin-btn" onClick={() => handlePromote(u._id)}>
-                            Promote
-                          </button>
-                        ) : (
-                          <button className="admin-btn" onClick={() => handleDemote(u._id)}>
-                            Demote
-                          </button>
-                        )}
-                        <button className="admin-btn admin-btn-danger" onClick={() => handleDeleteUser(u._id)}>
-                          Delete
-                        </button>
-                      </>
-                    ) : (
-                      <span className="role-badge">you</span>
-                    )}
-                  </td>
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Joined</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {users.map((u) => (
+                  <tr key={u._id}>
+                    <td>{u.name}</td>
+                    <td>{u.email}</td>
+                    <td>
+                      <span className={`role-badge role-${u.role}`}>{u.role}</span>
+                    </td>
+                    <td>{formatDate(u.createdAt)}</td>
+                    <td className="admin-actions">
+                      {u._id !== user._id ? (
+                        <>
+                          {u.role !== "admin" ? (
+                            <button className="admin-btn" onClick={() => handlePromote(u._id)}>
+                              Promote
+                            </button>
+                          ) : (
+                            <button className="admin-btn" onClick={() => handleDemote(u._id)}>
+                              Demote
+                            </button>
+                          )}
+                          <button className="admin-btn admin-btn-danger" onClick={() => handleDeleteUser(u._id)}>
+                            Delete
+                          </button>
+                        </>
+                      ) : (
+                        <span className="role-badge">you</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <div className="admin-pagination">
             <button
               className="admin-btn"
@@ -331,36 +333,38 @@ export default function AdminPanel() {
         </section>
       ) : (
         <section className="admin-section" aria-label="Comments">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Username</th>
-                <th>Comment</th>
-                <th>Type</th>
-                <th>Date</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {comments.map((c) => (
-                <tr key={c._id}>
-                  <td>{c.username}</td>
-                  <td className="comment-cell">
-                    {c.comment?.length > 80 ? c.comment.substring(0, 80) + "…" : c.comment}
-                  </td>
-                  <td>
-                    <span className="role-badge role-comment">{c.contentType}</span>
-                  </td>
-                  <td>{formatDate(c.createdAt)}</td>
-                  <td className="admin-actions">
-                    <button className="admin-btn admin-btn-danger" onClick={() => handleDeleteComment(c._id)}>
-                      Delete
-                    </button>
-                  </td>
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Comment</th>
+                  <th>Type</th>
+                  <th>Date</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {comments.map((c) => (
+                  <tr key={c._id}>
+                    <td>{c.username}</td>
+                    <td className="comment-cell">
+                      {c.comment?.length > 80 ? c.comment.substring(0, 80) + "…" : c.comment}
+                    </td>
+                    <td>
+                      <span className="role-badge role-comment">{c.contentType}</span>
+                    </td>
+                    <td>{formatDate(c.createdAt)}</td>
+                    <td className="admin-actions">
+                      <button className="admin-btn admin-btn-danger" onClick={() => handleDeleteComment(c._id)}>
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <div className="admin-pagination">
             <button
               className="admin-btn"
