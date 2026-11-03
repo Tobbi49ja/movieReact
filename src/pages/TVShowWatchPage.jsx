@@ -20,7 +20,15 @@ import { useInView } from "../hooks/useInView";
 import { cachedAxiosGet, invalidate } from "../utils/cachedAxios";
 import { useDataSaver } from "../utils/dataSaver";
 import MovieCard from "../components/MovieCard";
-import { getSandbox } from "../utils/player";
+import { isApp, playerSandbox } from "../lib/platform";
+
+const forceSandbox = () => {
+  try {
+    return new URLSearchParams(window.location.search).get("sandbox") === "1";
+  } catch {
+    return false;
+  }
+};
 
 // -----------------------------
 // Dynamic backend URL
@@ -442,15 +450,22 @@ export default function TVShowWatchPage() {
         </h2>
 
         <div style={{display:'flex',gap:'8px',marginBottom:'8px',flexWrap:'wrap'}}>
-          {SOURCES.map((s, i) => (
+          {(() => {
+            const hasSandboxed = SOURCES.some(s => s.sandbox);
+            const visible = isApp && hasSandboxed
+              ? SOURCES.filter(s => s.sandbox)
+              : SOURCES;
+            return visible.map((s, i) => {
+              const originalIndex = SOURCES.indexOf(s);
+              return (
             <button
               key={s.id}
-              onClick={() => setActiveSource(i)}
+              onClick={() => setActiveSource(originalIndex)}
               style={{
                 padding: '6px 14px',
                 borderRadius: '6px',
                 border: 'none',
-                background: activeSource === i ? '#e50914' : 'rgba(255,255,255,0.1)',
+                background: activeSource === originalIndex ? '#e50914' : 'rgba(255,255,255,0.1)',
                 color: 'white',
                 cursor: 'pointer',
                 fontSize: '0.8rem'
@@ -458,7 +473,9 @@ export default function TVShowWatchPage() {
             >
               {s.label}
             </button>
-          ))}
+              );
+            });
+          })()}
         </div>
 
         <div className="video-container">
@@ -503,10 +520,10 @@ export default function TVShowWatchPage() {
                 key={`${activeSource}-${selectedSeason}-${selectedEpisode?.episode_number}`}
                 src={embedUrl}
                 title={selectedEpisode ? `S${selectedSeason} E${selectedEpisode.episode_number}` : "TV Player"}
-                allow="autoplay; fullscreen; picture-in-picture"
+                allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
                 allowFullScreen
                 style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }}
-                {...(getSandbox(SOURCES[activeSource]) ? { sandbox: getSandbox(SOURCES[activeSource]) } : {})}
+                {...(SOURCES[activeSource].sandbox || forceSandbox() ? { sandbox: playerSandbox } : {})}
               />
             )}
             <div
@@ -634,7 +651,8 @@ export default function TVShowWatchPage() {
                 ref={trailerIframeRef}
                 src={`https://www.youtube.com/embed/${trailerKey}`}
                 title={`${show?.name || ""} Trailer`}
-                allow="autoplay; encrypted-media; fullscreen"
+                allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                allowFullScreen
                 className="trailer-iframe"
                 style={{ border: "none" }}
               />

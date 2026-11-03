@@ -1,6 +1,62 @@
 /* =========================================
    Auth pages (Login / Register)
    ========================================= */
+:root {
+  --accent: #e50914;
+}
+
+/* Popup action rows */
+.popup-actions {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 1.1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.popup-actions > * {
+  min-height: 44px;
+  padding: 0 1.15rem;
+  border-radius: 0.8rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  transition: transform 0.15s, filter 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.popup-actions > *:active {
+  transform: scale(0.97);
+}
+.btn-primary {
+  background: var(--accent, #e11d48);
+  color: #fff;
+  box-shadow: 0 6px 18px -6px var(--accent, #e11d48);
+}
+.btn-primary:hover {
+  filter: brightness(1.1);
+}
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: inherit;
+}
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+@media (max-width: 480px) {
+  .popup-actions {
+    flex-direction: column-reverse;
+  }
+  .popup-actions > * {
+    width: 100%;
+  }
+}
+
 .auth-page {
   min-height: 70vh;
   display: flex;

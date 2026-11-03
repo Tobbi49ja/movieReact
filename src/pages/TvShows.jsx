@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import MoviesFetch from "../components/MoviesFetch";
+import Hero from "../components/Hero";
 import SEOHelmet from "../components/seo/SEOHelmet";
 import { useContentMode } from "../context/ContentModeContext";
 import { TMDB_API_KEY } from "../config/api";
@@ -39,6 +40,8 @@ export default function TvShows() {
         image="/assets/favicon/favicon.ico"
         url="https://moviereact-zzye.onrender.com/tvshows"
       />
+
+      <Hero type="tv" accent="#8b5cf6" />
 
       <h1>TV Shows</h1>
 

@@ -80,11 +80,17 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle }) {
           )}
         </div>
 
-        <div className="download-modal-footer" style={{ display: "flex", gap: "0.6rem", justifyContent: "flex-end", flexWrap: "wrap" }}>
+        <div className="download-modal-footer popup-actions">
+          <button
+            className="server-mirror-btn btn-ghost"
+            onClick={onClose}
+          >
+            Maybe later
+          </button>
           {isNativeApp() ? (
             <button
               ref={primaryRef}
-              className="server-download-btn"
+              className="server-download-btn btn-primary"
               onClick={onClose}
             >
               <FiDownload /> Coming soon
@@ -92,11 +98,11 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle }) {
           ) : hasAppUrl ? (
             <a
               ref={primaryRef}
-               href={appUrl}
+              href={appUrl}
               download
               target="_blank"
               rel="noopener noreferrer"
-              className="server-download-btn"
+              className="server-download-btn btn-primary"
               style={{ textDecoration: "none" }}
             >
               <FiDownload /> Get the app
@@ -104,18 +110,12 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle }) {
           ) : (
             <button
               ref={primaryRef}
-              className="server-download-btn"
+              className="server-download-btn btn-primary"
               disabled
             >
               <FiDownload /> Coming soon
             </button>
           )}
-          <button
-            className="server-mirror-btn"
-            onClick={onClose}
-          >
-            Maybe later
-          </button>
         </div>
       </div>
     </div>
