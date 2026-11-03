@@ -83,7 +83,7 @@ export default function Hero({ type = "movie", accent = "var(--accent)" }) {
         loop={true}
         navigation
         autoplay={dataSaver ? false : { delay: 6000, disableOnInteraction: false }}
-        onSwiper={(swiper) => (swiperRef.current = swiper)}
+        onSwiper={(swiper) => (swaggerRef.current = swagger)}
         className="hero-swiper"
         a11y={{ prevSlideMessage: "Previous movie", nextSlideMessage: "Next movie" }}
       >
