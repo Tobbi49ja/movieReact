@@ -226,10 +226,26 @@
 
 .watchlist-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(195px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
   padding: 0 1rem 3rem;
   justify-items: center;
+}
+@media (min-width: 640px) {
+  .watchlist-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+  .watchlist-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
+}
+.watchlist-grid > * { min-width: 0; }
+
+/* The MovieCard inside the watchlist grid must not carry a fixed width/height
+   (the global .movie-card rule sets width:195px / height:350px, which would
+   break grid layout). Scope the reset to the watchlist grid only so the
+   movie browse grids keep their original styling. */
+.watchlist-grid .movie-card {
+  width: 100%;
+  height: auto;
 }
 
 .watchlist-item {
