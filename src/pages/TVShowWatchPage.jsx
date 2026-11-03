@@ -20,7 +20,7 @@ import { useInView } from "../hooks/useInView";
 import { cachedAxiosGet, invalidate } from "../utils/cachedAxios";
 import { useDataSaver } from "../utils/dataSaver";
 import MovieCard from "../components/MovieCard";
-import { isApp, playerSandbox } from "../lib/platform";
+import { isApp, NATIVE_POPUP_GUARD, getPlayerSandbox, markPopupSeen } from "../lib/platform";
 
 const forceSandbox = () => {
   try {
@@ -384,15 +384,42 @@ export default function TVShowWatchPage() {
 
   const SOURCES = [
     { id: "vidrift",  label: "Vidrift",  movieUrl: (id) => `https://embed.vidrift.net/embed/movie/${id}?title=true&hide=next,episodes,cast`,  tvUrl: (id,s,e) => `https://embed.vidrift.net/embed/tv/${id}/${s}/${e}?title=true&hide=next,episodes,cast`, sandbox: false },
-    { id: "vidfast",  label: "Vidfast",  movieUrl: (id) => `https://vidfast.vc/movie/${id}?autoPlay=true&pip=hide`,                           tvUrl: (id,s,e) => `https://vidfast.vc/tv/${id}/${s}/${e}?autoPlay=true&pip=hide`, sandbox: false },
+    { id: "vidfast",  label: "Vidfast",  movieUrl: (id) => `https://vidfast.vc/movie/${id}?autoPlay=true&pip=hide`,                           tvUrl: (id,s,e) => `https://vidfast.vc/tv/${id}/${s}/${e}?autoPlay=true&pip=hide`, sandbox: true },
     { id: "aether",   label: "Aether",   movieUrl: (id) => `https://aether.ist/media/tmdb-movie-${id}`,                                       tvUrl: (id,s,e) => `https://aether.ist/media/tmdb-tv-${id}/${s}/${e}`, sandbox: false },
     { id: "vidnest",  label: "Vidnest",  movieUrl: (id) => `https://vidnest.fun/movie/${id}`,                                                 tvUrl: (id,s,e) => `https://vidnest.fun/tv/${id}/${s}/${e}`, sandbox: false },
-    { id: "vsembed",  label: "VidSrc",   movieUrl: (id) => `https://vsembed.su/embed/movie/${id}?autoplay=1`,                                 tvUrl: (id,s,e) => `https://vsembed.su/embed/tv/${id}/${s}/${e}?autoplay=1`, sandbox: false },
+    { id: "vsembed",  label: "VidSrc",   movieUrl: (id) => `https://vsembed.su/embed/movie/${id}?autoplay=1`,                                 tvUrl: (id,s,e) => `https://vsembed.su/embed/tv/${id}/${s}/${e}?autoplay=1`, sandbox: true },
   ];
 
   const src = SOURCES[activeSource];
   const embedUrl = src.tvUrl(id, selectedSeason, selectedEpisode?.episode_number || 1);
   const currentSource = embedUrl;
+
+  const visibleSources = (() => {
+    const hasSandboxed = SOURCES.some(s => s.sandbox);
+    return isApp && !NATIVE_POPUP_GUARD && hasSandboxed
+      ? SOURCES.filter(s => s.sandbox)
+      : SOURCES;
+  })();
+
+  useEffect(() => {
+    if (isApp) {
+      const firstVisible = visibleSources[0];
+      if (firstVisible) setActiveSource(SOURCES.indexOf(firstVisible));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (isApp) return;
+    const onBlur = () => {
+      setTimeout(() => {
+        if (document.activeElement && document.activeElement.tagName === "IFRAME") {
+          markPopupSeen();
+        }
+      }, 0);
+    };
+    window.addEventListener("blur", onBlur);
+    return () => window.removeEventListener("blur", onBlur);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleEpisodeSelect = (ep) => {
     setSelectedEpisode(ep);
@@ -451,11 +478,7 @@ export default function TVShowWatchPage() {
 
         <div style={{display:'flex',gap:'8px',marginBottom:'8px',flexWrap:'wrap'}}>
           {(() => {
-            const hasSandboxed = SOURCES.some(s => s.sandbox);
-            const visible = isApp && hasSandboxed
-              ? SOURCES.filter(s => s.sandbox)
-              : SOURCES;
-            return visible.map((s, i) => {
+            return visibleSources.map((s, i) => {
               const originalIndex = SOURCES.indexOf(s);
               return (
             <button
@@ -523,7 +546,7 @@ export default function TVShowWatchPage() {
                 allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
                 allowFullScreen
                 style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }}
-                {...(SOURCES[activeSource].sandbox || forceSandbox() ? { sandbox: playerSandbox } : {})}
+                {...(SOURCES[activeSource].sandbox || forceSandbox() ? { sandbox: getPlayerSandbox() } : {})}
               />
             )}
             <div
