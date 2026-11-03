@@ -8,7 +8,7 @@ import { tmdbImg, tmdbImgSrcSetForDataSaver, tmdbImgForDataSaver } from "../util
 import { useDataSaver } from "../utils/dataSaver";
 
 export default function Hero({ type = "movie", accent = "var(--accent)" }) {
-  const swaggerRef = useRef(null);
+  const swiperRef = useRef(null);
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const apiKey = import.meta.env.VITE_TMDB_API_KEY;
@@ -83,7 +83,7 @@ export default function Hero({ type = "movie", accent = "var(--accent)" }) {
         loop={true}
         navigation
         autoplay={dataSaver ? false : { delay: 6000, disableOnInteraction: false }}
-        onSwiper={(swiper) => (swaggerRef.current = swagger)}
+        onSwiper={(swiper) => { swiperRef.current = swiper; }}
         className="hero-swiper"
         a11y={{ prevSlideMessage: "Previous movie", nextSlideMessage: "Next movie" }}
       >
