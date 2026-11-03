@@ -68,6 +68,7 @@ export default function BottomNav() {
         onClick={toggleDataSaver}
         aria-label={dataSaver ? "Disable data saver" : "Enable data saver"}
         title={dataSaver ? "Data saver: On" : "Data saver: Off"}
+        style={{ background: "transparent", border: "none" }}
       >
         {dataSaver ? <FiWifiOff /> : <FiWifi />}
         <span>Data Saver</span>

@@ -15,6 +15,7 @@ export default function UpdateMarquee() {
     (async () => {
       const c = await fetchAppConfig();
       if (!mounted || !c || !c.latestVersionCode) return;
+      if (!c.apkUrl || !c.apkUrl.trim()) return;
       const code = c.latestVersionCode;
       const dismissed = localStorage.getItem(`updateMarqueeDismissed_${code}`);
       if (dismissed === "1") return;
@@ -28,12 +29,12 @@ export default function UpdateMarquee() {
         } catch {
           // if can't read, show
         }
-        setText(c.updateNotice || `Update available: v${c.latestVersionName}`);
+        setText(c.updateNotice || `New version${c.latestVersionName ? ' ' + c.latestVersionName : ''} available`);
         setBtn("Install update");
       } else {
         const ua = navigator.userAgent || "";
         if (!ua.includes("Android")) return;
-        setText(`New app v${c.latestVersionName} — Get the app`);
+        setText(c.updateNotice || `New version${c.latestVersionName ? ' ' + c.latestVersionName : ''} available`);
         setBtn("Get the app");
       }
       setCfg(c);
@@ -62,8 +63,10 @@ export default function UpdateMarquee() {
   };
 
   const action = () => {
-    if (isNativeApp()) openExternal(cfg.apkUrl);
-    else window.location.href = cfg.apkUrl || "";
+    if (!cfg?.apkUrl) return;
+    const url = cfg.apkUrl.startsWith("/") ? window.location.origin + cfg.apkUrl : cfg.apkUrl;
+    if (isNativeApp()) openExternal(url);
+    else window.location.href = url;
   };
 
   return (

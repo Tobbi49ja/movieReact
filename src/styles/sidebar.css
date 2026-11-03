@@ -359,7 +359,7 @@
 /* ===== LAYOUT SHIFTS ===== */
 
 /* ===== RESPONSIVE ===== */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .sidebar {
     display: none;
   }
@@ -368,6 +368,12 @@
   }
   .app-with-sidebar {
     padding-bottom: calc(60px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (min-width: 768px) {
+  .bottom-nav {
+    display: none !important;
   }
 }
 
