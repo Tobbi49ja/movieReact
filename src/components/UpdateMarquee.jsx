@@ -1,7 +1,15 @@
 import { useEffect, useState, useRef } from "react";
-import { fetchAppConfig } from "../utils/appConfig";
+import axios from "axios";
 import { openExternal } from "../utils/openExternal";
 import { isNativeApp } from "../utils/platform";
+
+const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL ||
+  (import.meta.env.DEV
+    ? "http://localhost:3001"
+    : "https://moviereact-zzye.onrender.com");
+
+let dismissedThisSession = false;
 
 export default function UpdateMarquee() {
   const [cfg, setCfg] = useState(null);
@@ -10,37 +18,75 @@ export default function UpdateMarquee() {
   const [btn, setBtn] = useState("");
   const ref = useRef(null);
 
+  const loadConfig = async () => {
+    try {
+      const res = await axios.get(
+        `${BACKEND_URL}/api/app-config?t=${Date.now()}`
+      );
+      return res.data?.data || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const evaluate = async () => {
+    if (dismissedThisSession) return;
+    const c = await loadConfig();
+    if (!c || !c.latestVersionCode) return;
+    if (!c.apkUrl || !c.apkUrl.trim()) return;
+    const code = c.latestVersionCode;
+
+    if (isNativeApp()) {
+      try {
+        const { App } = await import("@capacitor/app");
+        const info = await App.getInfo();
+        const installed = Number(info?.build || info?.version || 0);
+        if (!(installed < code)) return;
+      } catch {
+        // if can't read, show
+      }
+    } else {
+      const ua = navigator.userAgent || "";
+      if (!ua.includes("Android")) return;
+    }
+
+    setText(
+      c.updateNotice ||
+        `New version${c.latestVersionName ? ' ' + c.latestVersionName : ''} available`
+    );
+    setBtn(isNativeApp() ? "Install update" : "Get the app");
+    setCfg(c);
+    setVisible(true);
+  };
+
   useEffect(() => {
     let mounted = true;
-    (async () => {
-      const c = await fetchAppConfig();
-      if (!mounted || !c || !c.latestVersionCode) return;
-      if (!c.apkUrl || !c.apkUrl.trim()) return;
-      const code = c.latestVersionCode;
-      const dismissed = localStorage.getItem(`updateMarqueeDismissed_${code}`);
-      if (dismissed === "1") return;
+    const run = async () => {
+      if (!mounted) return;
+      await evaluate();
+    };
+    run();
 
-      if (isNativeApp()) {
+    let foreListener = null;
+    if (isNativeApp()) {
+      (async () => {
         try {
           const { App } = await import("@capacitor/app");
-          const info = await App.getInfo();
-          const installed = Number(info?.build || info?.version || 0);
-          if (!(installed < code)) return;
+          foreListener = await App.addListener("appStateChange", ({ isActive }) => {
+            if (isActive) run();
+          });
         } catch {
-          // if can't read, show
+          // ignore
         }
-        setText(c.updateNotice || `New version${c.latestVersionName ? ' ' + c.latestVersionName : ''} available`);
-        setBtn("Install update");
-      } else {
-        const ua = navigator.userAgent || "";
-        if (!ua.includes("Android")) return;
-        setText(c.updateNotice || `New version${c.latestVersionName ? ' ' + c.latestVersionName : ''} available`);
-        setBtn("Get the app");
+      })();
+    }
+
+    return () => {
+      mounted = false;
+      if (foreListener) {
+        try { foreListener.remove(); } catch {}
       }
-      setCfg(c);
-      setVisible(true);
-    })();
-    return () => { mounted = false; };
+    };
   }, []);
 
   useEffect(() => {
@@ -58,13 +104,15 @@ export default function UpdateMarquee() {
   if (!visible || !cfg) return null;
 
   const dismiss = () => {
-    localStorage.setItem(`updateMarqueeDismissed_${cfg.latestVersionCode}`, "1");
+    dismissedThisSession = true;
     setVisible(false);
   };
 
   const action = () => {
     if (!cfg?.apkUrl) return;
-    const url = cfg.apkUrl.startsWith("/") ? window.location.origin + cfg.apkUrl : cfg.apkUrl;
+    const url = cfg.apkUrl.startsWith("/")
+      ? window.location.origin + cfg.apkUrl
+      : cfg.apkUrl;
     if (isNativeApp()) openExternal(url);
     else window.location.href = url;
   };
