@@ -393,12 +393,7 @@ export default function TVShowWatchPage() {
   const embedUrl = src.tvUrl(id, selectedSeason, selectedEpisode?.episode_number || 1);
   const currentSource = embedUrl;
 
-  const visibleSources = (() => {
-    const hasSandboxed = SOURCES.some(s => s.sandbox);
-    return isApp && !NATIVE_POPUP_GUARD && hasSandboxed
-      ? SOURCES.filter(s => s.sandbox)
-      : SOURCES;
-  })();
+  const visibleSources = SOURCES;
 
   useEffect(() => {
     if (isApp) {
@@ -748,6 +743,8 @@ export default function TVShowWatchPage() {
         isOpen={isDownloadModalOpen}
         onClose={() => setIsDownloadModalOpen(false)}
         itemTitle={show?.name}
+        sourceId={src?.id || ""}
+        sourceLabel={src?.label || "this source"}
       />
       </Suspense>
     </main>

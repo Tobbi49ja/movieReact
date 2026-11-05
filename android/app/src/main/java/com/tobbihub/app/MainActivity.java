@@ -1,28 +1,88 @@
 package com.tobbihub.app;
 
+import android.app.DownloadManager;
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.webkit.DownloadListener;
+import android.webkit.URLUtil;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.Toast;
 
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.Bridge;
 import com.getcapacitor.BridgeWebChromeClient;
 import com.getcapacitor.BridgeWebViewClient;
 
+import java.util.Locale;
+
 public class MainActivity extends BridgeActivity {
+    private void enqueueNativeDownload(String url, String userAgent, String contentDisposition, String mimeType) {
+        if (url == null || url.trim().isEmpty()) {
+            return;
+        }
+
+        String normalized = url.trim();
+        String lower = normalized.toLowerCase(Locale.US);
+        boolean isMedia = lower.contains(".m3u8") || lower.contains(".mp4") || lower.contains(".mkv")
+                || lower.contains(".webm") || lower.contains(".vtt") || lower.contains(".srt")
+                || lower.contains(".ass") || lower.contains(".ssa");
+
+        if (!isMedia) {
+            return;
+        }
+
+        try {
+            String fileName = URLUtil.guessFileName(normalized, contentDisposition, mimeType);
+            if (fileName == null || fileName.trim().isEmpty()) {
+                fileName = "tobbihub-download";
+            }
+
+            DownloadManager.Request request = new DownloadManager.Request(Uri.parse(normalized));
+            request.setMimeType(mimeType != null ? mimeType : "application/octet-stream");
+            request.addRequestHeader("User-Agent", userAgent != null ? userAgent : "TobbihubApp");
+            request.addRequestHeader("Accept", "*/*");
+            request.setAllowedOverMetered(true);
+            request.setAllowedOverRoaming(true);
+            request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+            request.setTitle(fileName);
+            request.setDescription("Downloading media");
+            request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
+
+            DownloadManager manager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+            if (manager != null) {
+                manager.enqueue(request);
+                Toast.makeText(this, "Download started: " + fileName, Toast.LENGTH_LONG).show();
+                Log.d("MainActivity", "Queued media download: " + normalized);
+            }
+        } catch (Exception e) {
+            Log.e("MainActivity", "Queued media download failed", e);
+            Toast.makeText(this, "Download failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         Bridge bridge = getBridge();
         WebView webview = bridge.getWebView();
+
+        webview.setDownloadListener(new DownloadListener() {
+            @Override
+            public void onDownloadStart(String url, String userAgent, String contentDisposition,
+                                        String mimeType, long contentLength) {
+                enqueueNativeDownload(url, userAgent, contentDisposition, mimeType);
+            }
+        });
 
         webview.setWebViewClient(new BridgeWebViewClient(bridge) {
             @Override

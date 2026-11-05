@@ -334,12 +334,7 @@ export default function WatchPage() {
   const src = SOURCES[activeSource];
   const embedUrl = src.movieUrl(id);
 
-  const visibleSources = (() => {
-    const hasSandboxed = SOURCES.some(s => s.sandbox);
-    return isApp && !NATIVE_POPUP_GUARD && hasSandboxed
-      ? SOURCES.filter(s => s.sandbox)
-      : SOURCES;
-  })();
+  const visibleSources = SOURCES;
 
   useEffect(() => {
     if (isApp) {
@@ -631,6 +626,8 @@ export default function WatchPage() {
         isOpen={isDownloadModalOpen}
         onClose={() => setIsDownloadModalOpen(false)}
         itemTitle={movie?.title || ""}
+        sourceId={src?.id || ""}
+        sourceLabel={src?.label || "this source"}
       />
       </Suspense>
     </main>

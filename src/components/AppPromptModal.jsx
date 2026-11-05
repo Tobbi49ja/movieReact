@@ -15,6 +15,8 @@ const QUALITY_OPTIONS = [
   { value: "360p", label: "360p" },
 ];
 
+const TRUSTED_DIRECT_DOWNLOAD_PROVIDERS = new Set(["vidnest", "vsembed", "vidsrc"]);
+
 const SUBTITLE_OPTIONS = [
   { value: "en", label: "English" },
   { value: "es", label: "Spanish" },
@@ -23,8 +25,11 @@ const SUBTITLE_OPTIONS = [
   { value: "pt", label: "Portuguese" },
 ];
 
-export default function AppPromptModal({ isOpen, onClose, itemTitle }) {
+export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, sourceLabel }) {
   const primaryRef = useRef(null);
+  const providerId = String(sourceId || "").trim().toLowerCase();
+  const providerLabel = sourceLabel || "this source";
+  const isTrustedDirectDownloadProvider = !providerId || TRUSTED_DIRECT_DOWNLOAD_PROVIDERS.has(providerId);
   const [appUrl, setAppUrl] = useState(APP_URL);
   const [streamUrl, setStreamUrl] = useState("");
   const [downloadJobs, setDownloadJobs] = useState([]);
@@ -69,8 +74,12 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle }) {
 
   useEffect(() => {
     if (!isOpen || !isNativeApp()) return;
-    toast.success("Download to device is available in the app");
-  }, [isOpen]);
+    if (isTrustedDirectDownloadProvider) {
+      toast.success("Direct downloads are available for this provider");
+    } else {
+      toast.error(`Direct app downloads are limited for ${providerLabel}. Use a direct stream URL or switch to a supported provider.`);
+    }
+  }, [isOpen, isTrustedDirectDownloadProvider, providerLabel]);
 
   const handleSubtitleToggle = (language) => {
     setSubtitlePrefs((prev) => {
@@ -153,18 +162,29 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle }) {
       setIsSubmitting(true);
       setDownloadError("");
 
+      const requestUrl = streamUrl.trim();
+      const parsed = new URL(requestUrl);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        throw new Error("Only http and https sources are supported.");
+      }
+
+      if (isNativeApp() && providerId && !isTrustedDirectDownloadProvider) {
+        throw new Error(`Direct app downloads are not supported for ${providerLabel}. Please use a direct stream URL from a trusted source or switch to Vidnest.`);
+      }
+
       if (isNativeApp()) {
         await handleNativeDownload();
         return;
       }
 
       const payload = {
-        m3u8Url: streamUrl.trim(),
+        m3u8Url: requestUrl,
         title: itemTitle || "Tobbihub download",
         downloadPath: "downloads",
         mediaType: "movie",
         quality,
         subtitles: subtitlePrefs,
+        provider: providerId || "manual",
       };
 
       const created = await startDownload(payload);
@@ -232,9 +252,15 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle }) {
 
         <div className="app-prompt-body" style={{ display: "grid", gap: "1rem" }}>
           <p className="app-prompt-text">
-            Downloads are available in the app only. Stream here on the web;
-            install the app to save movies and episodes for offline viewing.
+            Direct downloads work only for trusted stream URLs. Some embedded providers hide the real media link,
+            so the app will only download when the URL is valid and the source is supported.
           </p>
+
+          {!isTrustedDirectDownloadProvider && providerLabel && (
+            <p style={{ margin: 0, color: "#ffd29d", fontSize: "0.8rem" }}>
+              {providerLabel} is not a direct-download provider. Paste a direct stream URL or switch to a supported source.
+            </p>
+          )}
 
           {hasAppUrl && !isNativeApp() && (
             <ol className="app-install-steps" style={{ margin: "0.75rem 0 0", padding: "0 0 0 1.2rem", fontSize: "0.85rem", lineHeight: 1.5 }}>
