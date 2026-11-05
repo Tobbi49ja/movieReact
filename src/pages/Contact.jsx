@@ -7,12 +7,13 @@ export default function Contact() {
   const [form, setForm] = useState({ name: "", email: "", message: "" });
   const [loading, setLoading] = useState(false);
 
-  // AUTO SWITCH BASE URL
-  const API_BASE =
-    import.meta.env.VITE_API_URL ||
-    (import.meta.env.MODE === "development"
-      ? "http://localhost:3001/api"
-      : "https://moviereact-backend.onrender.com/api");
+  // AUTO SWITCH BASE URL (same mechanism as login/AuthContext)
+  const BACKEND_URL =
+    import.meta.env.VITE_BACKEND_URL ||
+    (import.meta.env.DEV
+      ? "http://localhost:3001"
+      : "https://moviereact-zzye.onrender.com");
+  const API_BASE = `${BACKEND_URL}/api`;
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
