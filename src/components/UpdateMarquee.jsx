@@ -34,20 +34,29 @@ export default function UpdateMarquee() {
     const c = await loadConfig();
     if (!c || !c.latestVersionCode) return;
     if (!c.apkUrl || !c.apkUrl.trim()) return;
-    const code = c.latestVersionCode;
 
+    const code = Number(c.latestVersionCode);
+    if (!Number.isFinite(code) || code < 1) return;
+
+    let installed = 0;
     if (isNativeApp()) {
       try {
         const { App } = await import("@capacitor/app");
         const info = await App.getInfo();
-        const installed = Number(info?.build || info?.version || 0);
-        if (!(installed < code)) return;
+        const raw = String(info?.build || info?.version || "").trim();
+        const parsed = Number(raw.split(/[^0-9]+/).filter(Boolean).join(""));
+        installed = Number.isFinite(parsed) ? parsed : 0;
       } catch {
-        // if can't read, show
+        installed = 0;
       }
     } else {
       const ua = navigator.userAgent || "";
       if (!ua.includes("Android")) return;
+    }
+
+    if (installed >= code) {
+      setVisible(false);
+      return;
     }
 
     setText(
@@ -121,20 +130,41 @@ export default function UpdateMarquee() {
     <>
       <style>{`
         @keyframes tb-marquee {
-          0% { transform: translateX(100%); }
-          100% { transform: translateX(-100%); }
+          0% { transform: translate3d(0,0,0); }
+          100% { transform: translate3d(-50%,0,0); }
         }
-        .tb-marquee-wrap { overflow: hidden; white-space: nowrap; }
-        .tb-marquee-track { display: inline-block; animation: tb-marquee 18s linear infinite; will-change: transform; }
+        .tb-marquee-wrap {
+          overflow: hidden;
+          white-space: nowrap;
+          background: #111;
+          color: #fff;
+          padding: 6px 0;
+          font-size: 13px;
+          width: 100%;
+        }
+        .tb-marquee-track {
+          display: inline-flex;
+          align-items: center;
+          gap: 16px;
+          min-width: max-content;
+          animation: tb-marquee 18s linear infinite;
+          will-change: transform;
+          padding-right: 16px;
+        }
+        .tb-marquee-track > * { flex-shrink: 0; }
         @media (prefers-reduced-motion: reduce) {
           .tb-marquee-track { animation: none; transform: none; }
         }
       `}</style>
-      <div className="tb-marquee-wrap" style={{ background: "#111", color: "#fff", padding: "6px 0", fontSize: 13 }}>
+      <div className="tb-marquee-wrap">
         <div ref={ref} className="tb-marquee-track">
-          <span style={{ marginRight: 16 }}>{text}</span>
-          <button onClick={action} style={{ marginRight: 16, cursor: "pointer" }}>{btn}</button>
-          <button onClick={dismiss} style={{ cursor: "pointer" }}>×</button>
+          {[0, 1].map((repeat) => (
+            <div key={repeat} style={{ display: "inline-flex", alignItems: "center", gap: 16 }}>
+              <span>{text}</span>
+              <button onClick={action} style={{ cursor: "pointer" }}>{btn}</button>
+              <button onClick={dismiss} style={{ cursor: "pointer" }}>×</button>
+            </div>
+          ))}
         </div>
       </div>
     </>

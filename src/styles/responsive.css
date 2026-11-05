@@ -188,6 +188,10 @@
   }
   .hero-overlay {
     bottom: 12%;
+    left: 4%;
+    right: 4%;
+    max-width: none;
+    padding: 14px 14px 12px;
   }
   .movies-section {
     margin-top: 0;

@@ -78,6 +78,11 @@ export default function WatchPage() {
     else if (el.msRequestFullscreen) el.msRequestFullscreen();
   };
 
+  const reloadPlayer = () => {
+    setIframeLoaded(false);
+    setReloadKey((k) => k + 1);
+  };
+
   // -----------------------------
   // Detect device type (persisted in localStorage)
   // -----------------------------
@@ -426,7 +431,13 @@ export default function WatchPage() {
         </div>
 
         <div className="video-container">
-          <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', maxHeight: '80svh' }} ref={playerWrapRef}>
+          <div
+            style={{ position: 'relative', width: '100%', aspectRatio: '16/9', maxHeight: '80svh' }}
+            ref={playerWrapRef}
+            onClick={() => {
+              if (iframeLoaded) reloadPlayer();
+            }}
+          >
             {!iframeLoaded ? (
               <button
                 onClick={() => setIframeLoaded(true)}

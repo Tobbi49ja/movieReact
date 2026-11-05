@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { FiX, FiDownload } from "react-icons/fi";
 import toast from "react-hot-toast";
+import { Filesystem, Directory } from "@capacitor/filesystem";
 import { isNativeApp, APP_URL } from "../utils/platform";
 import { fetchAppConfig } from "../utils/appConfig";
 import { startDownload, listDownloads, deleteDownload, clearDownloads } from "../utils/downloads";
@@ -67,11 +68,9 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle }) {
   }, [isOpen, onClose]);
 
   useEffect(() => {
-    if (isOpen && isNativeApp()) {
-      toast("Downloads are coming in the next app update");
-      onClose();
-    }
-  }, [isOpen, onClose]);
+    if (!isOpen || !isNativeApp()) return;
+    toast.success("Download to device is available in the app");
+  }, [isOpen]);
 
   const handleSubtitleToggle = (language) => {
     setSubtitlePrefs((prev) => {
@@ -80,6 +79,68 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle }) {
       }
       return [...prev, language];
     });
+  };
+
+  const handleNativeDownload = async () => {
+    const url = streamUrl.trim();
+    if (!url) {
+      setDownloadError("Paste a valid http or https stream URL first.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setDownloadError("");
+
+      const parsed = new URL(url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        throw new Error("Only http and https sources are supported.");
+      }
+
+      const response = await fetch(url, { headers: { Accept: "video/*,application/octet-stream,*/*" } });
+      if (!response.ok) {
+        throw new Error(`Download request failed (${response.status}).`);
+      }
+
+      const blob = await response.blob();
+      const fileName = (itemTitle || "tobbihub-download")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "tobbihub-download";
+      const ext = (parsed.pathname.split(".").pop() || "mp4").replace(/[^a-z0-9]/gi, "").toLowerCase() || "mp4";
+      const safeFileName = `${fileName}.${ext}`;
+
+      const buffer = await blob.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      let binary = "";
+      const chunk = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunk) {
+        binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)));
+      }
+      const base64 = btoa(binary);
+
+      const writeResult = await Filesystem.writeFile({
+        path: `Downloads/${safeFileName}`,
+        data: base64,
+        directory: Directory.Documents,
+      });
+
+      setDownloadJobs((prev) => [{
+        id: `native-${Date.now()}`,
+        name: itemTitle || "Download",
+        status: "saved",
+        progress: 100,
+        filePath: writeResult.uri || safeFileName,
+        lastMessage: `Saved to device storage (${safeFileName})`,
+      }, ...prev]);
+      setStreamUrl("");
+      toast.success(`Saved: ${safeFileName}`);
+    } catch (error) {
+      console.error("Native download failed:", error);
+      setDownloadError(error?.message || "Unable to download to your device.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleStartDownload = async () => {
@@ -91,6 +152,11 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle }) {
     try {
       setIsSubmitting(true);
       setDownloadError("");
+
+      if (isNativeApp()) {
+        await handleNativeDownload();
+        return;
+      }
 
       const payload = {
         m3u8Url: streamUrl.trim(),
@@ -130,7 +196,6 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle }) {
     }
   };
 
-  if (isNativeApp()) return null;
   if (!isOpen) return null;
 
   const hasAppUrl = !!appUrl;
