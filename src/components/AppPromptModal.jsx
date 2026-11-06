@@ -15,7 +15,7 @@ const QUALITY_OPTIONS = [
   { value: "360p", label: "360p" },
 ];
 
-const TRUSTED_DIRECT_DOWNLOAD_PROVIDERS = new Set(["vidnest", "vsembed", "vidsrc"]);
+const TRUSTED_DIRECT_DOWNLOAD_PROVIDERS = new Set(["vidnest", "vsembed", "vidsrc", "vidsrc2", "vidsrc3", "vidrift"]);
 
 const SUBTITLE_OPTIONS = [
   { value: "en", label: "English" },
@@ -24,6 +24,24 @@ const SUBTITLE_OPTIONS = [
   { value: "ar", label: "Arabic" },
   { value: "pt", label: "Portuguese" },
 ];
+
+function isLikelyDirectMediaUrl(value) {
+  if (typeof value !== "string") return false;
+  const candidate = value.trim();
+  if (!candidate) return false;
+
+  try {
+    const parsed = new URL(candidate);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return false;
+    }
+
+    const pathname = parsed.pathname.toLowerCase();
+    return pathname.includes('.m3u8') || pathname.includes('.mp4') || pathname.includes('.mkv') || pathname.includes('.webm') || pathname.includes('.mov') || pathname.includes('.avi') || pathname.includes('.flv') || pathname.includes('.m4v') || pathname.includes('.mpd');
+  } catch {
+    return false;
+  }
+}
 
 export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, sourceLabel, sourceUrl }) {
   const primaryRef = useRef(null);
@@ -169,12 +187,32 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, s
         throw new Error("Only http and https sources are supported.");
       }
 
+      const isDirectMedia = isLikelyDirectMediaUrl(requestUrl);
+
       if (isNativeApp() && providerId && !isTrustedDirectDownloadProvider) {
         throw new Error(`Direct app downloads are not supported for ${providerLabel}. Please use a direct stream URL from a trusted source or switch to Vidnest.`);
       }
 
-      if (isNativeApp()) {
+      if (isNativeApp() && isDirectMedia) {
         await handleNativeDownload();
+        return;
+      }
+
+      if (isNativeApp() && providerId && isTrustedDirectDownloadProvider) {
+        const payload = {
+          m3u8Url: requestUrl,
+          title: itemTitle || "Tobbihub download",
+          downloadPath: "downloads",
+          mediaType: "movie",
+          quality,
+          subtitles: subtitlePrefs,
+          provider: providerId || "manual",
+        };
+
+        const created = await startDownload(payload);
+        setDownloadJobs((prev) => [created, ...prev]);
+        setStreamUrl("");
+        toast.success("Download queued for processing");
         return;
       }
 
