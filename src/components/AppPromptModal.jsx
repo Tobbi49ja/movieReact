@@ -25,10 +25,11 @@ const SUBTITLE_OPTIONS = [
   { value: "pt", label: "Portuguese" },
 ];
 
-export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, sourceLabel }) {
+export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, sourceLabel, sourceUrl }) {
   const primaryRef = useRef(null);
   const providerId = String(sourceId || "").trim().toLowerCase();
   const providerLabel = sourceLabel || "this source";
+  const resolvedSourceUrl = String(sourceUrl || "").trim();
   const isTrustedDirectDownloadProvider = !providerId || TRUSTED_DIRECT_DOWNLOAD_PROVIDERS.has(providerId);
   const [appUrl, setAppUrl] = useState(APP_URL);
   const [streamUrl, setStreamUrl] = useState("");
@@ -153,7 +154,8 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, s
   };
 
   const handleStartDownload = async () => {
-    if (!streamUrl.trim()) {
+    const requestUrl = (streamUrl || resolvedSourceUrl || "").trim();
+    if (!requestUrl) {
       setDownloadError("Paste a valid http or https stream URL first.");
       return;
     }
@@ -162,7 +164,6 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, s
       setIsSubmitting(true);
       setDownloadError("");
 
-      const requestUrl = streamUrl.trim();
       const parsed = new URL(requestUrl);
       if (!['http:', 'https:'].includes(parsed.protocol)) {
         throw new Error("Only http and https sources are supported.");
@@ -278,7 +279,7 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, s
             <input
               id="stream-url"
               type="url"
-              value={streamUrl}
+              value={streamUrl || resolvedSourceUrl}
               onChange={(e) => setStreamUrl(e.target.value)}
               placeholder="https://example.com/stream.m3u8"
               style={{ width: "100%", padding: "0.7rem 0.8rem", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.12)", background: "rgba(10,10,10,0.45)", color: "#fff" }}

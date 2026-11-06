@@ -745,6 +745,7 @@ export default function TVShowWatchPage() {
         itemTitle={show?.name}
         sourceId={src?.id || ""}
         sourceLabel={src?.label || "this source"}
+        sourceUrl={currentSource}
       />
       </Suspense>
     </main>

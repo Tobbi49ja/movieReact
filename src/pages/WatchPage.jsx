@@ -628,6 +628,7 @@ export default function WatchPage() {
         itemTitle={movie?.title || ""}
         sourceId={src?.id || ""}
         sourceLabel={src?.label || "this source"}
+        sourceUrl={embedUrl}
       />
       </Suspense>
     </main>
