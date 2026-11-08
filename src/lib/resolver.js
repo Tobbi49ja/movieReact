@@ -10,6 +10,15 @@ import { resolveNative } from "./streamResolver";
  *   headers: {}
  * }
  */
+const chunkDebugLog = (provider, debugArray) => {
+  const json = JSON.stringify(debugArray ?? []);
+  const chunkSize = 1500;
+
+  for (let i = 0; i < json.length; i += chunkSize) {
+    console.log("[resolver] debug", provider, json.slice(i, i + chunkSize));
+  }
+};
+
 export async function resolveSources({ tmdbId, type, season, episode }) {
   const normalizedType = type === "tv" || type === "series" || type === "episode" ? "tv" : "movie";
   const providerDebugs = [];
@@ -28,12 +37,14 @@ export async function resolveSources({ tmdbId, type, season, episode }) {
       const payload = result?.value ?? result ?? {};
       const qualities = Array.isArray(payload.qualities) ? payload.qualities : [];
       const subtitles = Array.isArray(payload.subtitles) ? payload.subtitles : [];
+      const debug = Array.isArray(payload.debug) ? payload.debug : [];
 
       console.log("[resolver] result", {
         provider,
         qualityCount: qualities.length,
         subtitleCount: subtitles.length,
       });
+      chunkDebugLog(provider, debug);
 
       return { ...payload, provider };
     } catch (error) {

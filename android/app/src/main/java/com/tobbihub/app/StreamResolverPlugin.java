@@ -492,9 +492,31 @@ public class StreamResolverPlugin extends Plugin {
         headers.put("Cookie", headerBag.get("Cookie") != null ? headerBag.get("Cookie") : "");
 
         JSArray debugArray = new JSArray();
+        Set<String> seenDebug = new LinkedHashSet<String>();
         synchronized (debugList) {
             for (String item : debugList) {
-                debugArray.put(item);
+                if (item != null && seenDebug.add(item)) {
+                    debugArray.put(item);
+                }
+            }
+        }
+
+        if (capturedRequests != null) {
+            int otherCount = 0;
+            for (CapturedRequest request : capturedRequests) {
+                String candidate = buildCapturedDebugEntry(request);
+                if (candidate != null && seenDebug.add(candidate)) {
+                    debugArray.put(candidate);
+                }
+                String playlistSummary = buildPlaylistSummary(request, qualities);
+                if (playlistSummary != null && seenDebug.add(playlistSummary)) {
+                    debugArray.put(playlistSummary);
+                }
+                String otherEntry = otherDebugEntry(request);
+                if (otherEntry != null && otherCount < 40 && seenDebug.add(otherEntry)) {
+                    debugArray.put(otherEntry);
+                    otherCount++;
+                }
             }
         }
 
@@ -583,6 +605,136 @@ public class StreamResolverPlugin extends Plugin {
             return request.type + " " + host + route;
         } catch (Exception e) {
             return request.type + " " + request.url.substring(0, Math.min(request.url.length(), 80));
+        }
+    }
+
+    private String buildCapturedDebugEntry(CapturedRequest request) {
+        if (request == null || request.url == null || request.url.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            Uri uri = Uri.parse(request.url);
+            String host = uri.getHost();
+            String pathAndQuery = uri.getEncodedPath();
+            if (pathAndQuery == null || pathAndQuery.trim().isEmpty()) {
+                pathAndQuery = "/";
+            }
+            String query = uri.getEncodedQuery();
+            if (query != null && !query.trim().isEmpty()) {
+                pathAndQuery = pathAndQuery + "?" + query;
+            }
+            if (pathAndQuery.length() > 80) {
+                pathAndQuery = pathAndQuery.substring(0, 80);
+            }
+            String safeHost = host != null ? host : "unknown";
+            return request.type + " | " + safeHost + " | " + pathAndQuery;
+        } catch (Exception e) {
+            String trimmed = request.url;
+            if (trimmed.length() > 80) {
+                trimmed = trimmed.substring(0, 80);
+            }
+            return request.type + " | unknown | " + trimmed;
+        }
+    }
+
+    private String buildPlaylistSummary(CapturedRequest request, List<JSObject> qualities) {
+        if (request == null || request.url == null || !"hls".equals(request.type)) {
+            return null;
+        }
+        String lower = request.url.toLowerCase(Locale.US);
+        boolean isMaster = lower.contains("/master") || lower.contains("master") || (qualities != null && qualities.size() > 1);
+        String mode = isMaster ? "master" : "media";
+        int variants = qualities != null && qualities.size() > 0 ? qualities.size() : 1;
+        int segments = 0;
+        int totalDurationSec = 0;
+        String resolutions = "[]";
+        if (qualities != null && !qualities.isEmpty()) {
+            List<String> labels = new ArrayList<String>();
+            for (JSObject obj : qualities) {
+                try {
+                    String label = obj.has("label") ? obj.getString("label") : "";
+                    if (label != null && !label.trim().isEmpty()) {
+                        labels.add(label);
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+            if (!labels.isEmpty()) {
+                resolutions = "[" + labels.toString().replace("[", "").replace("]", "") + "]";
+            }
+        }
+        String firstSegment = extractHostAndPath(request.url, 60);
+        boolean hasSubtitles = false;
+        if (qualities != null) {
+            for (JSObject obj : qualities) {
+                try {
+                    if (obj.has("subtitles") || obj.has("label") && obj.getString("label").toLowerCase(Locale.US).contains("sub")) {
+                        hasSubtitles = true;
+                        break;
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        return "PLAYLIST " + mode + " | variants=" + variants + " | segments=" + segments + " | totalDurationSec=" + totalDurationSec + " | firstSegment=" + firstSegment + " | resolutions=" + resolutions + " | has #EXT-X-MEDIA subtitles=" + hasSubtitles;
+    }
+
+    private String otherDebugEntry(CapturedRequest request) {
+        if (request == null || request.url == null || request.url.trim().isEmpty()) {
+            return null;
+        }
+        String lower = request.url.toLowerCase(Locale.US);
+        if (!lower.contains("sub") && !lower.contains("caption") && !lower.contains("vtt") && !lower.contains("srt") && !lower.contains("track") && !lower.contains("api") && !lower.contains("json")) {
+            return null;
+        }
+        String host = "unknown";
+        try {
+            Uri uri = Uri.parse(request.url);
+            if (uri.getHost() != null) {
+                host = uri.getHost();
+            }
+            String pathAndQuery = uri.getEncodedPath();
+            if (pathAndQuery == null || pathAndQuery.trim().isEmpty()) {
+                pathAndQuery = "/";
+            }
+            String query = uri.getEncodedQuery();
+            if (query != null && !query.trim().isEmpty()) {
+                pathAndQuery = pathAndQuery + "?" + query;
+            }
+            if (pathAndQuery.length() > 80) {
+                pathAndQuery = pathAndQuery.substring(0, 80);
+            }
+            return "other | " + host + " | " + pathAndQuery;
+        } catch (Exception e) {
+            String trimmed = request.url;
+            if (trimmed.length() > 80) {
+                trimmed = trimmed.substring(0, 80);
+            }
+            return "other | " + host + " | " + trimmed;
+        }
+    }
+
+    private String extractHostAndPath(String url, int maxPathLength) {
+        if (url == null || url.trim().isEmpty()) {
+            return "unknown";
+        }
+        try {
+            Uri uri = Uri.parse(url);
+            String host = uri.getHost();
+            String path = uri.getEncodedPath();
+            if (path == null || path.trim().isEmpty()) {
+                path = "/";
+            }
+            if (maxPathLength > 0 && path.length() > maxPathLength) {
+                path = path.substring(0, maxPathLength);
+            }
+            return (host != null ? host : "unknown") + path;
+        } catch (Exception e) {
+            String trimmed = url;
+            if (maxPathLength > 0 && trimmed.length() > maxPathLength) {
+                trimmed = trimmed.substring(0, maxPathLength);
+            }
+            return trimmed;
         }
     }
 
