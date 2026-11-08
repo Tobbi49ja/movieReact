@@ -1,6 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { resolveSources } from "../lib/resolver";
+
+const parseQualityRank = (quality) => {
+  const label = typeof quality?.label === "string" ? quality.label : "";
+  const match = label.match(/(\d+)p/i);
+  if (match) return Number(match[1]);
+
+  const bandwidth = Number(quality?.bandwidth);
+  if (Number.isFinite(bandwidth) && bandwidth > 0) return bandwidth;
+
+  return 0;
+};
 
 const formatApproxSize = (bandwidth) => {
   if (typeof bandwidth !== "number" || !Number.isFinite(bandwidth) || bandwidth <= 0) {
@@ -26,6 +37,7 @@ export default function DownloadSheet({
   const [selectedSubtitle, setSelectedSubtitle] = useState("none");
   const [error, setError] = useState("");
   const [retryToken, setRetryToken] = useState(0);
+  const cancelledRef = useRef(false);
 
   const normalizedType = String(type || "movie").trim() || "movie";
 
@@ -33,6 +45,7 @@ export default function DownloadSheet({
     let cancelled = false;
 
     const loadOptions = async () => {
+      cancelledRef.current = false;
       setStatus("preparing");
       setError("");
       setSelectedQuality("best");
@@ -46,24 +59,25 @@ export default function DownloadSheet({
           episode,
         });
 
-        if (cancelled) return;
+        if (cancelled || cancelledRef.current) return;
 
         const nextQualities = Array.isArray(result?.qualities) ? result.qualities : [];
         const nextSubtitles = Array.isArray(result?.subtitles) ? result.subtitles : [];
-        setQualities(nextQualities);
+        const sortedQualities = [...nextQualities].sort((a, b) => parseQualityRank(b) - parseQualityRank(a));
+
+        setQualities(sortedQualities);
         setSubtitles(nextSubtitles);
 
-        if (nextQualities.length > 0) {
-          setSelectedQuality(nextQualities[0].id || "best");
+        if (sortedQualities.length > 0) {
+          setSelectedQuality(sortedQualities[0].id || "best");
         }
 
         setStatus("ready");
       } catch (loadError) {
-        if (!cancelled) {
-          console.error("Failed to resolve download sources:", loadError);
-          setStatus("error");
-          setError(loadError?.message || "Something went wrong while preparing download options.");
-        }
+        if (cancelled || cancelledRef.current) return;
+        console.error("Failed to resolve download sources:", loadError);
+        setStatus("error");
+        setError(loadError?.message || "Something went wrong while preparing download options.");
       }
     };
 
@@ -71,6 +85,7 @@ export default function DownloadSheet({
 
     return () => {
       cancelled = true;
+      cancelledRef.current = true;
     };
   }, [tmdbId, normalizedType, season, episode, retryToken]);
 
@@ -78,6 +93,16 @@ export default function DownloadSheet({
     const options = [{ id: "none", lang: "none", label: "None" }, ...subtitles];
     return options;
   }, [subtitles]);
+
+  const sortedQualities = useMemo(
+    () => [...qualities].sort((a, b) => parseQualityRank(b) - parseQualityRank(a)),
+    [qualities]
+  );
+
+  const handleAbort = () => {
+    cancelledRef.current = true;
+    onClose?.();
+  };
 
   const handleDownload = () => {
     onClose?.();
@@ -161,6 +186,20 @@ export default function DownloadSheet({
               }}
             />
             <div style={{ color: "#d1d5db", fontSize: 16 }}>Preparing download options...</div>
+            <button
+              type="button"
+              onClick={handleAbort}
+              style={{
+                border: "1px solid rgba(255,255,255,0.18)",
+                background: "rgba(255,255,255,0.06)",
+                color: "#f3f4f6",
+                borderRadius: 10,
+                padding: "10px 14px",
+                cursor: "pointer",
+              }}
+            >
+              Cancel
+            </button>
           </div>
         )}
 
@@ -171,37 +210,40 @@ export default function DownloadSheet({
 
               <div style={{ fontSize: 13, color: "#cbd5e1", marginBottom: 8 }}>Quality</div>
               <div style={{ display: "grid", gap: 8 }}>
-                {qualities.length > 0 ? (
-                  qualities.map((quality) => (
-                    <label
-                      key={quality.id || quality.label || quality.url}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 12,
-                        padding: "10px 12px",
-                        borderRadius: 12,
-                        background: selectedQuality === (quality.id || quality.label) ? "rgba(59,130,246,0.2)" : "rgba(255,255,255,0.05)",
-                        border: selectedQuality === (quality.id || quality.label) ? "1px solid rgba(96,165,250,0.6)" : "1px solid rgba(255,255,255,0.06)",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <input
-                          type="radio"
-                          name="download-quality"
-                          checked={selectedQuality === (quality.id || quality.label)}
-                          onChange={() => setSelectedQuality(quality.id || quality.label || "best")}
-                          style={{ accentColor: "#60a5fa" }}
-                        />
-                        <span>{quality.label || quality.id || "Quality"}</span>
-                      </span>
-                      <span style={{ color: "#cbd5e1", fontSize: 12 }}>
-                        {quality.bandwidth ? formatApproxSize(quality.bandwidth) : "Approx size unknown"}
-                      </span>
-                    </label>
-                  ))
+                {sortedQualities.length > 0 ? (
+                  sortedQualities.map((quality) => {
+                    const qualityKey = quality.id || quality.label || quality.url || "quality";
+                    return (
+                      <label
+                        key={qualityKey}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 12,
+                          padding: "10px 12px",
+                          borderRadius: 12,
+                          background: selectedQuality === qualityKey ? "rgba(59,130,246,0.2)" : "rgba(255,255,255,0.05)",
+                          border: selectedQuality === qualityKey ? "1px solid rgba(96,165,250,0.6)" : "1px solid rgba(255,255,255,0.06)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <input
+                            type="radio"
+                            name="download-quality"
+                            checked={selectedQuality === qualityKey}
+                            onChange={() => setSelectedQuality(qualityKey)}
+                            style={{ accentColor: "#60a5fa" }}
+                          />
+                          <span>{quality.label || quality.id || "Quality"}</span>
+                        </span>
+                        <span style={{ color: "#cbd5e1", fontSize: 12 }}>
+                          {quality.bandwidth ? formatApproxSize(quality.bandwidth) : "Approx size unknown"}
+                        </span>
+                      </label>
+                    );
+                  })
                 ) : (
                   <div style={{ color: "#d1d5db", opacity: 0.8 }}>No quality options available.</div>
                 )}
@@ -211,33 +253,36 @@ export default function DownloadSheet({
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 13, color: "#cbd5e1", marginBottom: 8 }}>Subtitles</div>
               <div style={{ display: "grid", gap: 8 }}>
-                {subtitleOptions.map((subtitle) => (
-                  <label
-                    key={subtitle.id || subtitle.lang || subtitle.label}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 12,
-                      padding: "10px 12px",
-                      borderRadius: 12,
-                      background: selectedSubtitle === (subtitle.id || subtitle.lang || "none") ? "rgba(59,130,246,0.2)" : "rgba(255,255,255,0.05)",
-                      border: selectedSubtitle === (subtitle.id || subtitle.lang || "none") ? "1px solid rgba(96,165,250,0.6)" : "1px solid rgba(255,255,255,0.06)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <input
-                        type="radio"
-                        name="download-subtitle"
-                        checked={selectedSubtitle === (subtitle.id || subtitle.lang || "none")}
-                        onChange={() => setSelectedSubtitle(subtitle.id || subtitle.lang || "none")}
-                        style={{ accentColor: "#60a5fa" }}
-                      />
-                      <span>{subtitle.label || subtitle.lang || "None"}</span>
-                    </span>
-                  </label>
-                ))}
+                {subtitleOptions.map((subtitle) => {
+                  const subtitleKey = subtitle.id || subtitle.lang || subtitle.label || "none";
+                  return (
+                    <label
+                      key={subtitleKey}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        padding: "10px 12px",
+                        borderRadius: 12,
+                        background: selectedSubtitle === subtitleKey ? "rgba(59,130,246,0.2)" : "rgba(255,255,255,0.05)",
+                        border: selectedSubtitle === subtitleKey ? "1px solid rgba(96,165,250,0.6)" : "1px solid rgba(255,255,255,0.06)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <input
+                          type="radio"
+                          name="download-subtitle"
+                          checked={selectedSubtitle === subtitleKey}
+                          onChange={() => setSelectedSubtitle(subtitleKey)}
+                          style={{ accentColor: "#60a5fa" }}
+                        />
+                        <span>{subtitle.label || subtitle.lang || "None"}</span>
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
 

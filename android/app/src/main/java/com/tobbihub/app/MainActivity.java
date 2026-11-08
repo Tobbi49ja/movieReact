@@ -73,6 +73,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(MediaSnifferPlugin.class);
+        registerPlugin(StreamResolverPlugin.class);
         super.onCreate(savedInstanceState);
 
         Bridge bridge = getBridge();

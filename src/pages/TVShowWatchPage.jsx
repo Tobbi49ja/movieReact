@@ -24,6 +24,7 @@ import MovieCard from "../components/MovieCard";
 import DownloadSheet from "../components/DownloadSheet";
 import useDownloads from "../hooks/useDownloads";
 import { isApp, NATIVE_POPUP_GUARD, getPlayerSandbox } from "../lib/platform";
+import { PROVIDER_SOURCES } from "../lib/providerUrls";
 
 const forceSandbox = () => {
   try {
@@ -396,12 +397,7 @@ export default function TVShowWatchPage() {
   const PROVIDER_STORAGE_KEY = "tobbihub_watch_provider_v2";
   const LEGACY_PROVIDER_STORAGE_KEY = "tobbihub_watch_provider";
 
-  const SOURCES = [
-    { id: "vidrift",  label: "Vidrift",  movieUrl: (id) => `https://embed.vidrift.net/embed/movie/${id}?title=true&hide=next,episodes,cast`,  tvUrl: (id,s,e) => `https://embed.vidrift.net/embed/tv/${id}/${s}/${e}?title=true&hide=next,episodes,cast`, sandbox: false },
-    { id: "vidfast",  label: "Vidfast",  movieUrl: (id) => `https://vidfast.vc/movie/${id}?autoPlay=true&pip=hide`,                           tvUrl: (id,s,e) => `https://vidfast.vc/tv/${id}/${s}/${e}?autoPlay=true&pip=hide`, sandbox: true },
-    { id: "vidnest",  label: "Vidnest",  movieUrl: (id) => `https://vidnest.fun/movie/${id}`,                                                 tvUrl: (id,s,e) => `https://vidnest.fun/tv/${id}/${s}/${e}`, sandbox: false },
-    { id: "vsembed",  label: "VidSrc",   movieUrl: (id) => `https://vsembed.su/embed/movie/${id}?autoplay=1`,                                 tvUrl: (id,s,e) => `https://vsembed.su/embed/tv/${id}/${s}/${e}?autoplay=1`, sandbox: true },
-  ];
+  const SOURCES = PROVIDER_SOURCES;
 
   const getPreferredProviderIndex = () => {
     const savedId = localStorage.getItem(PROVIDER_STORAGE_KEY);
