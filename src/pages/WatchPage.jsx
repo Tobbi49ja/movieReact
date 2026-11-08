@@ -1,5 +1,5 @@
 // src/pages/WatchPage.jsx
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef, lazy, Suspense } from "react";
 import { Capacitor } from "@capacitor/core";
 import axios from "axios";
@@ -23,9 +23,9 @@ import { cachedAxiosGet, invalidate } from "../utils/cachedAxios";
 import { tmdbImg, tmdbImgSrcSet, tmdbImgForDataSaver, tmdbImgSrcSetForDataSaver } from "../utils/tmdb";
 import { useDataSaver } from "../utils/dataSaver";
 import MovieCard from "../components/MovieCard";
+import DownloadSheet from "../components/DownloadSheet";
 import useDownloads from "../hooks/useDownloads";
 import { isApp, NATIVE_POPUP_GUARD, getPlayerSandbox } from "../lib/platform";
-import { startSniffing, stopSniffing, getFound, onStreamFound } from "../lib/mediaSniffer";
 
 const forceSandbox = () => {
   try {
@@ -43,6 +43,7 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ||
 
 export default function WatchPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [movie, setMovie] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -334,6 +335,9 @@ export default function WatchPage() {
     }
   };
 
+  const PROVIDER_STORAGE_KEY = "tobbihub_watch_provider_v2";
+  const LEGACY_PROVIDER_STORAGE_KEY = "tobbihub_watch_provider";
+
   const SOURCES = [
     { id: "vidrift",  label: "Vidrift",  movieUrl: (id) => `https://embed.vidrift.net/embed/movie/${id}?title=true&hide=next,episodes,cast`,  tvUrl: (id,s,e) => `https://embed.vidrift.net/embed/tv/${id}/${s}/${e}?title=true&hide=next,episodes,cast`, sandbox: false },
     { id: "vidfast",  label: "Vidfast",  movieUrl: (id) => `https://vidfast.vc/movie/${id}?autoPlay=true&pip=hide`,                           tvUrl: (id,s,e) => `https://vidfast.vc/tv/${id}/${s}/${e}?autoPlay=true&pip=hide`, sandbox: true },
@@ -341,74 +345,49 @@ export default function WatchPage() {
     { id: "vsembed",  label: "VidSrc",   movieUrl: (id) => `https://vsembed.su/embed/movie/${id}?autoplay=1`,                                 tvUrl: (id,s,e) => `https://vsembed.su/embed/tv/${id}/${s}/${e}?autoplay=1`, sandbox: true },
   ];
 
+  const getPreferredProviderIndex = () => {
+    const savedId = localStorage.getItem(PROVIDER_STORAGE_KEY);
+    if (savedId) {
+      const index = SOURCES.findIndex((source) => source.id === savedId);
+      if (index >= 0) return index;
+    }
+
+    const legacySavedId = localStorage.getItem(LEGACY_PROVIDER_STORAGE_KEY);
+    if (legacySavedId) {
+      localStorage.removeItem(LEGACY_PROVIDER_STORAGE_KEY);
+    }
+
+    const defaultIndex = SOURCES.findIndex((source) => source.id === "vidnest");
+    return defaultIndex >= 0 ? defaultIndex : 0;
+  };
+
+  const handleSourceSelect = (index) => {
+    if (index < 0 || index >= SOURCES.length) return;
+    const nextSource = SOURCES[index];
+    setActiveSource(index);
+    if (nextSource?.id) {
+      localStorage.setItem(PROVIDER_STORAGE_KEY, nextSource.id);
+    }
+  };
+
   const src = SOURCES[activeSource];
   const embedUrl = src.movieUrl(id);
 
   const visibleSources = SOURCES;
 
   useEffect(() => {
-    if (isApp) {
-      const firstVisible = visibleSources[0];
-      if (firstVisible) setActiveSource(SOURCES.indexOf(firstVisible));
+    if (typeof window === "undefined") return;
+    const preferredIndex = getPreferredProviderIndex();
+    setActiveSource(preferredIndex);
+  }, []);
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!isApp) return;
-
-    let cancelled = false;
-    let detach = () => {};
-
-    const syncFoundStreams = (items = []) => {
-      const streamList = Array.isArray(items) ? items : [];
-      if (!streamList.length) return foundStreamsRef.current;
-
-      const deduped = new Map();
-      for (const item of [...(foundStreamsRef.current || []), ...streamList]) {
-        if (item && typeof item.url === "string" && item.url.trim()) {
-          deduped.set(item.url, item);
-        }
-      }
-      foundStreamsRef.current = [...deduped.values()];
-      return foundStreamsRef.current;
-    };
-
-    const setupSniffer = async () => {
-      try {
-        const initial = await getFound();
-        if (!cancelled) syncFoundStreams(initial);
-      } catch {
-        // Ignore initial sniffing failures.
-      }
-
-      try {
-        await startSniffing();
-      } catch {
-        // Ignore if the native plugin is not available yet.
-      }
-
-      detach = onStreamFound((event) => {
-        if (cancelled || !event || typeof event !== "object") return;
-        syncFoundStreams([event]);
-      });
-    };
-
-    setupSniffer();
-
-    return () => {
-      cancelled = true;
-      try {
-        detach();
-      } catch {
-        // ignore detachment errors
-      }
-      try {
-        stopSniffing();
-      } catch {
-        // ignore stop failures
-      }
-    };
-  }, [isApp]);
+    navigate("/");
+  };
 
   const handleIframeLoad = () => {
     try {
@@ -475,7 +454,7 @@ export default function WatchPage() {
               return (
             <button
               key={s.id}
-              onClick={() => setActiveSource(originalIndex)}
+              onClick={() => handleSourceSelect(originalIndex)}
               style={{
                 padding: '6px 14px',
                 borderRadius: '6px',
@@ -492,6 +471,33 @@ export default function WatchPage() {
             });
           })()}
         </div>
+
+        <button
+          type="button"
+          onClick={handleBack}
+          aria-label="Go back"
+          style={{
+            position: "fixed",
+            top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+            left: "12px",
+            width: 44,
+            height: 44,
+            borderRadius: "50%",
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(15, 23, 42, 0.72)",
+            color: "#f8fafc",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 22,
+            lineHeight: 1,
+            cursor: "pointer",
+            zIndex: 2000,
+            boxShadow: "0 8px 20px rgba(15, 23, 42, 0.3)",
+          }}
+        >
+          ←
+        </button>
 
         <div className="video-container">
           <div
@@ -553,7 +559,7 @@ export default function WatchPage() {
                 allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
                 allowFullScreen
                 style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
-                {...(SOURCES[activeSource].sandbox || forceSandbox() ? { sandbox: getPlayerSandbox() } : {})}
+                {...(Capacitor.isNativePlatform() ? {} : (SOURCES[activeSource].sandbox || forceSandbox() ? { sandbox: getPlayerSandbox() } : {}))}
               />
             )}
           </div>
@@ -697,18 +703,28 @@ export default function WatchPage() {
         )}
       </div>
 
-      {/* MovieBox Download Modal */}
-      <Suspense fallback={null}>
-      <AppPromptModal
-        isOpen={isDownloadModalOpen}
-        onClose={() => setIsDownloadModalOpen(false)}
-        itemTitle={movie?.title || ""}
-        sourceId={src?.id || ""}
-        sourceLabel={src?.label || "this source"}
-        sourceUrl={isApp ? "" : embedUrl}
-        foundStreamsRef={foundStreamsRef}
-      />
-      </Suspense>
+      {isApp && isDownloadModalOpen && (
+        <DownloadSheet
+          tmdbId={movie?.id ?? id}
+          type="movie"
+          title={movie?.title || movie?.original_title || "Movie"}
+          onClose={() => setIsDownloadModalOpen(false)}
+        />
+      )}
+
+      {!isApp && (
+        <Suspense fallback={null}>
+          <AppPromptModal
+            isOpen={isDownloadModalOpen}
+            onClose={() => setIsDownloadModalOpen(false)}
+            itemTitle={movie?.title || ""}
+            sourceId={src?.id || ""}
+            sourceLabel={src?.label || "this source"}
+            sourceUrl={embedUrl}
+            foundStreamsRef={foundStreamsRef}
+          />
+        </Suspense>
+      )}
     </main>
   );
 }
