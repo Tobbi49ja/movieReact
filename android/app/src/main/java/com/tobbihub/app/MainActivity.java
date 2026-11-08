@@ -12,6 +12,7 @@ import android.util.Log;
 import android.webkit.DownloadListener;
 import android.webkit.URLUtil;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -72,6 +73,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        registerPlugin(MediaSnifferPlugin.class);
 
         Bridge bridge = getBridge();
         WebView webview = bridge.getWebView();
@@ -112,6 +114,24 @@ public class MainActivity extends BridgeActivity {
                 }
                 Log.d("MainActivity", "Blocked nav: " + uri.toString());
                 return true;
+            }
+
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                if (request != null && request.getUrl() != null) {
+                    MediaSnifferPlugin sniffer = MediaSnifferPlugin.getInstance();
+                    if (sniffer != null && sniffer.isEnabled()) {
+                        try {
+                            String url = request.getUrl().toString();
+                            if (url != null) {
+                                sniffer.recordFound(url, request.getRequestHeaders());
+                            }
+                        } catch (Exception e) {
+                            Log.e("MainActivity", "Media sniffer inspect failed", e);
+                        }
+                    }
+                }
+                return super.shouldInterceptRequest(view, request);
             }
         });
 

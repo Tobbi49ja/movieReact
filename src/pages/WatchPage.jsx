@@ -1,6 +1,7 @@
 // src/pages/WatchPage.jsx
 import { useParams } from "react-router-dom";
 import { useEffect, useState, useRef, lazy, Suspense } from "react";
+import { Capacitor } from "@capacitor/core";
 import axios from "axios";
 import { io } from "socket.io-client";
 import Loader from "../components/Loader";
@@ -22,6 +23,7 @@ import { cachedAxiosGet, invalidate } from "../utils/cachedAxios";
 import { tmdbImg, tmdbImgSrcSet, tmdbImgForDataSaver, tmdbImgSrcSetForDataSaver } from "../utils/tmdb";
 import { useDataSaver } from "../utils/dataSaver";
 import MovieCard from "../components/MovieCard";
+import useDownloads from "../hooks/useDownloads";
 import { isApp, NATIVE_POPUP_GUARD, getPlayerSandbox } from "../lib/platform";
 
 const forceSandbox = () => {
@@ -66,6 +68,12 @@ export default function WatchPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
   const { enabled: dataSaver } = useDataSaver();
+  const downloads = useDownloads();
+  const localDownload = downloads.find((item) =>
+    item.status === "done" &&
+    (item.tmdbId === movie?.id || item.title === movie?.title || item.title === movie?.original_title)
+  );
+  const localMediaSrc = isApp && localDownload?.path ? Capacitor.convertFileSrc(localDownload.path) : "";
 
   const commentsInView = useInView(commentsSectionRef, { rootMargin: "300px" });
 
@@ -433,7 +441,16 @@ export default function WatchPage() {
               if (iframeLoaded) reloadPlayer();
             }}
           >
-            {!iframeLoaded ? (
+            {localMediaSrc ? (
+              <video
+                key={localMediaSrc}
+                src={localMediaSrc}
+                controls
+                autoPlay
+                playsInline
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }}
+              />
+            ) : !iframeLoaded ? (
               <button
                 onClick={() => setIframeLoaded(true)}
                 style={{

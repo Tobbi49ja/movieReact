@@ -5,7 +5,10 @@ import toast from "react-hot-toast";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { isNativeApp, APP_URL } from "../utils/platform";
 import { fetchAppConfig } from "../utils/appConfig";
-import { startDownload, listDownloads, deleteDownload, clearDownloads } from "../utils/downloads";
+import { startDownload as startServerDownload, listDownloads, deleteDownload, clearDownloads } from "../utils/downloads";
+import { addDownload, updateDownload } from "../lib/downloads";
+import { startSniffing, stopSniffing, onStreamFound } from "../lib/mediaSniffer";
+import { startDownload as startNativeDownload } from "../lib/downloadEngine";
 
 const QUALITY_OPTIONS = [
   { value: "best", label: "Best available" },
@@ -48,13 +51,16 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, s
   const providerId = String(sourceId || "").trim().toLowerCase();
   const providerLabel = sourceLabel || "this source";
   const resolvedSourceUrl = String(sourceUrl || "").trim();
-  const isTrustedDirectDownloadProvider = !providerId || TRUSTED_DIRECT_DOWNLOAD_PROVIDERS.has(providerId);
   const [appUrl, setAppUrl] = useState(APP_URL);
   const [streamUrl, setStreamUrl] = useState("");
+  const inputUrl = (streamUrl || resolvedSourceUrl || "").trim();
+  const hasDirectUrlCandidate = isLikelyDirectMediaUrl(inputUrl);
+  const isTrustedDirectDownloadProvider = TRUSTED_DIRECT_DOWNLOAD_PROVIDERS.has(providerId);
   const [downloadJobs, setDownloadJobs] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [downloadError, setDownloadError] = useState("");
   const [quality, setQuality] = useState("best");
+  const [nativeQuality, setNativeQuality] = useState("720p");
   const [subtitlePrefs, setSubtitlePrefs] = useState(["en"]);
 
   useEffect(() => {
@@ -93,12 +99,26 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, s
 
   useEffect(() => {
     if (!isOpen || !isNativeApp()) return;
-    if (isTrustedDirectDownloadProvider) {
-      toast.success("Direct downloads are available for this provider");
-    } else {
-      toast.error(`Direct app downloads are limited for ${providerLabel}. Use a direct stream URL or switch to a supported provider.`);
+
+    if (!providerId) {
+      toast.error("Paste a real direct stream URL to start a download.");
+      return;
     }
-  }, [isOpen, isTrustedDirectDownloadProvider, providerLabel]);
+
+    if (!isTrustedDirectDownloadProvider) {
+      toast.error(`Direct app downloads are limited for ${providerLabel}. Use a direct stream URL or switch to a supported provider.`);
+      return;
+    }
+
+    if (!hasDirectUrlCandidate && resolvedSourceUrl) {
+      console.warn("Direct app download blocked: embed/provider URL is not a real media stream.", {
+        providerId,
+        providerLabel,
+        sourceUrl: resolvedSourceUrl,
+      });
+      toast.error("This source is an embed page, not a real direct stream URL. Paste a valid .mp4/.m3u8 URL to download.");
+    }
+  }, [isOpen, isNativeApp, providerId, providerLabel, resolvedSourceUrl, hasDirectUrlCandidate, isTrustedDirectDownloadProvider]);
 
   const handleSubtitleToggle = (language) => {
     setSubtitlePrefs((prev) => {
@@ -107,6 +127,93 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, s
       }
       return [...prev, language];
     });
+  };
+
+  const handleNativeQueue = async () => {
+    if (!isNativeApp()) return;
+
+    const queued = addDownload({
+      tmdbId: sourceId || null,
+      type: "movie",
+      title: itemTitle || "Download",
+      poster: "",
+      quality: nativeQuality,
+      status: "queued",
+      progress: 0,
+      path: "",
+      size: "",
+      createdAt: new Date().toISOString(),
+    });
+
+    try {
+      setIsSubmitting(true);
+      setDownloadError("");
+
+      // TODO: plug in the provider/source resolver here once the app can turn embed URLs into direct media candidates.
+      await startSniffing();
+
+      const stream = await new Promise((resolve) => {
+        let settled = false;
+        const detach = onStreamFound((event) => {
+          if (settled) return;
+          settled = true;
+          detach();
+          resolve(event || null);
+        });
+
+        const timeoutId = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          detach();
+          resolve(null);
+        }, 20000);
+
+        return () => {
+          clearTimeout(timeoutId);
+          detach();
+        };
+      });
+
+      if (!stream) {
+        updateDownload(queued.id, {
+          status: "failed",
+          message: "No media stream was found while sniffing.",
+        });
+        throw new Error("No media stream was found while sniffing.");
+      }
+
+      if (stream.type === "hls") {
+        updateDownload(queued.id, {
+          status: "failed",
+          message: "HLS not supported yet",
+        });
+        throw new Error("HLS not supported yet");
+      }
+
+      await startNativeDownload(queued.id, {
+        url: stream.url,
+        headers: stream.headers || {},
+      });
+
+      toast.success(`Downloaded: ${queued.title} (${queued.quality})`);
+      setDownloadError("");
+      onClose?.();
+    } catch (error) {
+      const message = error?.message || "Unable to download this stream.";
+      updateDownload(queued.id, {
+        status: "failed",
+        message,
+      });
+      setDownloadError(message);
+      toast.error(message);
+    } finally {
+      setIsSubmitting(false);
+      try {
+        await stopSniffing();
+      } catch {
+        // ignore stop failures
+      }
+    }
   };
 
   const handleNativeDownload = async () => {
@@ -193,6 +300,10 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, s
         throw new Error(`Direct app downloads are not supported for ${providerLabel}. Please use a direct stream URL from a trusted source or switch to Vidnest.`);
       }
 
+      if (!isDirectMedia) {
+        throw new Error("This source is not a valid direct media URL. Paste a real .mp4/.m3u8 stream URL from a supported provider.");
+      }
+
       if (isNativeApp() && isDirectMedia) {
         await handleNativeDownload();
         return;
@@ -209,7 +320,7 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, s
           provider: providerId || "manual",
         };
 
-        const created = await startDownload(payload);
+        const created = await startServerDownload(payload);
         setDownloadJobs((prev) => [created, ...prev]);
         setStreamUrl("");
         toast.success("Download queued for processing");
@@ -226,7 +337,7 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, s
         provider: providerId || "manual",
       };
 
-      const created = await startDownload(payload);
+      const created = await startServerDownload(payload);
       setDownloadJobs((prev) => [created, ...prev]);
       setStreamUrl("");
       toast.success("Download started");
@@ -317,7 +428,7 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, s
             <input
               id="stream-url"
               type="url"
-              value={streamUrl || resolvedSourceUrl}
+              value={streamUrl}
               onChange={(e) => setStreamUrl(e.target.value)}
               placeholder="https://example.com/stream.m3u8"
               style={{ width: "100%", padding: "0.7rem 0.8rem", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.12)", background: "rgba(10,10,10,0.45)", color: "#fff" }}
@@ -379,6 +490,34 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, s
               <button className="server-mirror-btn btn-ghost" onClick={handleClear} type="button">Clear</button>
             </div>
           </div>
+
+          {isNativeApp() && (
+            <div style={{ border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", padding: "0.9rem" }}>
+              <div style={{ fontSize: "0.9rem", fontWeight: 600, marginBottom: "0.5rem" }}>Native download</div>
+              <label htmlFor="native-download-quality" style={{ display: "block", marginBottom: "0.4rem", fontSize: "0.8rem" }}>
+                Quality
+              </label>
+              <select
+                id="native-download-quality"
+                value={nativeQuality}
+                onChange={(e) => setNativeQuality(e.target.value)}
+                style={{ width: "100%", padding: "0.7rem 0.8rem", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.12)", background: "rgba(10,10,10,0.45)", color: "#fff" }}
+              >
+                <option value="360p">360p</option>
+                <option value="720p">720p</option>
+                <option value="1080p">1080p</option>
+              </select>
+
+              <button
+                type="button"
+                onClick={handleNativeQueue}
+                className="server-download-btn btn-primary"
+                style={{ marginTop: "0.8rem", width: "100%" }}
+              >
+                <FiDownload /> Start
+              </button>
+            </div>
+          )}
 
           {downloadJobs.length > 0 && (
             <div style={{ border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", padding: "0.9rem" }}>

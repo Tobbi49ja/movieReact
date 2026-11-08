@@ -1,6 +1,7 @@
 // src/pages/TVShowWatchPage.jsx
 import { useParams } from "react-router-dom";
 import { useEffect, useState, useRef, lazy, Suspense } from "react";
+import { Capacitor } from "@capacitor/core";
 import axios from "axios";
 import { io } from "socket.io-client";
 import Loader from "../components/Loader";
@@ -20,6 +21,7 @@ import { useInView } from "../hooks/useInView";
 import { cachedAxiosGet, invalidate } from "../utils/cachedAxios";
 import { useDataSaver } from "../utils/dataSaver";
 import MovieCard from "../components/MovieCard";
+import useDownloads from "../hooks/useDownloads";
 import { isApp, NATIVE_POPUP_GUARD, getPlayerSandbox } from "../lib/platform";
 
 const forceSandbox = () => {
@@ -72,6 +74,12 @@ export default function TVShowWatchPage() {
 
   const inView = useInView(commentsSectionRef, { rootMargin: "300px" });
   const { enabled: dataSaver } = useDataSaver();
+  const downloads = useDownloads();
+  const localDownload = downloads.find((item) =>
+    item.status === "done" &&
+    (item.tmdbId === show?.id || item.title === show?.name || item.title === show?.original_name)
+  );
+  const localMediaSrc = isApp && localDownload?.path ? Capacitor.convertFileSrc(localDownload.path) : "";
   useEffect(() => { setCommentsInView(inView); }, [inView]);
 
   // -----------------------------
@@ -483,7 +491,16 @@ export default function TVShowWatchPage() {
 
         <div className="video-container">
           <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', maxHeight: '80svh' }}>
-            {!iframeLoaded ? (
+            {localMediaSrc ? (
+              <video
+                key={localMediaSrc}
+                src={localMediaSrc}
+                controls
+                autoPlay
+                playsInline
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }}
+              />
+            ) : !iframeLoaded ? (
               <button
                 onClick={() => setIframeLoaded(true)}
                 style={{

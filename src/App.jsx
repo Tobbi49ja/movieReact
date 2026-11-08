@@ -27,6 +27,7 @@ const ErrorPage = lazy(() => import("./pages/ErrorPage"));
 const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
 const Watchlist = lazy(() => import("./pages/Watchlist"));
+const Downloads = lazy(() => import("./pages/Downloads"));
 const AdminPanel = lazy(() => import("./pages/Admin/AdminPanel"));
 const LiveTV = lazy(() => import("./pages/LiveTV"));
 
@@ -81,6 +82,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/watchlist" element={<Watchlist />} />
+          <Route path="/downloads" element={<Downloads />} />
 
           {/* Admin */}
           <Route path="/admin" element={<AdminPanel />} />

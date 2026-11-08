@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { useContentMode } from "../context/ContentModeContext";
 import { useDataSaver } from "../utils/dataSaver";
 import { useSevenTap } from "../hooks/useSevenTap";
+import { isApp } from "../lib/platform";
 import {
   FiHome,
   FiFilm,
@@ -69,6 +70,7 @@ export default function Sidebar() {
     { to: "/tvshows", label: "TV Shows", icon: FiTv },
     { to: "/livetv", label: "Live TV", icon: FiRadio },
     { to: "/watchlist", label: "Watchlist", icon: FiBookmark, auth: true },
+    ...(isApp ? [{ to: "/downloads", label: "Downloads", icon: FiBookmark }] : []),
   ];
   return (
     <aside className={collapsed ? "sidebar collapsed" : "sidebar"}>

@@ -8,11 +8,13 @@ import {
   FiTv,
   FiRadio,
   FiBookmark,
+  FiDownload,
   FiSearch,
   FiUser,
   FiWifiOff,
   FiWifi,
 } from "react-icons/fi";
+import { isApp } from "../lib/platform";
 
 export default function BottomNav() {
   const location = useLocation();
@@ -28,6 +30,7 @@ export default function BottomNav() {
     { to: "/tvshows", label: "TV Shows", icon: FiTv },
     { to: "/livetv", label: "Live TV", icon: FiRadio },
     { to: "/watchlist", label: "Watchlist", icon: FiBookmark, auth: true },
+    ...(isApp ? [{ to: "/downloads", label: "Downloads", icon: FiDownload }] : []),
     { to: "/search", label: "Search", icon: FiSearch },
     { to: user ? "/watchlist" : "/login", label: user ? "Profile" : "Login", icon: FiUser },
   ];
