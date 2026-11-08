@@ -72,8 +72,8 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
         registerPlugin(MediaSnifferPlugin.class);
+        super.onCreate(savedInstanceState);
 
         Bridge bridge = getBridge();
         WebView webview = bridge.getWebView();
