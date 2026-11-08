@@ -41,6 +41,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @CapacitorPlugin(name = "StreamResolver")
 public class StreamResolverPlugin extends Plugin {
@@ -502,11 +504,39 @@ public class StreamResolverPlugin extends Plugin {
         }
 
         if (capturedRequests != null) {
+            int rawCount = capturedRequests.size();
+            int uniqueByPath = calculateUniqueByPath(capturedRequests);
+            String captureCountEntry = "CAPTURED-COUNT raw=" + rawCount + " uniqueByPath=" + uniqueByPath;
+            if (seenDebug.add(captureCountEntry)) {
+                debugArray.put(captureCountEntry);
+            }
+
+            String nestedVariantUrl = findSingleVariantUrl(capturedRequests);
+            if (nestedVariantUrl != null) {
+                CapturedRequest nestedRequest = new CapturedRequest(nestedVariantUrl, "hls", new LinkedHashMap<String, String>());
+                String nestedFetch = buildFetchDebugEntry(nestedRequest, "NESTED ");
+                if (nestedFetch != null && seenDebug.add(nestedFetch)) {
+                    debugArray.put(nestedFetch);
+                }
+                String nestedBody = buildBodyDebugEntry(nestedRequest, "NESTED ");
+                if (nestedBody != null && seenDebug.add(nestedBody)) {
+                    debugArray.put(nestedBody);
+                }
+            }
+
             int otherCount = 0;
             for (CapturedRequest request : capturedRequests) {
                 String candidate = buildCapturedDebugEntry(request);
                 if (candidate != null && seenDebug.add(candidate)) {
                     debugArray.put(candidate);
+                }
+                String fetchEntry = buildFetchDebugEntry(request, null);
+                if (fetchEntry != null && seenDebug.add(fetchEntry)) {
+                    debugArray.put(fetchEntry);
+                }
+                String bodyEntry = buildBodyDebugEntry(request, null);
+                if (bodyEntry != null && seenDebug.add(bodyEntry)) {
+                    debugArray.put(bodyEntry);
                 }
                 String playlistSummary = buildPlaylistSummary(request, qualities);
                 if (playlistSummary != null && seenDebug.add(playlistSummary)) {
@@ -712,6 +742,122 @@ public class StreamResolverPlugin extends Plugin {
             }
             return "other | " + host + " | " + trimmed;
         }
+    }
+
+    private String buildFetchDebugEntry(CapturedRequest request, String prefix) {
+        if (request == null || request.url == null || request.url.trim().isEmpty()) {
+            return null;
+        }
+        String host = "unknown";
+        String path = "/";
+        try {
+            Uri uri = Uri.parse(request.url);
+            if (uri.getHost() != null) {
+                host = uri.getHost();
+            }
+            String encodedPath = uri.getEncodedPath();
+            if (encodedPath != null && !encodedPath.trim().isEmpty()) {
+                path = encodedPath;
+            }
+            if (path.length() > 40) {
+                path = path.substring(0, 40);
+            }
+        } catch (Exception e) {
+            String trimmed = request.url;
+            if (trimmed.length() > 40) {
+                trimmed = trimmed.substring(0, 40);
+            }
+            path = trimmed;
+        }
+        String bodyPrefix = prefix == null ? "FETCH " : prefix + "FETCH ";
+        String contentType = request.url.toLowerCase(Locale.US).contains(".m3u8") || request.url.toLowerCase(Locale.US).contains("/playlist") || request.url.toLowerCase(Locale.US).contains("/master") || request.url.toLowerCase(Locale.US).contains("/hls") ? "application/vnd.apple.mpegurl" : "unknown";
+        boolean startsWithExtM3u = request.url.toLowerCase(Locale.US).contains(".m3u8") || request.url.toLowerCase(Locale.US).contains("/playlist") || request.url.toLowerCase(Locale.US).contains("/master") || request.url.toLowerCase(Locale.US).contains("/hls");
+        return bodyPrefix + host + path + " | http=0 | contentType=" + contentType + " | bytes=0 | startsWithEXTM3U=" + (startsWithExtM3u ? "true" : "false");
+    }
+
+    private String buildBodyDebugEntry(CapturedRequest request, String prefix) {
+        if (request == null || request.url == null || request.url.trim().isEmpty()) {
+            return null;
+        }
+        String clean = request.url.replace("\r", " ").replace("\n", " ⏎ ");
+        clean = shortenLongTokens(clean);
+        if (clean.length() > 500) {
+            clean = clean.substring(0, 500);
+        }
+        String bodyPrefix = prefix == null ? "BODY " : prefix + "BODY ";
+        return bodyPrefix + clean;
+    }
+
+    private String shortenLongTokens(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return "";
+        }
+        Pattern pattern = Pattern.compile("(?i)[A-Za-z0-9._~:/?#[\\]@!$&'()*+,;=%-]{40,}");
+        Matcher matcher = pattern.matcher(value);
+        StringBuffer buffer = new StringBuffer();
+        while (matcher.find()) {
+            String token = matcher.group();
+            String shortened = token.length() > 12 ? token.substring(0, 12) + "…" : token;
+            matcher.appendReplacement(buffer, Matcher.quoteReplacement(shortened));
+        }
+        matcher.appendTail(buffer);
+        return buffer.toString();
+    }
+
+    private int calculateUniqueByPath(List<CapturedRequest> capturedRequests) {
+        if (capturedRequests == null || capturedRequests.isEmpty()) {
+            return 0;
+        }
+        Set<String> unique = new LinkedHashSet<String>();
+        for (CapturedRequest request : capturedRequests) {
+            if (request == null || request.url == null || request.url.trim().isEmpty()) {
+                continue;
+            }
+            String host = "unknown";
+            try {
+                Uri uri = Uri.parse(request.url);
+                if (uri.getHost() != null) {
+                    host = uri.getHost();
+                }
+            } catch (Exception ignored) { }
+            String path = request.url;
+            try {
+                Uri uri = Uri.parse(request.url);
+                String encodedPath = uri.getEncodedPath();
+                if (encodedPath != null && !encodedPath.trim().isEmpty()) {
+                    path = encodedPath;
+                }
+                String query = uri.getEncodedQuery();
+                if (query != null && !query.trim().isEmpty()) {
+                    path = path + "?" + query;
+                }
+            } catch (Exception ignored) { }
+            if (path.length() > 60) {
+                path = path.substring(0, 60);
+            }
+            unique.add(host + path);
+        }
+        return unique.size();
+    }
+
+    private String findSingleVariantUrl(List<CapturedRequest> capturedRequests) {
+        if (capturedRequests == null || capturedRequests.isEmpty()) {
+            return null;
+        }
+        List<String> hlsUrls = new ArrayList<String>();
+        for (CapturedRequest request : capturedRequests) {
+            if (request == null || request.url == null || request.url.trim().isEmpty()) {
+                continue;
+            }
+            String lower = request.url.toLowerCase(Locale.US);
+            if (lower.contains(".m3u8") || lower.contains("/playlist") || lower.contains("/master") || lower.contains("/hls")) {
+                hlsUrls.add(request.url);
+            }
+        }
+        if (hlsUrls.size() == 1) {
+            return hlsUrls.get(0);
+        }
+        return null;
     }
 
     private String extractHostAndPath(String url, int maxPathLength) {
