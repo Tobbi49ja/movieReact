@@ -25,6 +25,7 @@ import { useDataSaver } from "../utils/dataSaver";
 import MovieCard from "../components/MovieCard";
 import useDownloads from "../hooks/useDownloads";
 import { isApp, NATIVE_POPUP_GUARD, getPlayerSandbox } from "../lib/platform";
+import { startSniffing, stopSniffing, getFound, onStreamFound } from "../lib/mediaSniffer";
 
 const forceSandbox = () => {
   try {
@@ -64,6 +65,7 @@ export default function WatchPage() {
   const iframeRef = useRef(null);
   const playerWrapRef = useRef(null);
   const commentsSectionRef = useRef(null);
+  const foundStreamsRef = useRef([]);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
@@ -350,6 +352,64 @@ export default function WatchPage() {
       if (firstVisible) setActiveSource(SOURCES.indexOf(firstVisible));
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!isApp) return;
+
+    let cancelled = false;
+    let detach = () => {};
+
+    const syncFoundStreams = (items = []) => {
+      const streamList = Array.isArray(items) ? items : [];
+      if (!streamList.length) return foundStreamsRef.current;
+
+      const deduped = new Map();
+      for (const item of [...(foundStreamsRef.current || []), ...streamList]) {
+        if (item && typeof item.url === "string" && item.url.trim()) {
+          deduped.set(item.url, item);
+        }
+      }
+      foundStreamsRef.current = [...deduped.values()];
+      return foundStreamsRef.current;
+    };
+
+    const setupSniffer = async () => {
+      try {
+        const initial = await getFound();
+        if (!cancelled) syncFoundStreams(initial);
+      } catch {
+        // Ignore initial sniffing failures.
+      }
+
+      try {
+        await startSniffing();
+      } catch {
+        // Ignore if the native plugin is not available yet.
+      }
+
+      detach = onStreamFound((event) => {
+        if (cancelled || !event || typeof event !== "object") return;
+        syncFoundStreams([event]);
+      });
+    };
+
+    setupSniffer();
+
+    return () => {
+      cancelled = true;
+      try {
+        detach();
+      } catch {
+        // ignore detachment errors
+      }
+      try {
+        stopSniffing();
+      } catch {
+        // ignore stop failures
+      }
+    };
+  }, [isApp]);
+
   const handleIframeLoad = () => {
     try {
       const iframe = iframeRef.current;
@@ -645,7 +705,8 @@ export default function WatchPage() {
         itemTitle={movie?.title || ""}
         sourceId={src?.id || ""}
         sourceLabel={src?.label || "this source"}
-        sourceUrl={embedUrl}
+        sourceUrl={isApp ? "" : embedUrl}
+        foundStreamsRef={foundStreamsRef}
       />
       </Suspense>
     </main>

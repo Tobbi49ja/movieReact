@@ -3,6 +3,7 @@ import SEOHelmet from "../components/seo/SEOHelmet";
 import useDownloads from "../hooks/useDownloads";
 import { pauseDownload, resumeDownload } from "../lib/downloadEngine";
 import { removeDownload } from "../lib/downloads";
+import "../styles/downloads.css";
 
 function formatStatus(status) {
   return String(status || "queued").replace(/(^\w)|\s+(\w)/g, (match) => match.toUpperCase());
@@ -21,103 +22,105 @@ export default function DownloadsPage() {
   };
 
   return (
-    <main id="main-content" className="min-h-screen bg-slate-950 px-4 pb-24 pt-5 text-white sm:px-6">
+    <main id="main-content" className="downloads-page">
       <SEOHelmet
         title="Downloads - Tobbihub"
         description="Manage your queued and completed downloads on Tobbihub."
       />
 
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-5 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-cyan-300/80">Library</p>
-            <h1 className="mt-1 text-2xl font-bold text-white">Downloads</h1>
+      <div className="downloads-shell">
+        <header className="downloads-header">
+          <div className="downloads-heading-group">
+            <p className="downloads-kicker">Library</p>
+            <h1 className="downloads-title">Downloads</h1>
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-200">
-            <FiDownload className="text-cyan-300" />
-            {downloads.length} item{downloads.length === 1 ? "" : "s"}
+          <div className="downloads-count">
+            <FiDownload aria-hidden="true" />
+            <span>
+              {downloads.length} item{downloads.length === 1 ? "" : "s"}
+            </span>
           </div>
-        </div>
+        </header>
 
         {downloads.length === 0 ? (
-          <div className="flex min-h-[50vh] flex-col items-center justify-center rounded-3xl border border-dashed border-white/10 bg-white/[0.03] px-6 text-center">
-            <div className="mb-4 rounded-full border border-cyan-400/20 bg-cyan-400/10 p-3 text-cyan-300">
-              <FiInbox className="h-7 w-7" />
+          <div className="downloads-empty">
+            <div className="downloads-empty-icon">
+              <FiInbox aria-hidden="true" />
             </div>
-            <h2 className="text-xl font-semibold text-white">No downloads yet</h2>
-            <p className="mt-2 max-w-md text-sm text-slate-300">
+            <h2>No downloads yet</h2>
+            <p>
               Start a download from a movie or show, and it will show up here with progress and status.
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="downloads-list">
             {downloads.map((download) => {
               const progress = Math.min(Math.max(Number(download.progress) || 0, 0), 100);
               const canPause = ["queued", "downloading"].includes(download.status);
+              const statusClass = String(download.status || "queued").toLowerCase();
 
               return (
-                <article
-                  key={download.id}
-                  className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 shadow-lg shadow-slate-950/20 sm:flex-row sm:items-center"
-                >
-                  <div className="h-24 w-16 overflow-hidden rounded-xl border border-white/10 bg-slate-800/80 sm:h-28 sm:w-20">
+                <article key={download.id} className="downloads-item">
+                  <div className="downloads-thumb" aria-hidden="true">
                     {download.poster ? (
-                      <img src={download.poster} alt={download.title} className="h-full w-full object-cover" />
+                      <img src={download.poster} alt={download.title || "Download poster"} />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-700 to-slate-900 text-xs font-semibold text-slate-300">
+                      <div className="downloads-thumb-fallback">
                         {download.title?.slice(0, 2).toUpperCase() || "DL"}
                       </div>
                     )}
                   </div>
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
-                        <h3 className="truncate text-base font-semibold text-white">{download.title || "Untitled download"}</h3>
-                        <p className="text-xs text-slate-300">
+                  <div className="downloads-main">
+                    <div className="downloads-main-top">
+                      <div className="downloads-meta">
+                        <h3 className="downloads-title-text">{download.title || "Untitled download"}</h3>
+                        <p className="downloads-subtitle">
                           {download.quality || "1080p"}
+                          {download.size ? ` • ${download.size}` : ""}
                           {download.type ? ` • ${download.type}` : ""}
                           {download.season ? ` • S${download.season}` : ""}
                           {download.episode ? `E${download.episode}` : ""}
                         </p>
                       </div>
 
-                      <div className="rounded-full border border-white/10 bg-slate-900/80 px-2 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-cyan-200">
+                      <div className={`downloads-status ${statusClass}`}>
                         {formatStatus(download.status)}
                       </div>
                     </div>
 
-                    <div className="mt-3">
-                      <div className="mb-1 flex items-center justify-between text-[11px] text-slate-300">
+                    <div className="downloads-progress-wrap">
+                      <div className="downloads-progress-label">
                         <span>Progress</span>
                         <span>{progress}%</span>
                       </div>
-                      <div className="h-2.5 overflow-hidden rounded-full bg-slate-800">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-300"
-                          style={{ width: `${progress}%` }}
-                        />
+                      <div className="downloads-progress-bar" aria-label="Download progress">
+                        <span className="downloads-progress-fill" style={{ width: `${progress}%` }} />
                       </div>
                     </div>
+
+                    {download.status === "failed" && download.message && (
+                      <div className="downloads-error">{download.message}</div>
+                    )}
                   </div>
 
-                  <div className="flex items-center gap-2 sm:flex-col sm:items-stretch">
+                  <div className="downloads-actions" aria-label="Download actions">
                     <button
                       type="button"
                       onClick={() => handleTogglePause(download)}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-slate-100 transition hover:bg-white/10"
+                      className="downloads-action-btn"
+                      aria-label={canPause ? "Pause download" : "Resume download"}
                     >
-                      {canPause ? <FiPause className="h-4 w-4" /> : <FiPlay className="h-4 w-4" />}
-                      {canPause ? "Pause" : "Resume"}
+                      {canPause ? <FiPause aria-hidden="true" /> : <FiPlay aria-hidden="true" />}
                     </button>
 
                     <button
                       type="button"
                       onClick={() => removeDownload(download.id)}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-200 transition hover:bg-red-500/20"
+                      className="downloads-action-btn delete"
+                      aria-label="Delete download"
                     >
-                      <FiTrash2 className="h-4 w-4" />
-                      Delete
+                      <FiTrash2 aria-hidden="true" />
                     </button>
                   </div>
                 </article>

@@ -7,7 +7,7 @@ import { isNativeApp, APP_URL } from "../utils/platform";
 import { fetchAppConfig } from "../utils/appConfig";
 import { startDownload as startServerDownload, listDownloads, deleteDownload, clearDownloads } from "../utils/downloads";
 import { addDownload, updateDownload } from "../lib/downloads";
-import { startSniffing, stopSniffing, onStreamFound } from "../lib/mediaSniffer";
+import { onStreamFound, getFound } from "../lib/mediaSniffer";
 import { startDownload as startNativeDownload } from "../lib/downloadEngine";
 
 const QUALITY_OPTIONS = [
@@ -17,8 +17,6 @@ const QUALITY_OPTIONS = [
   { value: "480p", label: "480p" },
   { value: "360p", label: "360p" },
 ];
-
-const TRUSTED_DIRECT_DOWNLOAD_PROVIDERS = new Set(["vidnest", "vsembed", "vidsrc", "vidsrc2", "vidsrc3", "vidrift"]);
 
 const SUBTITLE_OPTIONS = [
   { value: "en", label: "English" },
@@ -46,7 +44,7 @@ function isLikelyDirectMediaUrl(value) {
   }
 }
 
-export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, sourceLabel, sourceUrl }) {
+export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, sourceLabel, sourceUrl, foundStreamsRef }) {
   const primaryRef = useRef(null);
   const providerId = String(sourceId || "").trim().toLowerCase();
   const providerLabel = sourceLabel || "this source";
@@ -55,7 +53,6 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, s
   const [streamUrl, setStreamUrl] = useState("");
   const inputUrl = (streamUrl || resolvedSourceUrl || "").trim();
   const hasDirectUrlCandidate = isLikelyDirectMediaUrl(inputUrl);
-  const isTrustedDirectDownloadProvider = TRUSTED_DIRECT_DOWNLOAD_PROVIDERS.has(providerId);
   const [downloadJobs, setDownloadJobs] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [downloadError, setDownloadError] = useState("");
@@ -97,29 +94,6 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, s
     };
   }, [isOpen, onClose]);
 
-  useEffect(() => {
-    if (!isOpen || !isNativeApp()) return;
-
-    if (!providerId) {
-      toast.error("Paste a real direct stream URL to start a download.");
-      return;
-    }
-
-    if (!isTrustedDirectDownloadProvider) {
-      toast.error(`Direct app downloads are limited for ${providerLabel}. Use a direct stream URL or switch to a supported provider.`);
-      return;
-    }
-
-    if (!hasDirectUrlCandidate && resolvedSourceUrl) {
-      console.warn("Direct app download blocked: embed/provider URL is not a real media stream.", {
-        providerId,
-        providerLabel,
-        sourceUrl: resolvedSourceUrl,
-      });
-      toast.error("This source is an embed page, not a real direct stream URL. Paste a valid .mp4/.m3u8 URL to download.");
-    }
-  }, [isOpen, isNativeApp, providerId, providerLabel, resolvedSourceUrl, hasDirectUrlCandidate, isTrustedDirectDownloadProvider]);
-
   const handleSubtitleToggle = (language) => {
     setSubtitlePrefs((prev) => {
       if (prev.includes(language)) {
@@ -129,9 +103,52 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, s
     });
   };
 
-  const handleNativeQueue = async () => {
-    if (!isNativeApp()) return;
+  const normalizeFoundStreams = (items) => {
+    if (!Array.isArray(items)) return [];
+    const normalized = items
+      .map((item) => {
+        const url = typeof item?.url === "string" ? item.url.trim() : "";
+        const type = typeof item?.type === "string" ? item.type.toLowerCase() : "";
+        if (!url || !["mp4", "hls"].includes(type)) return null;
+        return {
+          url,
+          type,
+          headers: item?.headers && typeof item.headers === "object" ? item.headers : {},
+        };
+      })
+      .filter(Boolean);
 
+    const deduped = new Map();
+    for (const item of normalized) {
+      if (!deduped.has(item.url)) deduped.set(item.url, item);
+    }
+    return [...deduped.values()];
+  };
+
+  const selectBestStream = (items) => {
+    const normalized = normalizeFoundStreams(items);
+    if (!normalized.length) return null;
+
+    const mp4 = normalized.filter((item) => item.type === "mp4");
+    if (mp4.length > 0) {
+      return [...mp4].sort((a, b) => b.url.length - a.url.length)[0];
+    }
+
+    const hls = normalized.filter((item) => item.type === "hls");
+    if (!hls.length) return null;
+
+    return [...hls].sort((a, b) => {
+      const aMaster = /master|playlist/i.test(a.url) ? 1 : 0;
+      const bMaster = /master|playlist/i.test(b.url) ? 1 : 0;
+      if (aMaster !== bMaster) return bMaster - aMaster;
+      return b.url.length - a.url.length;
+    })[0];
+  };
+
+  const handleNativeQueue = async () => {
+    if (!isNativeApp() || isSubmitting) return;
+
+    const toastId = "native-download-toast";
     const queued = addDownload({
       tmdbId: sourceId || null,
       type: "movie",
@@ -145,57 +162,98 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, s
       createdAt: new Date().toISOString(),
     });
 
+    setIsSubmitting(true);
+    setDownloadError("");
+
     try {
-      setIsSubmitting(true);
-      setDownloadError("");
+      const initialFound = normalizeFoundStreams(foundStreamsRef?.current || []);
+      const liveFound = normalizeFoundStreams(await getFound());
+      const foundStreams = normalizeFoundStreams([...initialFound, ...liveFound]);
+      if (foundStreamsRef) foundStreamsRef.current = foundStreams;
 
-      // TODO: plug in the provider/source resolver here once the app can turn embed URLs into direct media candidates.
-      await startSniffing();
+      let selectedStream = selectBestStream(foundStreams);
 
-      const stream = await new Promise((resolve) => {
-        let settled = false;
-        const detach = onStreamFound((event) => {
-          if (settled) return;
-          settled = true;
-          detach();
-          resolve(event || null);
+      if (!selectedStream) {
+        toast("Detecting stream, press play and wait...", { id: toastId });
+
+        const waitForStream = await new Promise((resolve) => {
+          const startedAt = Date.now();
+          let settled = false;
+          let detach = () => {};
+
+          const complete = (value) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timeoutId);
+            detach();
+            resolve(value);
+          };
+
+          detach = onStreamFound((event) => {
+            const candidate = normalizeFoundStreams([event])[0];
+            if (!candidate) return;
+            if (foundStreamsRef) foundStreamsRef.current = normalizeFoundStreams([...foundStreamsRef.current, candidate]);
+            const next = selectBestStream(foundStreamsRef.current || [candidate]);
+            if (!next) return;
+            complete(next);
+          });
+
+          const timeoutId = setTimeout(() => {
+            complete(null);
+          }, 30000);
+
+          const checkExisting = () => {
+            const latest = selectBestStream(foundStreamsRef?.current || []);
+            if (latest && !settled) {
+              complete(latest);
+              return;
+            }
+            if (Date.now() - startedAt < 30000 && !settled) {
+              setTimeout(checkExisting, 250);
+            }
+          };
+          checkExisting();
         });
 
-        const timeoutId = setTimeout(() => {
-          if (settled) return;
-          settled = true;
-          detach();
-          resolve(null);
-        }, 20000);
-
-        return () => {
-          clearTimeout(timeoutId);
-          detach();
-        };
-      });
-
-      if (!stream) {
-        updateDownload(queued.id, {
-          status: "failed",
-          message: "No media stream was found while sniffing.",
-        });
-        throw new Error("No media stream was found while sniffing.");
+        selectedStream = waitForStream;
       }
 
-      if (stream.type === "hls") {
+      if (!selectedStream) {
+        updateDownload(queued.id, {
+          status: "failed",
+          message: "No stream detected. Press play on the player first, then try again.",
+        });
+        toast.error("No stream detected. Press play on the player first, then try again.", { id: toastId });
+        setDownloadError("No stream detected. Press play on the player first, then try again.");
+        return;
+      }
+
+      const host = (() => {
+        try {
+          return new URL(selectedStream.url).hostname;
+        } catch {
+          return "unknown host";
+        }
+      })();
+
+      toast.success(`Found ${selectedStream.type} stream from ${host}`, { id: toastId });
+
+      if (selectedStream.type === "hls") {
         updateDownload(queued.id, {
           status: "failed",
           message: "HLS not supported yet",
         });
-        throw new Error("HLS not supported yet");
+        setDownloadError("HLS not supported yet");
+        toast.error("HLS not supported yet", { id: toastId });
+        return;
       }
 
       await startNativeDownload(queued.id, {
-        url: stream.url,
-        headers: stream.headers || {},
+        url: selectedStream.url,
+        headers: selectedStream.headers || {},
       });
 
-      toast.success(`Downloaded: ${queued.title} (${queued.quality})`);
+      toast.success(`Downloaded: ${queued.title} (${queued.quality})`, { id: toastId });
       setDownloadError("");
       onClose?.();
     } catch (error) {
@@ -205,14 +263,9 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, s
         message,
       });
       setDownloadError(message);
-      toast.error(message);
+      toast.error(message, { id: toastId });
     } finally {
       setIsSubmitting(false);
-      try {
-        await stopSniffing();
-      } catch {
-        // ignore stop failures
-      }
     }
   };
 
@@ -296,34 +349,12 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, s
 
       const isDirectMedia = isLikelyDirectMediaUrl(requestUrl);
 
-      if (isNativeApp() && providerId && !isTrustedDirectDownloadProvider) {
-        throw new Error(`Direct app downloads are not supported for ${providerLabel}. Please use a direct stream URL from a trusted source or switch to Vidnest.`);
-      }
-
       if (!isDirectMedia) {
         throw new Error("This source is not a valid direct media URL. Paste a real .mp4/.m3u8 stream URL from a supported provider.");
       }
 
       if (isNativeApp() && isDirectMedia) {
         await handleNativeDownload();
-        return;
-      }
-
-      if (isNativeApp() && providerId && isTrustedDirectDownloadProvider) {
-        const payload = {
-          m3u8Url: requestUrl,
-          title: itemTitle || "Tobbihub download",
-          downloadPath: "downloads",
-          mediaType: "movie",
-          quality,
-          subtitles: subtitlePrefs,
-          provider: providerId || "manual",
-        };
-
-        const created = await startServerDownload(payload);
-        setDownloadJobs((prev) => [created, ...prev]);
-        setStreamUrl("");
-        toast.success("Download queued for processing");
         return;
       }
 
@@ -405,12 +436,6 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, s
             Direct downloads work only for trusted stream URLs. Some embedded providers hide the real media link,
             so the app will only download when the URL is valid and the source is supported.
           </p>
-
-          {!isTrustedDirectDownloadProvider && providerLabel && (
-            <p style={{ margin: 0, color: "#ffd29d", fontSize: "0.8rem" }}>
-              {providerLabel} is not a direct-download provider. Paste a direct stream URL or switch to a supported source.
-            </p>
-          )}
 
           {hasAppUrl && !isNativeApp() && (
             <ol className="app-install-steps" style={{ margin: "0.75rem 0 0", padding: "0 0 0 1.2rem", fontSize: "0.85rem", lineHeight: 1.5 }}>
@@ -512,9 +537,10 @@ export default function AppPromptModal({ isOpen, onClose, itemTitle, sourceId, s
                 type="button"
                 onClick={handleNativeQueue}
                 className="server-download-btn btn-primary"
+                disabled={isSubmitting}
                 style={{ marginTop: "0.8rem", width: "100%" }}
               >
-                <FiDownload /> Start
+                <FiDownload /> {isSubmitting ? "Working..." : "Start"}
               </button>
             </div>
           )}
