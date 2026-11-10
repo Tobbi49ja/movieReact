@@ -29,6 +29,7 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 import org.json.JSONTokener;
+import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -37,12 +38,18 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -124,6 +131,7 @@ public class StreamResolverPlugin extends Plugin {
         final CapturedRequest[] webViewFetchRequest = {null};
         final FetchResult[] webViewNativeResult = {null};
         final Runnable[] webViewFetchTimeout = {null};
+        final String[] resolvedMasterUrl = {null};
 
         final Runnable completeResolve = new Runnable() {
             @Override
@@ -132,7 +140,8 @@ public class StreamResolverPlugin extends Plugin {
                     return;
                 }
                 completed[0] = true;
-                final JSObject payload = buildPayload(captured, debug, headersBag, playlistQualities, playlistSubtitles);
+                final JSObject payload = buildPayload(captured, debug, headersBag, playlistQualities, playlistSubtitles,
+                        resolvedMasterUrl[0]);
                 Log.d(TAG, "final result built");
                 call.resolve(payload);
             }
@@ -148,7 +157,7 @@ public class StreamResolverPlugin extends Plugin {
                 final List<CapturedRequest> mp4Requests = new ArrayList<CapturedRequest>();
                 synchronized (captured) {
                     for (CapturedRequest request : captured) {
-                        if ("hls".equals(request.type) && isMasterPlaylist(request.url)) {
+                        if ("hls".equals(request.type)) {
                             playlistRequest = request;
                         } else if ("mp4".equals(request.type) && isMp4Url(request.url)) {
                             mp4Requests.add(request);
@@ -231,7 +240,9 @@ public class StreamResolverPlugin extends Plugin {
                             });
                             return;
                         }
-                        parseMasterPlaylist(requestToFetch, result.body, playlistQualities);
+                        resolvedMasterUrl[0] = requestToFetch.url;
+                        processPlaylistBody(requestToFetch, result.body, playlistQualities, debug,
+                                webViewUserAgent[0], capturedReferer, captured);
                         handler.post(new Runnable() {
                             @Override
                             public void run() {
@@ -447,9 +458,15 @@ public class StreamResolverPlugin extends Plugin {
                                     CapturedRequest fetchedRequest = webViewFetchRequest[0];
                                     fetchedRequest.fetchResult = webViewNativeResult[0].withBody(body);
                                     logAndAddDebug(debug, buildBodyDebugEntry(fetchedRequest.fetchResult, "WEBVIEW-"));
-                                    parseMasterPlaylist(fetchedRequest, body, playlistQualities);
-                                    fetchInProgress[0] = false;
-                                    completeResolve.run();
+                                    new Thread(() -> {
+                                        resolvedMasterUrl[0] = fetchedRequest.url;
+                                        processPlaylistBody(fetchedRequest, body, playlistQualities, debug,
+                                                webViewUserAgent[0], headersBag.get("Referer"), captured);
+                                        handler.post(() -> {
+                                            fetchInProgress[0] = false;
+                                            completeResolve.run();
+                                        });
+                                    }, "StreamResolverWebViewPlaylist").start();
                                 } else {
                                     String visibleText = body.replaceAll("\\s+", " ").trim();
                                     if (visibleText.length() > 300) {
@@ -611,7 +628,9 @@ public class StreamResolverPlugin extends Plugin {
         }
     }
 
-    private JSObject buildPayload(List<CapturedRequest> capturedRequests, List<String> debugList, Map<String, String> headerBag, List<JSObject> qualities, List<JSObject> subtitles) {
+    private JSObject buildPayload(List<CapturedRequest> capturedRequests, List<String> debugList,
+                                  Map<String, String> headerBag, List<JSObject> qualities,
+                                  List<JSObject> subtitles, String masterUrl) {
         JSObject payload = new JSObject();
         JSArray qualityArray = new JSArray();
         for (JSObject quality : qualities) {
@@ -645,7 +664,6 @@ public class StreamResolverPlugin extends Plugin {
                 for (String item : debugList) {
                     if (item != null && seenDebug.add(item)) {
                         debugArray.put(item);
-                        logDebugEntry(item);
                     }
                 }
             }
@@ -666,11 +684,6 @@ public class StreamResolverPlugin extends Plugin {
                         debugArray.put(candidate);
                         logDebugEntry(candidate);
                     }
-                    String playlistSummary = buildPlaylistSummary(request, qualities);
-                    if (playlistSummary != null && seenDebug.add(playlistSummary)) {
-                        debugArray.put(playlistSummary);
-                        logDebugEntry(playlistSummary);
-                    }
                     String otherEntry = otherDebugEntry(request);
                     if (otherEntry != null && otherCount < 40 && seenDebug.add(otherEntry)) {
                         debugArray.put(otherEntry);
@@ -688,6 +701,7 @@ public class StreamResolverPlugin extends Plugin {
             }
         }
 
+        payload.put("masterUrl", masterUrl == null ? JSONObject.NULL : masterUrl);
         payload.put("qualities", qualityArray);
         payload.put("subtitles", subtitleArray);
         payload.put("headers", headers);
@@ -766,48 +780,6 @@ public class StreamResolverPlugin extends Plugin {
         }
     }
 
-    private String buildPlaylistSummary(CapturedRequest request, List<JSObject> qualities) {
-        if (request == null || request.url == null || !"hls".equals(request.type)) {
-            return null;
-        }
-        boolean isMaster = request.fetchResult != null
-                && request.fetchResult.body.contains("#EXT-X-STREAM-INF");
-        String mode = isMaster ? "master" : "media";
-        int variants = qualities != null ? qualities.size() : 0;
-        int segments = 0;
-        int totalDurationSec = 0;
-        String resolutions = "[]";
-        if (qualities != null && !qualities.isEmpty()) {
-            List<String> labels = new ArrayList<String>();
-            for (JSObject obj : qualities) {
-                try {
-                    String label = obj.has("label") ? obj.getString("label") : "";
-                    if (label != null && !label.trim().isEmpty()) {
-                        labels.add(label);
-                    }
-                } catch (Exception ignored) {
-                }
-            }
-            if (!labels.isEmpty()) {
-                resolutions = "[" + labels.toString().replace("[", "").replace("]", "") + "]";
-            }
-        }
-        String firstSegment = extractHostAndPath(request.url, 60);
-        boolean hasSubtitles = false;
-        if (qualities != null) {
-            for (JSObject obj : qualities) {
-                try {
-                    if (obj.has("subtitles") || obj.has("label") && obj.getString("label").toLowerCase(Locale.US).contains("sub")) {
-                        hasSubtitles = true;
-                        break;
-                    }
-                } catch (Exception ignored) {
-                }
-            }
-        }
-        return "PLAYLIST " + mode + " | variants=" + variants + " | segments=" + segments + " | totalDurationSec=" + totalDurationSec + " | firstSegment=" + firstSegment + " | resolutions=" + resolutions + " | has #EXT-X-MEDIA subtitles=" + hasSubtitles;
-    }
-
     private String otherDebugEntry(CapturedRequest request) {
         if (request == null || request.url == null || request.url.trim().isEmpty()) {
             return null;
@@ -841,14 +813,6 @@ public class StreamResolverPlugin extends Plugin {
             }
             return "other | " + host + " | " + trimmed;
         }
-    }
-
-    private boolean isMasterPlaylist(String url) {
-        if (url == null || url.trim().isEmpty()) {
-            return false;
-        }
-        return Uri.parse(url).getPath() != null
-                && Uri.parse(url).getPath().toLowerCase(Locale.US).endsWith(".m3u8");
     }
 
     private boolean isMp4Url(String url) {
@@ -1137,7 +1101,7 @@ public class StreamResolverPlugin extends Plugin {
     }
 
     private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<String> debug,
-                                    boolean[] completed) {
+                                     boolean[] completed) {
         if (completed[0]) {
             return;
         }
@@ -1298,45 +1262,493 @@ public class StreamResolverPlugin extends Plugin {
         return bodyPrefix + clean;
     }
 
-    private void parseMasterPlaylist(CapturedRequest request, String body, List<JSObject> qualities) {
+    private void processPlaylistBody(CapturedRequest request, String body, List<JSObject> qualities,
+                                     List<String> debug, String userAgent, String referer,
+                                     List<CapturedRequest> captured) {
+        boolean isMaster = body.contains("#EXT-X-STREAM-INF");
+        
+        if (!isMaster) {
+            processMediaPlaylist(request, body, qualities, debug, userAgent, referer, null, 0, null, null);
+            return;
+        }
+
+        String masterUrl = request.url;
+        ParsedMaster parsed = parseMasterPlaylist(body, masterUrl);
+        
+        if (parsed.variants.isEmpty()) {
+            processMediaPlaylist(request, body, qualities, debug, userAgent, referer, masterUrl, 0, null, null);
+            return;
+        }
+
+        List<VariantFetchTask> tasks = new ArrayList<>();
+        for (int i = 0; i < parsed.variants.size(); i++) {
+            MasterVariant variant = parsed.variants.get(i);
+            tasks.add(new VariantFetchTask(i, variant, masterUrl, parsed.mediaGroups, userAgent, referer));
+        }
+
+        ExecutorService executor = Executors.newFixedThreadPool(4);
+        AtomicInteger completedCount = new AtomicInteger(0);
+        
+        for (VariantFetchTask task : tasks) {
+            executor.submit(() -> {
+                task.run();
+                completedCount.incrementAndGet();
+            });
+        }
+
+        try {
+            long startTime = System.currentTimeMillis();
+            while (completedCount.get() < tasks.size()) {
+                if (System.currentTimeMillis() - startTime > 15000) {
+                    break;
+                }
+                Thread.sleep(100);
+            }
+        } catch (InterruptedException ignored) {
+        } finally {
+            executor.shutdown();
+            try {
+                if (!executor.awaitTermination(2, TimeUnit.SECONDS)) {
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException ignored) {
+            }
+        }
+
+        List<QualityResult> results = new ArrayList<>();
+        for (int i = 0; i < tasks.size(); i++) {
+            VariantFetchTask task = tasks.get(i);
+            if (task.result != null) {
+                results.add(task.result);
+            } else {
+                QualityResult failed = new QualityResult();
+                failed.variant = tasks.get(i).variant;
+                failed.error = "fetch timeout";
+                results.add(failed);
+            }
+        }
+
+        List<QualityResult> finalQualities = new ArrayList<>();
+        for (QualityResult qr : results) {
+            if (qr.error != null) {
+                addQualityWithError(qr.variant, qr.error, qualities, debug);
+            } else {
+                finalQualities.add(qr);
+            }
+        }
+
+        sortQualities(finalQualities);
+        
+        for (int i = 0; i < finalQualities.size(); i++) {
+            QualityResult qr = finalQualities.get(i);
+            addQualityToList(qr, qualities, debug, masterUrl, i + 1);
+        }
+
+        logQualityDebug(finalQualities, debug, masterUrl);
+        logSubReqDebug(captured, debug);
+    }
+
+    private void processMediaPlaylist(CapturedRequest request, String body, List<JSObject> qualities,
+                                      List<String> debug, String userAgent, String referer,
+                                      String masterUrl, int variantIndex, MasterVariant variant,
+                                      Map<String, List<AudioMedia>> mediaGroups) {
+        ParsedMedia parsed = parseMediaPlaylist(body, request.url);
+        
+        QualityResult result = new QualityResult();
+        if (variant != null) {
+            result.variant = variant;
+        } else {
+            MasterVariant v = new MasterVariant();
+            v.url = request.url;
+            v.resolution = "";
+            v.bandwidth = 0;
+            v.avgBandwidth = 0;
+            v.codecs = "";
+            v.audioGroup = null;
+            result.variant = v;
+        }
+        result.segmentCount = parsed.segmentCount;
+        result.durationSec = parsed.durationSec;
+        result.container = parsed.container;
+        result.encrypted = parsed.encrypted;
+        result.keyMethod = parsed.keyMethod;
+        result.live = parsed.live;
+        
+        if (variant != null && variant.audioGroup != null) {
+            AudioMedia audioMedia = findAudioMedia(variant.audioGroup, mediaGroups, request.url);
+            if (audioMedia != null) {
+                ParsedMedia audioParsed = fetchAndParseMediaPlaylist(audioMedia.url, userAgent, referer);
+                if (audioParsed != null) {
+                    result.audioUrl = audioMedia.url;
+                    result.audioSegmentCount = audioParsed.segmentCount;
+                    result.audioDurationSec = audioParsed.durationSec;
+                }
+            }
+        }
+
+        long bw = result.variant.avgBandwidth > 0 ? result.variant.avgBandwidth : result.variant.bandwidth;
+        if (result.durationSec > 0 && bw > 0) {
+            double est = (bw * result.durationSec) / 8.0;
+            if (result.audioUrl != null && result.variant.avgBandwidth <= 0) {
+                est += (128000.0 * result.durationSec) / 8.0;
+            }
+            result.estBytes = Math.round(est);
+        } else {
+            result.estBytes = -1;
+        }
+
+        addQualityToList(result, qualities, debug, masterUrl, variantIndex > 0 ? variantIndex : 1);
+    }
+
+    private ParsedMedia fetchAndParseMediaPlaylist(String url, String userAgent, String referer) {
+        CapturedRequest tempRequest = new CapturedRequest(url, "hls", new LinkedHashMap<String, String>());
+        FetchResult result = fetchPlaylist(tempRequest, userAgent, referer);
+        if (result.code == 200 && result.startsWithExtM3u) {
+            return parseMediaPlaylist(result.body, url);
+        }
+        return null;
+    }
+
+    private AudioMedia findAudioMedia(String groupId, Map<String, List<AudioMedia>> mediaGroups, String masterUrl) {
+        List<AudioMedia> audios = mediaGroups.get(groupId);
+        if (audios == null || audios.isEmpty()) {
+            return null;
+        }
+        for (AudioMedia am : audios) {
+            if (am.isDefault) {
+                return am;
+            }
+        }
+        return audios.get(0);
+    }
+
+    private ParsedMaster parseMasterPlaylist(String body, String masterUrl) {
+        ParsedMaster result = new ParsedMaster();
+        result.masterUrl = masterUrl;
+        
         String[] lines = body.split("\\r?\\n");
         String pendingStreamInfo = null;
+        String pendingStreamInfoLine = null;
+        String currentMediaGroup = null;
+        
         for (String line : lines) {
             String trimmed = line.trim();
+            
+            if (trimmed.startsWith("#EXT-X-MEDIA:")) {
+                AudioMedia am = parseAudioMedia(trimmed, masterUrl);
+                if (am != null) {
+                    result.mediaGroups.computeIfAbsent(am.groupId, k -> new ArrayList<>()).add(am);
+                }
+                continue;
+            }
+            
             if (trimmed.startsWith("#EXT-X-STREAM-INF:")) {
                 pendingStreamInfo = trimmed;
+                pendingStreamInfoLine = trimmed;
                 continue;
             }
-            if (pendingStreamInfo == null || trimmed.isEmpty() || trimmed.startsWith("#")) {
-                continue;
-            }
-
-            String variantUrl;
-            try {
-                variantUrl = new URL(new URL(request.url), trimmed).toString();
-            } catch (Exception ignored) {
+            
+            if (pendingStreamInfo != null && !trimmed.isEmpty() && !trimmed.startsWith("#")) {
+                String variantUrl;
+                try {
+                    variantUrl = new URL(new URL(masterUrl), trimmed).toString();
+                } catch (Exception ignored) {
+                    pendingStreamInfo = null;
+                    continue;
+                }
+                
+                MasterVariant variant = new MasterVariant();
+                variant.url = variantUrl;
+                variant.originalStreamInfo = pendingStreamInfoLine;
+                
+                Matcher resMatch = Pattern.compile("RESOLUTION=(\\d+)x(\\d+)", Pattern.CASE_INSENSITIVE).matcher(pendingStreamInfo);
+                if (resMatch.find()) {
+                    variant.width = parseInt(resMatch.group(1));
+                    variant.height = parseInt(resMatch.group(2));
+                    variant.resolution = variant.width + "x" + variant.height;
+                }
+                
+                Matcher bwMatch = Pattern.compile("BANDWIDTH=(\\d+)", Pattern.CASE_INSENSITIVE).matcher(pendingStreamInfo);
+                if (bwMatch.find()) {
+                    variant.bandwidth = parseLong(bwMatch.group(1));
+                }
+                
+                Matcher avgBwMatch = Pattern.compile("AVERAGE-BANDWIDTH=(\\d+)", Pattern.CASE_INSENSITIVE).matcher(pendingStreamInfo);
+                if (avgBwMatch.find()) {
+                    variant.avgBandwidth = parseLong(avgBwMatch.group(1));
+                }
+                
+                Matcher codecMatch = Pattern.compile("CODECS=\"([^\"]+)\"", Pattern.CASE_INSENSITIVE).matcher(pendingStreamInfo);
+                if (codecMatch.find()) {
+                    variant.codecs = codecMatch.group(1);
+                }
+                
+                Matcher audioMatch = Pattern.compile("AUDIO=\"([^\"]+)\"", Pattern.CASE_INSENSITIVE).matcher(pendingStreamInfo);
+                if (audioMatch.find()) {
+                    variant.audioGroup = audioMatch.group(1);
+                }
+                
+                result.variants.add(variant);
                 pendingStreamInfo = null;
-                continue;
+                pendingStreamInfoLine = null;
             }
-            JSObject quality = new JSObject();
-            quality.put("id", "q" + (qualities.size() + 1));
-            Matcher resolution = Pattern.compile("RESOLUTION=(\\d+)x(\\d+)", Pattern.CASE_INSENSITIVE).matcher(pendingStreamInfo);
-            Matcher bandwidth = Pattern.compile("BANDWIDTH=(\\d+)", Pattern.CASE_INSENSITIVE).matcher(pendingStreamInfo);
-            long bandwidthValue = bandwidth.find() ? parseLong(bandwidth.group(1)) : 0L;
-            String label = "Auto";
-            if (resolution.find()) {
-                label = resolution.group(2) + "p";
-            } else if (bandwidthValue > 0) {
-                label = Math.max(1L, bandwidthValue / 1000) + " kbps";
+        }
+        
+        return result;
+    }
+
+    private AudioMedia parseAudioMedia(String line, String masterUrl) {
+        Pattern attrPattern = Pattern.compile("([A-Z-]+)=\"([^\"]*)\"", Pattern.CASE_INSENSITIVE);
+        Matcher matcher = attrPattern.matcher(line);
+        
+        String type = null;
+        String groupId = null;
+        String name = null;
+        String language = null;
+        String isDefault = null;
+        String uri = null;
+        
+        while (matcher.find()) {
+            String key = matcher.group(1);
+            String value = matcher.group(2);
+            if ("TYPE".equalsIgnoreCase(key)) type = value;
+            else if ("GROUP-ID".equalsIgnoreCase(key)) groupId = value;
+            else if ("NAME".equalsIgnoreCase(key)) name = value;
+            else if ("LANGUAGE".equalsIgnoreCase(key)) language = value;
+            else if ("DEFAULT".equalsIgnoreCase(key)) isDefault = value;
+            else if ("URI".equalsIgnoreCase(key)) uri = value;
+        }
+        
+        if (!"AUDIO".equalsIgnoreCase(type) || groupId == null) {
+            return null;
+        }
+        
+        AudioMedia am = new AudioMedia();
+        am.groupId = groupId;
+        am.name = name;
+        am.language = language;
+        am.isDefault = "YES".equalsIgnoreCase(isDefault);
+        
+        if (uri != null && !uri.isEmpty()) {
+            try {
+                am.url = new URL(new URL(masterUrl), uri).toString();
+            } catch (Exception ignored) {
+                am.url = uri;
             }
-            quality.put("label", label);
-            quality.put("url", variantUrl);
-            quality.put("bandwidth", Math.max(0L, bandwidthValue));
-            quality.put("type", "hls");
-            synchronized (qualities) {
-                qualities.add(quality);
+        }
+        
+        return am;
+    }
+
+    private ParsedMedia parseMediaPlaylist(String body, String playlistUrl) {
+        ParsedMedia result = new ParsedMedia();
+        result.playlistUrl = playlistUrl;
+        
+        String[] lines = body.split("\\r?\\n");
+        boolean hasExtMap = false;
+        boolean hasEndList = false;
+        boolean hasKey = false;
+        String keyMethod = "NONE";
+        double totalDuration = 0;
+        int segmentCount = 0;
+        
+        for (String line : lines) {
+            String trimmed = line.trim();
+            
+            if (trimmed.startsWith("#EXT-X-MAP")) {
+                hasExtMap = true;
+            } else if (trimmed.startsWith("#EXT-X-ENDLIST")) {
+                hasEndList = true;
+            } else if (trimmed.startsWith("#EXT-X-KEY:")) {
+                Matcher methodMatch = Pattern.compile("METHOD=([^,]+)", Pattern.CASE_INSENSITIVE).matcher(trimmed);
+                if (methodMatch.find()) {
+                    keyMethod = methodMatch.group(1);
+                    if (!"NONE".equalsIgnoreCase(keyMethod)) {
+                        hasKey = true;
+                    }
+                }
+            } else if (trimmed.startsWith("#EXTINF:")) {
+                String durationStr = trimmed.substring(8).split(",")[0].trim();
+                try {
+                    totalDuration += Double.parseDouble(durationStr);
+                    segmentCount++;
+                } catch (NumberFormatException ignored) {
+                }
             }
-            pendingStreamInfo = null;
+        }
+        
+        result.segmentCount = segmentCount;
+        result.durationSec = (int) Math.round(totalDuration);
+        result.container = hasExtMap ? "fmp4" : "ts";
+        result.encrypted = hasKey;
+        result.keyMethod = keyMethod;
+        result.live = !hasEndList;
+        
+        return result;
+    }
+
+    private void sortQualities(List<QualityResult> qualities) {
+        qualities.sort(new Comparator<QualityResult>() {
+            @Override
+            public int compare(QualityResult a, QualityResult b) {
+                int bwA = a.variant.avgBandwidth > 0 ? (int) a.variant.avgBandwidth : (int) a.variant.bandwidth;
+                int bwB = b.variant.avgBandwidth > 0 ? (int) b.variant.avgBandwidth : (int) b.variant.bandwidth;
+                int bwDiff = Integer.compare(bwB, bwA);
+                if (bwDiff != 0) return bwDiff;
+                
+                String codecA = a.variant.codecs != null ? a.variant.codecs.toLowerCase() : "";
+                String codecB = b.variant.codecs != null ? b.variant.codecs.toLowerCase() : "";
+                boolean avc1A = codecA.contains("avc1");
+                boolean avc1B = codecB.contains("avc1");
+                if (avc1A && !avc1B) return -1;
+                if (!avc1A && avc1B) return 1;
+                
+                return 0;
+            }
+        });
+    }
+
+    private String getLabel(MasterVariant variant) {
+        if (variant.width > 0 && variant.height > 0) {
+            if (variant.width >= 1800) return "1080p";
+            if (variant.width >= 1200) return "720p";
+            if (variant.width >= 800) return "480p";
+            if (variant.width >= 600) return "360p";
+            return variant.height + "p";
+        } else if (variant.height > 0) {
+            if (variant.height >= 1000) return "1080p";
+            if (variant.height >= 700) return "720p";
+            if (variant.height >= 450) return "480p";
+            return "360p";
+        }
+        return "Auto";
+    }
+
+    private String getCodec(String codecs) {
+        if (codecs == null || codecs.isEmpty()) return "unknown";
+        String lower = codecs.toLowerCase();
+        if (lower.contains("hev1") || lower.contains("hvc1")) return "hev1";
+        if (lower.contains("avc1")) return "avc1";
+        return codecs.split("[.,]")[0].trim();
+    }
+
+    private void addQualityToList(QualityResult qr, List<JSObject> qualities, List<String> debug,
+                                  String masterUrl, int index) {
+        JSObject quality = new JSObject();
+        quality.put("id", "q" + index);
+        quality.put("label", getLabel(qr.variant));
+        quality.put("resolution", qr.variant.resolution);
+        quality.put("width", qr.variant.width);
+        quality.put("height", qr.variant.height);
+        quality.put("codec", getCodec(qr.variant.codecs));
+        quality.put("bandwidth", qr.variant.bandwidth);
+        quality.put("avgBandwidth", qr.variant.avgBandwidth);
+        quality.put("url", qr.variant.url);
+        if (qr.audioUrl != null) {
+            quality.put("audioUrl", qr.audioUrl);
+        }
+        quality.put("container", qr.container);
+        quality.put("encrypted", qr.encrypted);
+        if (qr.keyMethod != null) {
+            quality.put("keyMethod", qr.keyMethod);
+        }
+        quality.put("segmentCount", qr.segmentCount);
+        if (qr.durationSec > 0) {
+            quality.put("durationSec", qr.durationSec);
+        }
+        if (qr.estBytes >= 0) {
+            quality.put("estBytes", qr.estBytes);
+        }
+        quality.put("live", qr.live);
+        quality.put("type", "hls");
+        
+        synchronized (qualities) {
+            qualities.add(quality);
+        }
+    }
+
+    private void addQualityWithError(MasterVariant variant, String error, List<JSObject> qualities, List<String> debug) {
+        JSObject quality = new JSObject();
+        quality.put("id", "q" + (qualities.size() + 1));
+        quality.put("label", getLabel(variant));
+        quality.put("resolution", variant.resolution);
+        quality.put("width", variant.width);
+        quality.put("height", variant.height);
+        quality.put("codec", getCodec(variant.codecs));
+        quality.put("bandwidth", variant.bandwidth);
+        quality.put("avgBandwidth", variant.avgBandwidth);
+        quality.put("url", variant.url);
+        quality.put("container", "unknown");
+        quality.put("encrypted", false);
+        quality.put("segmentCount", JSONObject.NULL);
+        quality.put("durationSec", JSONObject.NULL);
+        quality.put("estBytes", JSONObject.NULL);
+        quality.put("live", false);
+        quality.put("type", "hls");
+        quality.put("error", error);
+        
+        synchronized (qualities) {
+            qualities.add(quality);
+        }
+        
+        String debugLine = "Q " + getLabel(variant) + " " + variant.resolution + " " + getCodec(variant.codecs)
+                + " | bw=" + variant.bandwidth + " | seg=null | dur=null | est=nullMB | container=unknown | enc=false | audio=false | live=false // " + error;
+        logAndAddDebug(debug, debugLine);
+    }
+
+    private void logQualityDebug(List<QualityResult> qualities, List<String> debug, String masterUrl) {
+        for (QualityResult qr : qualities) {
+            String label = getLabel(qr.variant);
+            String resolution = qr.variant.resolution;
+            String codec = getCodec(qr.variant.codecs);
+            long bw = qr.variant.avgBandwidth > 0 ? qr.variant.avgBandwidth : qr.variant.bandwidth;
+            int seg = qr.segmentCount;
+            int dur = qr.durationSec;
+            String est = qr.estBytes >= 0 ? String.format(Locale.US, "%.1f", qr.estBytes / 1024.0 / 1024.0) : "null";
+            String container = qr.container;
+            String enc = qr.encrypted ? qr.keyMethod : "false";
+            String audio = qr.audioUrl != null ? "true" : "false";
+            String live = qr.live ? "true" : "false";
+            
+            String line = "Q " + label + " " + resolution + " " + codec
+                    + " | bw=" + bw
+                    + " | seg=" + seg
+                    + " | dur=" + dur
+                    + " | est=" + est + "MB"
+                    + " | container=" + container
+                    + " | enc=" + enc
+                    + " | audio=" + audio
+                    + " | live=" + live;
+            
+            logAndAddDebug(debug, line);
+        }
+    }
+
+    private void logSubReqDebug(List<CapturedRequest> captured, List<String> debug) {
+        List<String> subReqs = new ArrayList<>();
+        for (CapturedRequest req : captured) {
+            String lower = req.url.toLowerCase(Locale.US);
+            if (lower.contains("sub") || lower.contains("caption") || lower.contains("vtt") 
+                    || lower.contains("srt") || lower.contains("track") || lower.contains("cc")) {
+                try {
+                    Uri uri = Uri.parse(req.url);
+                    String host = uri.getHost() != null ? uri.getHost() : "unknown";
+                    String path = uri.getEncodedPath() != null ? uri.getEncodedPath() : "/";
+                    String query = uri.getEncodedQuery();
+                    if (query != null && !query.isEmpty()) {
+                        path = path + "?" + query;
+                    }
+                    if (path.length() > 60) path = path.substring(0, 60);
+                    subReqs.add(host + path);
+                } catch (Exception ignored) {
+                    subReqs.add(req.url);
+                }
+            }
+        }
+        if (!subReqs.isEmpty()) {
+            String line = "SUBREQ " + subReqs.subList(0, Math.min(30, subReqs.size())).toString()
+                    .replace("[", "").replace("]", "").replace(", ", " | ");
+            logAndAddDebug(debug, line);
         }
     }
 
@@ -1438,6 +1850,17 @@ public class StreamResolverPlugin extends Plugin {
         }
     }
 
+    private int parseInt(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return -1;
+        }
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (Exception e) {
+            return -1;
+        }
+    }
+
     private static class CapturedRequest {
         final String url;
         final String type;
@@ -1498,6 +1921,406 @@ public class StreamResolverPlugin extends Plugin {
             this.valid = valid;
             this.code = code;
             this.contentType = contentType;
+        }
+    }
+
+    private static class ParsedMaster {
+        String masterUrl;
+        List<MasterVariant> variants = new ArrayList<>();
+        Map<String, List<AudioMedia>> mediaGroups = new LinkedHashMap<>();
+    }
+
+    private static class MasterVariant {
+        String url;
+        String originalStreamInfo;
+        String resolution = "";
+        int width = 0;
+        int height = 0;
+        long bandwidth = 0;
+        long avgBandwidth = 0;
+        String codecs = "";
+        String audioGroup = null;
+    }
+
+    private static class AudioMedia {
+        String groupId;
+        String name;
+        String language;
+        boolean isDefault = false;
+        String url;
+    }
+
+    private static class ParsedMedia {
+        String playlistUrl;
+        int segmentCount = 0;
+        int durationSec = 0;
+        String container = "ts";
+        boolean encrypted = false;
+        String keyMethod = "NONE";
+        boolean live = false;
+    }
+
+    private static class QualityResult {
+        MasterVariant variant;
+        int segmentCount = 0;
+        int durationSec = 0;
+        String container = "ts";
+        boolean encrypted = false;
+        String keyMethod = "NONE";
+        boolean live = false;
+        String audioUrl = null;
+        int audioSegmentCount = 0;
+        int audioDurationSec = 0;
+        long estBytes = -1;
+        String error = null;
+    }
+
+    private static class VariantFetchTask implements Runnable {
+        final int index;
+        final MasterVariant variant;
+        final String masterUrl;
+        final Map<String, List<AudioMedia>> mediaGroups;
+        final String userAgent;
+        final String referer;
+        QualityResult result;
+        
+        VariantFetchTask(int index, MasterVariant variant, String masterUrl,
+                         Map<String, List<AudioMedia>> mediaGroups, String userAgent, String referer) {
+            this.index = index;
+            this.variant = variant;
+            this.masterUrl = masterUrl;
+            this.mediaGroups = mediaGroups;
+            this.userAgent = userAgent;
+            this.referer = referer;
+        }
+        
+        @Override
+        public void run() {
+            result = new QualityResult();
+            result.variant = variant;
+            
+            ParsedMedia parsed = fetchAndParseMediaPlaylist(variant.url, userAgent, referer);
+            if (parsed == null) {
+                result.error = "variant fetch failed";
+                return;
+            }
+            
+            result.segmentCount = parsed.segmentCount;
+            result.durationSec = parsed.durationSec;
+            result.container = parsed.container;
+            result.encrypted = parsed.encrypted;
+            result.keyMethod = parsed.keyMethod;
+            result.live = parsed.live;
+            
+            if (variant.audioGroup != null) {
+                AudioMedia audioMedia = findAudioMediaStatic(variant.audioGroup, mediaGroups, masterUrl);
+                if (audioMedia != null) {
+                    ParsedMedia audioParsed = fetchAndParseMediaPlaylist(audioMedia.url, userAgent, referer);
+                    if (audioParsed != null) {
+                        result.audioUrl = audioMedia.url;
+                        result.audioSegmentCount = audioParsed.segmentCount;
+                        result.audioDurationSec = audioParsed.durationSec;
+                    }
+                }
+            }
+            
+            long bw = variant.avgBandwidth > 0 ? variant.avgBandwidth : variant.bandwidth;
+            if (result.durationSec > 0 && bw > 0) {
+                double est = (bw * result.durationSec) / 8.0;
+                if (result.audioUrl != null && variant.avgBandwidth <= 0) {
+                    est += (128000.0 * result.durationSec) / 8.0;
+                }
+                result.estBytes = Math.round(est);
+            } else {
+                result.estBytes = -1;
+            }
+        }
+        
+        private ParsedMedia fetchAndParseMediaPlaylist(String url, String userAgent, String referer) {
+            CapturedRequest tempRequest = new CapturedRequest(url, "hls", new LinkedHashMap<String, String>());
+            FetchResult fetchResult = fetchPlaylistStatic(tempRequest, userAgent, referer);
+            if (fetchResult.code == 200 && fetchResult.startsWithExtM3u) {
+                return parseMediaPlaylistStatic(fetchResult.body, url);
+            }
+            return null;
+        }
+        
+        private static AudioMedia findAudioMediaStatic(String groupId, Map<String, List<AudioMedia>> mediaGroups, String masterUrl) {
+            List<AudioMedia> audios = mediaGroups.get(groupId);
+            if (audios == null || audios.isEmpty()) {
+                return null;
+            }
+            for (AudioMedia am : audios) {
+                if (am.isDefault) {
+                    return am;
+                }
+            }
+            return audios.get(0);
+        }
+        
+        private static FetchResult fetchPlaylistStatic(CapturedRequest request, String userAgent, String referer) {
+            int code = 0;
+            String contentType = null;
+            String body = "";
+            int byteLength = 0;
+            String error = null;
+            URL currentUrl = null;
+            HttpURLConnection connection = null;
+            Map<String, String> headers = buildFetchHeadersStatic(request, userAgent, referer);
+            String capturedCookie = getHeaderStatic(request.headers, "Cookie");
+            List<String> sentHeaderNames = new ArrayList<String>();
+            String sentCookie = null;
+            String server = null;
+            String cfRay = null;
+            String location = null;
+            String setCookieNames = "";
+            try {
+                currentUrl = new URL(request.url);
+                int redirects = 0;
+                while (true) {
+                    connection = (HttpURLConnection) currentUrl.openConnection();
+                    connection.setInstanceFollowRedirects(false);
+                    connection.setConnectTimeout(10000);
+                    connection.setReadTimeout(15000);
+                    sentHeaderNames.clear();
+                    for (Map.Entry<String, String> header : headers.entrySet()) {
+                        connection.setRequestProperty(header.getKey(), header.getValue());
+                        sentHeaderNames.add(header.getKey());
+                    }
+                    CookieManager cookieManager = CookieManager.getInstance();
+                    cookieManager.flush();
+                    String webViewCookie = cookieManager.getCookie(currentUrl.toString());
+                    sentCookie = joinCookiesStatic(capturedCookie, webViewCookie);
+                    if (sentCookie != null) {
+                        connection.setRequestProperty("Cookie", sentCookie);
+                        sentHeaderNames.add("Cookie");
+                    }
+
+                    code = connection.getResponseCode();
+                    contentType = connection.getHeaderField("Content-Type");
+                    server = connection.getHeaderField("Server");
+                    cfRay = connection.getHeaderField("cf-ray");
+                    location = connection.getHeaderField("Location");
+                    setCookieNames = getSetCookieNamesStatic(connection);
+                    InputStream stream = code >= 400 ? connection.getErrorStream() : connection.getInputStream();
+                    byte[] responseBytes = readFullyStatic(stream);
+                    String responseBody = new String(responseBytes, StandardCharsets.UTF_8);
+                    if (isRedirectStatic(code) && location != null && redirects < 5) {
+                        currentUrl = new URL(currentUrl, location);
+                        redirects++;
+                        connection.disconnect();
+                        connection = null;
+                        continue;
+                    }
+                    body = responseBody;
+                    byteLength = responseBytes.length;
+                    break;
+                }
+            } catch (Exception exception) {
+                error = exception.getClass().getName() + ": " + String.valueOf(exception.getMessage());
+            } finally {
+                if (connection != null) {
+                    connection.disconnect();
+                }
+            }
+            boolean startsWithExtM3u = body.startsWith("#EXTM3U");
+            String finalHost = currentUrl != null && currentUrl.getHost() != null
+                    ? currentUrl.getHost()
+                    : "unknown";
+            String responseHeaders = "RESPHEADERS server=" + valueOrNoneStatic(server)
+                    + " | cf-ray=" + valueOrNoneStatic(cfRay)
+                    + " | content-type=" + valueOrNoneStatic(contentType)
+                    + " | location=" + valueOrNoneStatic(location)
+                    + " | set-cookie=" + (setCookieNames.isEmpty() ? "none" : setCookieNames);
+            return new FetchResult(code, contentType, body, byteLength, startsWithExtM3u, finalHost,
+                    error, sentHeaderNames, sentCookie != null, sentCookie == null ? 0 : sentCookie.length(),
+                    responseHeaders);
+        }
+        
+        private static Map<String, String> buildFetchHeadersStatic(CapturedRequest request, String userAgent, String fallbackReferer) {
+            Map<String, String> headers = new LinkedHashMap<String, String>();
+            for (Map.Entry<String, String> entry : request.headers.entrySet()) {
+                String name = entry.getKey();
+                if (name == null || name.trim().isEmpty() || "Cookie".equalsIgnoreCase(name)
+                        || isRestrictedRequestHeaderStatic(name)) {
+                    continue;
+                }
+                headers.put(name, entry.getValue() == null ? "" : entry.getValue());
+            }
+            putHeaderIfMissingStatic(headers, "User-Agent",
+                    firstNonEmptyStatic(userAgent, WebSettings.getDefaultUserAgent(null)));
+            putHeaderIfMissingStatic(headers, "Referer", fallbackReferer);
+            if (getHeaderStatic(request.headers, "Origin") == null) {
+                putHeaderIfMissingStatic(headers, "Origin", originFromRefererStatic(getHeaderStatic(headers, "Referer")));
+            }
+            putHeaderIfMissingStatic(headers, "Accept", "*/*");
+            putHeaderIfMissingStatic(headers, "Accept-Language", "en-US,en;q=0.9");
+            setHeaderStatic(headers, "Sec-Fetch-Dest", "empty");
+            setHeaderStatic(headers, "Sec-Fetch-Mode", "cors");
+            setHeaderStatic(headers, "Sec-Fetch-Site", "cross-site");
+            setHeaderStatic(headers, "Accept-Encoding", "identity");
+            return headers;
+        }
+        
+        private static boolean isRestrictedRequestHeaderStatic(String name) {
+            return "Host".equalsIgnoreCase(name)
+                    || "Connection".equalsIgnoreCase(name)
+                    || "Content-Length".equalsIgnoreCase(name)
+                    || "Transfer-Encoding".equalsIgnoreCase(name)
+                    || "Proxy-Connection".equalsIgnoreCase(name);
+        }
+        
+        private static void putHeaderIfMissingStatic(Map<String, String> headers, String name, String value) {
+            if (value != null && getHeaderStatic(headers, name) == null) {
+                headers.put(name, value);
+            }
+        }
+        
+        private static void setHeaderStatic(Map<String, String> headers, String name, String value) {
+            String existing = null;
+            for (String key : headers.keySet()) {
+                if (key.equalsIgnoreCase(name)) {
+                    existing = key;
+                    break;
+                }
+            }
+            if (existing != null) {
+                headers.remove(existing);
+            }
+            headers.put(name, value);
+        }
+        
+        private static String joinCookiesStatic(String capturedCookie, String webViewCookie) {
+            boolean hasCaptured = capturedCookie != null && !capturedCookie.trim().isEmpty();
+            boolean hasWebView = webViewCookie != null;
+            if (hasCaptured && hasWebView && !webViewCookie.trim().isEmpty()) {
+                return capturedCookie + "; " + webViewCookie;
+            }
+            if (hasCaptured) {
+                return capturedCookie;
+            }
+            return hasWebView ? webViewCookie : null;
+        }
+        
+        private static String getSetCookieNamesStatic(HttpURLConnection connection) {
+            List<String> names = new ArrayList<String>();
+            Map<String, List<String>> headers = connection.getHeaderFields();
+            if (headers == null) {
+                return "";
+            }
+            for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
+                if (entry.getKey() == null || !"Set-Cookie".equalsIgnoreCase(entry.getKey()) || entry.getValue() == null) {
+                    continue;
+                }
+                for (String cookie : entry.getValue()) {
+                    int equals = cookie == null ? -1 : cookie.indexOf('=');
+                    if (equals > 0) {
+                        names.add(cookie.substring(0, equals).trim());
+                    }
+                }
+            }
+            return names.toString();
+        }
+        
+        private static String valueOrNoneStatic(String value) {
+            return value == null || value.trim().isEmpty() ? "none" : value;
+        }
+        
+        private static String getHeaderStatic(Map<String, String> headers, String name) {
+            if (headers == null || name == null) {
+                return null;
+            }
+            for (Map.Entry<String, String> entry : headers.entrySet()) {
+                if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(name)) {
+                    return entry.getValue();
+                }
+            }
+            return null;
+        }
+        
+        private static String firstNonEmptyStatic(String preferred, String fallback) {
+            return preferred != null && !preferred.trim().isEmpty() ? preferred : fallback;
+        }
+        
+        private static String originFromRefererStatic(String referer) {
+            if (referer == null || referer.trim().isEmpty()) {
+                return "";
+            }
+            try {
+                URL refererUrl = new URL(referer);
+                return refererUrl.getProtocol() + "://" + refererUrl.getHost();
+            } catch (Exception ignored) {
+                return "";
+            }
+        }
+        
+        private static byte[] readFullyStatic(InputStream stream) throws Exception {
+            if (stream == null) {
+                return new byte[0];
+            }
+            try (InputStream input = stream; ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                byte[] buffer = new byte[8192];
+                int count;
+                while ((count = input.read(buffer)) != -1) {
+                    output.write(buffer, 0, count);
+                }
+                return output.toByteArray();
+            }
+        }
+        
+        private static boolean isRedirectStatic(int code) {
+            return code == HttpURLConnection.HTTP_MOVED_PERM
+                    || code == HttpURLConnection.HTTP_MOVED_TEMP
+                    || code == HttpURLConnection.HTTP_SEE_OTHER
+                    || code == 307
+                    || code == 308;
+        }
+        
+        private static ParsedMedia parseMediaPlaylistStatic(String body, String playlistUrl) {
+            ParsedMedia result = new ParsedMedia();
+            result.playlistUrl = playlistUrl;
+            
+            String[] lines = body.split("\\r?\\n");
+            boolean hasExtMap = false;
+            boolean hasEndList = false;
+            boolean hasKey = false;
+            String keyMethod = "NONE";
+            double totalDuration = 0;
+            int segmentCount = 0;
+            
+            for (String line : lines) {
+                String trimmed = line.trim();
+                
+                if (trimmed.startsWith("#EXT-X-MAP")) {
+                    hasExtMap = true;
+                } else if (trimmed.startsWith("#EXT-X-ENDLIST")) {
+                    hasEndList = true;
+                } else if (trimmed.startsWith("#EXT-X-KEY:")) {
+                    Matcher methodMatch = Pattern.compile("METHOD=([^,]+)", Pattern.CASE_INSENSITIVE).matcher(trimmed);
+                    if (methodMatch.find()) {
+                        keyMethod = methodMatch.group(1);
+                        if (!"NONE".equalsIgnoreCase(keyMethod)) {
+                            hasKey = true;
+                        }
+                    }
+                } else if (trimmed.startsWith("#EXTINF:")) {
+                    String durationStr = trimmed.substring(8).split(",")[0].trim();
+                    try {
+                        totalDuration += Double.parseDouble(durationStr);
+                        segmentCount++;
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+            }
+            
+            result.segmentCount = segmentCount;
+            result.durationSec = (int) Math.round(totalDuration);
+            result.container = hasExtMap ? "fmp4" : "ts";
+            result.encrypted = hasKey;
+            result.keyMethod = keyMethod;
+            result.live = !hasEndList;
+            
+            return result;
         }
     }
 }

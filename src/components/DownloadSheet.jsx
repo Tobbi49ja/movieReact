@@ -3,23 +3,20 @@ import toast from "react-hot-toast";
 import { resolveSources } from "../lib/resolver";
 
 const parseQualityRank = (quality) => {
-  const label = typeof quality?.label === "string" ? quality.label : "";
-  const match = label.match(/(\d+)p/i);
-  if (match) return Number(match[1]);
-
-  const bandwidth = Number(quality?.bandwidth);
+  const bandwidth = Number(quality?.avgBandwidth ?? quality?.bandwidth);
   if (Number.isFinite(bandwidth) && bandwidth > 0) return bandwidth;
-
   return 0;
 };
 
-const formatApproxSize = (bandwidth) => {
-  if (typeof bandwidth !== "number" || !Number.isFinite(bandwidth) || bandwidth <= 0) {
-    return "Approx size unknown";
+const formatSize = (estBytes) => {
+  if (typeof estBytes !== "number" || !Number.isFinite(estBytes) || estBytes <= 0) {
+    return "Size unknown";
   }
-
-  const megabytes = Math.max(30, (bandwidth / 1000000) * 18);
-  return `Approx ${megabytes.toFixed(0)} MB`;
+  const mb = estBytes / (1024 * 1024);
+  if (mb < 1024) {
+    return `~${Math.round(mb)} MB`;
+  }
+  return `~${(mb / 1024).toFixed(1)} GB`;
 };
 
 export default function DownloadSheet({
@@ -33,7 +30,7 @@ export default function DownloadSheet({
   const [status, setStatus] = useState("preparing");
   const [qualities, setQualities] = useState([]);
   const [subtitles, setSubtitles] = useState([]);
-  const [selectedQuality, setSelectedQuality] = useState("best");
+  const [selectedQuality, setSelectedQuality] = useState(null);
   const [selectedSubtitle, setSelectedSubtitle] = useState("none");
   const [error, setError] = useState("");
   const [retryToken, setRetryToken] = useState(0);
@@ -48,7 +45,7 @@ export default function DownloadSheet({
       cancelledRef.current = false;
       setStatus("preparing");
       setError("");
-      setSelectedQuality("best");
+      setSelectedQuality(null);
       setSelectedSubtitle("none");
 
       try {
@@ -69,7 +66,7 @@ export default function DownloadSheet({
         setSubtitles(nextSubtitles);
 
         if (sortedQualities.length > 0) {
-          setSelectedQuality(sortedQualities[0].id || "best");
+          setSelectedQuality(sortedQualities[0]);
         }
 
         setStatus("ready");
@@ -108,6 +105,8 @@ export default function DownloadSheet({
     onClose?.();
     toast("Downloader coming next");
   };
+
+  const showBestAvailable = sortedQualities.length === 1;
 
   return (
     <>
@@ -206,41 +205,75 @@ export default function DownloadSheet({
         {status === "ready" && (
           <>
             <div style={{ marginBottom: 18 }}>
-              <div style={{ fontWeight: 700, marginBottom: 10 }}>{title || "Download"}</div>
+              <div style={{ fontWeight: 700, marginBottom: 10 }}>
+                {showBestAvailable ? "Best available" : title || "Download"}
+              </div>
 
               <div style={{ fontSize: 13, color: "#cbd5e1", marginBottom: 8 }}>Quality</div>
               <div style={{ display: "grid", gap: 8 }}>
                 {sortedQualities.length > 0 ? (
                   sortedQualities.map((quality) => {
-                    const qualityKey = quality.id || quality.label || quality.url || "quality";
+                    const qualityKey = quality.id || quality.url || JSON.stringify(quality);
+                    const isLive = quality.live === true;
+                    const isEncrypted = quality.encrypted === true;
+                    const isSelected = selectedQuality === quality;
+                    const container = quality.container || "ts";
+                    const codec = quality.codec || "unknown";
+
                     return (
                       <label
                         key={qualityKey}
                         style={{
                           display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: 12,
-                          padding: "10px 12px",
+                          flexDirection: "column",
+                          alignItems: "flex-start",
+                          gap: 6,
+                          padding: "12px 14px",
                           borderRadius: 12,
-                          background: selectedQuality === qualityKey ? "rgba(59,130,246,0.2)" : "rgba(255,255,255,0.05)",
-                          border: selectedQuality === qualityKey ? "1px solid rgba(96,165,250,0.6)" : "1px solid rgba(255,255,255,0.06)",
-                          cursor: "pointer",
+                          background: isSelected ? "rgba(59,130,246,0.18)" : "rgba(255,255,255,0.04)",
+                          border: isSelected ? "1px solid rgba(96,165,250,0.6)" : "1px solid rgba(255,255,255,0.06)",
+                          cursor: isLive ? "not-allowed" : "pointer",
+                          opacity: isLive ? 0.55 : 1,
                         }}
                       >
-                        <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <input
-                            type="radio"
-                            name="download-quality"
-                            checked={selectedQuality === qualityKey}
-                            onChange={() => setSelectedQuality(qualityKey)}
-                            style={{ accentColor: "#60a5fa" }}
-                          />
-                          <span>{quality.label || quality.id || "Quality"}</span>
-                        </span>
-                        <span style={{ color: "#cbd5e1", fontSize: 12 }}>
-                          {quality.bandwidth ? formatApproxSize(quality.bandwidth) : "Approx size unknown"}
-                        </span>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", gap: 12 }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0 }}>
+                            <span style={{ fontWeight: 600, fontSize: 15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {quality.label || "Quality"}
+                            </span>
+                            <span style={{ fontSize: 11, color: "#8892a0", whiteSpace: "nowrap" }}>
+                              {quality.resolution ? `${quality.resolution} · ${codec}` : `${codec}`}
+                            </span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                            <span style={{ fontSize: 12, color: "#cbd5e1", whiteSpace: "nowrap" }}>
+                              {formatSize(quality.estBytes)}
+                            </span>
+                            {isEncrypted && (
+                              <span style={{ fontSize: 10, color: "#fbbf24", background: "rgba(251,191,36,0.15)", padding: "2px 6px", borderRadius: 999, whiteSpace: "nowrap" }}>
+                                Encrypted
+                              </span>
+                            )}
+                            {isLive && (
+                              <span style={{ fontSize: 10, color: "#f87171", background: "rgba(248,113,113,0.15)", padding: "2px 6px", borderRadius: 999, whiteSpace: "nowrap" }}>
+                                Live
+                              </span>
+                            )}
+                            <input
+                              type="radio"
+                              name="download-quality"
+                              checked={isSelected}
+                              onChange={() => isLive ? undefined : setSelectedQuality(quality)}
+                              disabled={isLive}
+                              style={{ accentColor: "#60a5fa", width: 18, height: 18 }}
+                            />
+                          </div>
+                        </div>
+                        {isLive && (
+                          <span style={{ fontSize: 11, color: "#f87171" }}>
+                            Live streams can't be downloaded
+                          </span>
+                        )}
                       </label>
                     );
                   })
