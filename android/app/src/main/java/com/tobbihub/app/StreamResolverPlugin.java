@@ -47,6 +47,7 @@ import java.util.regex.Pattern;
 @CapacitorPlugin(name = "StreamResolver")
 public class StreamResolverPlugin extends Plugin {
     private static final String TAG = "StreamResolver";
+    private static final Pattern LONG_TOKEN_PATTERN = Pattern.compile("[A-Za-z0-9_\\-.~%]{40,}");
 
     private static final String[] RELEVANT_TOKENS = {
             ".m3u8",
@@ -495,58 +496,76 @@ public class StreamResolverPlugin extends Plugin {
 
         JSArray debugArray = new JSArray();
         Set<String> seenDebug = new LinkedHashSet<String>();
-        synchronized (debugList) {
-            for (String item : debugList) {
-                if (item != null && seenDebug.add(item)) {
-                    debugArray.put(item);
-                }
-            }
-        }
-
-        if (capturedRequests != null) {
-            int rawCount = capturedRequests.size();
-            int uniqueByPath = calculateUniqueByPath(capturedRequests);
-            String captureCountEntry = "CAPTURED-COUNT raw=" + rawCount + " uniqueByPath=" + uniqueByPath;
-            if (seenDebug.add(captureCountEntry)) {
-                debugArray.put(captureCountEntry);
-            }
-
-            String nestedVariantUrl = findSingleVariantUrl(capturedRequests);
-            if (nestedVariantUrl != null) {
-                CapturedRequest nestedRequest = new CapturedRequest(nestedVariantUrl, "hls", new LinkedHashMap<String, String>());
-                String nestedFetch = buildFetchDebugEntry(nestedRequest, "NESTED ");
-                if (nestedFetch != null && seenDebug.add(nestedFetch)) {
-                    debugArray.put(nestedFetch);
-                }
-                String nestedBody = buildBodyDebugEntry(nestedRequest, "NESTED ");
-                if (nestedBody != null && seenDebug.add(nestedBody)) {
-                    debugArray.put(nestedBody);
+        try {
+            synchronized (debugList) {
+                for (String item : debugList) {
+                    if (item != null && seenDebug.add(item)) {
+                        debugArray.put(item);
+                        logDebugEntry(item);
+                    }
                 }
             }
 
-            int otherCount = 0;
-            for (CapturedRequest request : capturedRequests) {
-                String candidate = buildCapturedDebugEntry(request);
-                if (candidate != null && seenDebug.add(candidate)) {
-                    debugArray.put(candidate);
+            if (capturedRequests != null) {
+                int rawCount = capturedRequests.size();
+                int uniqueByPath = calculateUniqueByPath(capturedRequests);
+                String captureCountEntry = "CAPTURED-COUNT raw=" + rawCount + " uniqueByPath=" + uniqueByPath;
+                if (seenDebug.add(captureCountEntry)) {
+                    debugArray.put(captureCountEntry);
+                    logDebugEntry(captureCountEntry);
                 }
-                String fetchEntry = buildFetchDebugEntry(request, null);
-                if (fetchEntry != null && seenDebug.add(fetchEntry)) {
-                    debugArray.put(fetchEntry);
+
+                String nestedVariantUrl = findSingleVariantUrl(capturedRequests);
+                if (nestedVariantUrl != null) {
+                    CapturedRequest nestedRequest = new CapturedRequest(nestedVariantUrl, "hls", new LinkedHashMap<String, String>());
+                    String nestedFetch = buildFetchDebugEntry(nestedRequest, "NESTED ");
+                    if (nestedFetch != null && seenDebug.add(nestedFetch)) {
+                        debugArray.put(nestedFetch);
+                        logDebugEntry(nestedFetch);
+                    }
+                    String nestedBody = buildBodyDebugEntry(nestedRequest, "NESTED ");
+                    if (nestedBody != null && seenDebug.add(nestedBody)) {
+                        debugArray.put(nestedBody);
+                        logDebugEntry(nestedBody);
+                    }
                 }
-                String bodyEntry = buildBodyDebugEntry(request, null);
-                if (bodyEntry != null && seenDebug.add(bodyEntry)) {
-                    debugArray.put(bodyEntry);
+
+                int otherCount = 0;
+                for (CapturedRequest request : capturedRequests) {
+                    String candidate = buildCapturedDebugEntry(request);
+                    if (candidate != null && seenDebug.add(candidate)) {
+                        debugArray.put(candidate);
+                        logDebugEntry(candidate);
+                    }
+                    String fetchEntry = buildFetchDebugEntry(request, null);
+                    if (fetchEntry != null && seenDebug.add(fetchEntry)) {
+                        debugArray.put(fetchEntry);
+                        logDebugEntry(fetchEntry);
+                    }
+                    String bodyEntry = buildBodyDebugEntry(request, null);
+                    if (bodyEntry != null && seenDebug.add(bodyEntry)) {
+                        debugArray.put(bodyEntry);
+                        logDebugEntry(bodyEntry);
+                    }
+                    String playlistSummary = buildPlaylistSummary(request, qualities);
+                    if (playlistSummary != null && seenDebug.add(playlistSummary)) {
+                        debugArray.put(playlistSummary);
+                        logDebugEntry(playlistSummary);
+                    }
+                    String otherEntry = otherDebugEntry(request);
+                    if (otherEntry != null && otherCount < 40 && seenDebug.add(otherEntry)) {
+                        debugArray.put(otherEntry);
+                        logDebugEntry(otherEntry);
+                        otherCount++;
+                    }
                 }
-                String playlistSummary = buildPlaylistSummary(request, qualities);
-                if (playlistSummary != null && seenDebug.add(playlistSummary)) {
-                    debugArray.put(playlistSummary);
-                }
-                String otherEntry = otherDebugEntry(request);
-                if (otherEntry != null && otherCount < 40 && seenDebug.add(otherEntry)) {
-                    debugArray.put(otherEntry);
-                    otherCount++;
-                }
+            }
+        } catch (Throwable error) {
+            String diagnosticError = "DIAG-ERROR " + error.getClass().getName() + ": " + String.valueOf(error.getMessage());
+            try {
+                debugArray.put(diagnosticError);
+                logDebugEntry(diagnosticError);
+            } catch (Throwable ignored) {
             }
         }
 
@@ -792,8 +811,7 @@ public class StreamResolverPlugin extends Plugin {
         if (value == null || value.trim().isEmpty()) {
             return "";
         }
-        Pattern pattern = Pattern.compile("(?i)[A-Za-z0-9._~:/?#[\\]@!$&'()*+,;=%-]{40,}");
-        Matcher matcher = pattern.matcher(value);
+        Matcher matcher = LONG_TOKEN_PATTERN.matcher(value);
         StringBuffer buffer = new StringBuffer();
         while (matcher.find()) {
             String token = matcher.group();
@@ -802,6 +820,18 @@ public class StreamResolverPlugin extends Plugin {
         }
         matcher.appendTail(buffer);
         return buffer.toString();
+    }
+
+    private void logDebugEntry(String entry) {
+        try {
+            if (entry == null || entry.isEmpty()) {
+                return;
+            }
+            for (int start = 0; start < entry.length(); start += 900) {
+                Log.d(TAG, entry.substring(start, Math.min(start + 900, entry.length())));
+            }
+        } catch (Throwable ignored) {
+        }
     }
 
     private int calculateUniqueByPath(List<CapturedRequest> capturedRequests) {
