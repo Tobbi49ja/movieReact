@@ -88,6 +88,11 @@ public class StreamResolverPlugin extends Plugin {
             "scorecardresearch"
     };
 
+    private static final long CAPTURE_LIMIT_MS = 20000L;
+    private static final long FETCH_LIMIT_MS = 20000L;
+    private static final long AUTOPLAY_DELAY_MS = 4000L;
+    private static final long MUTE_INTERVAL_MS = 400L;
+
     @PluginMethod
     public void resolve(PluginCall call) {
         if (call == null) {
@@ -114,6 +119,8 @@ public class StreamResolverPlugin extends Plugin {
 
         final Uri embedUri = Uri.parse(embedUrl.trim());
         final String finalEmbedUrl = embedUrl.trim();
+        final String embedHost = embedUri.getHost() != null ? embedUri.getHost() : "";
+        Log.d(TAG, "RESOLVE start host=" + embedHost);
         final Handler handler = new Handler(Looper.getMainLooper());
         final List<CapturedRequest> captured = Collections.synchronizedList(new ArrayList<CapturedRequest>());
         final Set<String> seenUrls = Collections.synchronizedSet(new LinkedHashSet<String>());
@@ -121,10 +128,11 @@ public class StreamResolverPlugin extends Plugin {
         final List<String> debug = Collections.synchronizedList(new ArrayList<String>());
         final List<JSObject> playlistQualities = Collections.synchronizedList(new ArrayList<JSObject>());
         final List<JSObject> playlistSubtitles = Collections.synchronizedList(new ArrayList<JSObject>());
-        final boolean[] foundAny = {false};
         final boolean[] completed = {false};
         final boolean[] fetchStarted = {false};
         final boolean[] fetchInProgress = {false};
+        final boolean[] captureTimerStarted = {false};
+        final boolean[] fetchLimitStarted = {false};
         final String[] webViewUserAgent = {""};
         final WeakReference<WebView>[] webViewRef = new WeakReference[1];
         final boolean[] webViewFetchPending = {false};
@@ -132,6 +140,43 @@ public class StreamResolverPlugin extends Plugin {
         final FetchResult[] webViewNativeResult = {null};
         final Runnable[] webViewFetchTimeout = {null};
         final String[] resolvedMasterUrl = {null};
+        final long[] startTimeMs = {System.currentTimeMillis()};
+        final int[] autoplayTaps = {0};
+        final int[] autoplayVideos = {0};
+        final int[] autoplayIframes = {0};
+        final List<String> reqLines = Collections.synchronizedList(new ArrayList<String>());
+        final Set<String> reqLinesSeen = Collections.synchronizedSet(new LinkedHashSet<String>());
+        final boolean[] captureReadyPosted = {false};
+        final Runnable[] captureLimitTask = {null};
+        final Runnable[] fetchLimitTask = {null};
+        final Runnable[] muteLoopTask = {null};
+
+        final Runnable captureAutoplayCounts = new Runnable() {
+            @Override
+            public void run() {
+                if (webViewRef[0] == null) {
+                    return;
+                }
+                final WebView wv = webViewRef[0].get();
+                if (wv == null || wv.isDestroyed()) {
+                    return;
+                }
+                String script = "(function(){var v=document.querySelectorAll('video').length;var i=document.querySelectorAll('iframe').length;return v+','+i;})()";
+                wv.evaluateJavascript(script, value -> {
+                    try {
+                        String s = value;
+                        if (s != null && !s.equals("null")) {
+                            s = s.replaceAll("^\"|\"$", "");
+                            String[] parts = s.split(",");
+                            if (parts.length >= 2) {
+                                autoplayVideos[0] = Integer.parseInt(parts[0].trim());
+                                autoplayIframes[0] = Integer.parseInt(parts[1].trim());
+                            }
+                        }
+                    } catch (Exception ignored) { }
+                });
+            }
+        };
 
         final Runnable completeResolve = new Runnable() {
             @Override
@@ -140,10 +185,36 @@ public class StreamResolverPlugin extends Plugin {
                     return;
                 }
                 completed[0] = true;
+                stopCaptureLimit();
+                stopFetchLimit();
+                stopMuteLoop();
+                long elapsed = System.currentTimeMillis() - startTimeMs[0];
+                Log.d(TAG, "RESOLVE end host=" + embedHost + " result=ok elapsedMs=" + elapsed);
                 final JSObject payload = buildPayload(captured, debug, headersBag, playlistQualities, playlistSubtitles,
                         resolvedMasterUrl[0]);
                 Log.d(TAG, "final result built");
                 call.resolve(payload);
+            }
+
+            void stopCaptureLimit() {
+                if (captureLimitTask[0] != null) {
+                    handler.removeCallbacks(captureLimitTask[0]);
+                    captureLimitTask[0] = null;
+                }
+            }
+
+            void stopFetchLimit() {
+                if (fetchLimitTask[0] != null) {
+                    handler.removeCallbacks(fetchLimitTask[0]);
+                    fetchLimitTask[0] = null;
+                }
+            }
+
+            void stopMuteLoop() {
+                if (muteLoopTask[0] != null) {
+                    handler.removeCallbacks(muteLoopTask[0]);
+                    muteLoopTask[0] = null;
+                }
             }
         };
 
@@ -173,6 +244,8 @@ public class StreamResolverPlugin extends Plugin {
                 }
                 fetchStarted[0] = true;
                 fetchInProgress[0] = true;
+                stopCaptureLimit();
+                startFetchLimit();
                 final CapturedRequest requestToFetch = playlistRequest;
                 final String capturedReferer;
                 synchronized (headersBag) {
@@ -194,6 +267,7 @@ public class StreamResolverPlugin extends Plugin {
                             handler.post(new Runnable() {
                                 @Override
                                 public void run() {
+                                    stopFetchLimit();
                                     if (checkedMp4 != null) {
                                         addMp4Quality(checkedMp4, playlistQualities);
                                     }
@@ -235,6 +309,10 @@ public class StreamResolverPlugin extends Plugin {
                             handler.post(new Runnable() {
                                 @Override
                                 public void run() {
+                                    stopFetchLimit();
+                                    long elapsed = System.currentTimeMillis() - startTimeMs[0];
+                                    Log.d(TAG, "RESOLVE end host=" + embedHost + " result=nostream elapsedMs=" + elapsed);
+                                    logTimeoutDiagnostics();
                                     rejectPlaylistFetch(call, result, debug, completed);
                                 }
                             });
@@ -246,6 +324,7 @@ public class StreamResolverPlugin extends Plugin {
                         handler.post(new Runnable() {
                             @Override
                             public void run() {
+                                stopFetchLimit();
                                 fetchInProgress[0] = false;
                                 completeResolve.run();
                             }
@@ -255,14 +334,15 @@ public class StreamResolverPlugin extends Plugin {
             }
         };
 
-        final Runnable timeout = new Runnable() {
+        final Runnable captureLimit = new Runnable() {
             @Override
             public void run() {
                 if (completed[0] || fetchInProgress[0]) {
                     return;
                 }
                 completed[0] = true;
-
+                stopMuteLoop();
+                captureAutoplayCounts.run();
                 JSObject errorData = new JSObject();
                 JSArray debugArray = new JSArray();
                 synchronized (debug) {
@@ -271,7 +351,33 @@ public class StreamResolverPlugin extends Plugin {
                     }
                 }
                 errorData.put("debug", debugArray);
-                Log.d(TAG, "timeout with no result");
+                long elapsed = System.currentTimeMillis() - startTimeMs[0];
+                Log.d(TAG, "RESOLVE end host=" + embedHost + " result=timeout elapsedMs=" + elapsed);
+                logTimeoutDiagnostics();
+                call.reject("No stream found", (String) null, errorData);
+            }
+        };
+
+        final Runnable fetchLimit = new Runnable() {
+            @Override
+            public void run() {
+                if (completed[0] || !fetchInProgress[0]) {
+                    return;
+                }
+                completed[0] = true;
+                stopMuteLoop();
+                captureAutoplayCounts.run();
+                JSObject errorData = new JSObject();
+                JSArray debugArray = new JSArray();
+                synchronized (debug) {
+                    for (String item : debug) {
+                        debugArray.put(item);
+                    }
+                }
+                errorData.put("debug", debugArray);
+                long elapsed = System.currentTimeMillis() - startTimeMs[0];
+                Log.d(TAG, "RESOLVE end host=" + embedHost + " result=timeout elapsedMs=" + elapsed);
+                logTimeoutDiagnostics();
                 call.reject("No stream found", (String) null, errorData);
             }
         };
@@ -284,7 +390,11 @@ public class StreamResolverPlugin extends Plugin {
                 if (completed[0] || attempts >= 8) {
                     return;
                 }
+                if (attempts == 0 && !captured.isEmpty()) {
+                    return;
+                }
                 attempts++;
+                autoplayTaps[0] = attempts;
                 if (webViewRef[0] != null) {
                     final WebView webView = webViewRef[0].get();
                     if (webView != null) {
@@ -296,6 +406,25 @@ public class StreamResolverPlugin extends Plugin {
                 if (attempts < 8) {
                     handler.postDelayed(this, 1500L);
                 }
+            }
+        };
+
+        final Runnable muteLoop = new Runnable() {
+            @Override
+            public void run() {
+                if (completed[0] || webViewRef[0] == null) {
+                    return;
+                }
+                final WebView wv = webViewRef[0].get();
+                if (wv == null || wv.isDestroyed()) {
+                    stopMuteLoop();
+                    return;
+                }
+                if (wv != null) {
+                    String script = "(function(){var vids=document.querySelectorAll('video,audio');for(var i=0;i<vids.length;i++){try{vids[i].muted=true;vids[i].volume=0;}catch(e){}}var ifrs=document.querySelectorAll('iframe');for(var j=0;j<ifrs.length;j++){try{if(ifrs[j].contentWindow&&ifrs[j].contentWindow.document){var dv=ifrs[j].contentWindow.document.querySelectorAll('video,audio');for(var k=0;k<dv.length;k++){try{dv[k].muted=true;dv[k].volume=0;}catch(e){}}}}catch(e){}})();";
+                    injectJavascript(wv, script);
+                }
+                handler.postDelayed(this, MUTE_INTERVAL_MS);
             }
         };
 
@@ -420,17 +549,51 @@ public class StreamResolverPlugin extends Plugin {
                                     debug.add(debugEntry);
                                     logDebugEntry("captured " + debugEntry);
                                     updateHeaderBag(headersBag, reqHeaders);
-                                    if (isCaptureReady(capturedRequest, foundAny)) {
-                                        foundAny[0] = true;
-                                        handler.postDelayed(new Runnable() {
-                                            @Override
-                                            public void run() {
-                                                if (completed[0]) {
-                                                    return;
-                                                }
-                                                finish.run();
+                                    String host = null;
+                                    String path = "/";
+                                    try {
+                                        Uri u = Uri.parse(url);
+                                        host = u.getHost();
+                                        String ep = u.getEncodedPath();
+                                        if (ep != null && !ep.trim().isEmpty()) {
+                                            path = ep;
+                                        }
+                                        String q = u.getEncodedQuery();
+                                        if (q != null && !q.trim().isEmpty()) {
+                                            path = path + "?" + q;
+                                        }
+                                    } catch (Exception ignored) { }
+                                    if (host != null && path != null) {
+                                        String reqLine = "REQ " + host + " " + path;
+                                        if (reqLine.length() > 55) {
+                                            reqLine = reqLine.substring(0, 55);
+                                        }
+                                        if (reqLinesSeen.add(reqLine)) {
+                                            if (reqLines.size() < 40) {
+                                                reqLines.add(reqLine);
+                                                logDebugEntry(reqLine);
                                             }
-                                        }, 1500L);
+                                        }
+                                    }
+                                    if ("hls".equals(type) || "mp4".equals(type)) {
+                                        if (!captureReadyPosted[0]) {
+                                            captureReadyPosted[0] = true;
+                                            handler.post(new Runnable() {
+                                                @Override
+                                                public void run() {
+                                                    if (completed[0]) {
+                                                        return;
+                                                    }
+                                                    WebView wv = webViewRef[0] == null ? null : webViewRef[0].get();
+                                                    if (wv != null) {
+                                                        wv.loadUrl("about:blank");
+                                                    }
+                                                    stopCaptureLimit();
+                                                    startFetchLimit();
+                                                    finish.run();
+                                                }
+                                            });
+                                        }
                                     }
                                 }
                             }
@@ -463,6 +626,7 @@ public class StreamResolverPlugin extends Plugin {
                                         processPlaylistBody(fetchedRequest, body, playlistQualities, debug,
                                                 webViewUserAgent[0], headersBag.get("Referer"), captured);
                                         handler.post(() -> {
+                                            stopFetchLimit();
                                             fetchInProgress[0] = false;
                                             completeResolve.run();
                                         });
@@ -474,14 +638,24 @@ public class StreamResolverPlugin extends Plugin {
                                     }
                                     logAndAddDebug(debug, "BLOCKTEXT "
                                             + (visibleText.isEmpty() ? "no body" : visibleText));
+                                    stopFetchLimit();
+                                    long elapsed = System.currentTimeMillis() - startTimeMs[0];
+                                    Log.d(TAG, "RESOLVE end host=" + embedHost + " result=nostream elapsedMs=" + elapsed);
+                                    logTimeoutDiagnostics();
                                     rejectPlaylistFetch(call, webViewNativeResult[0], debug, completed);
                                 }
                             });
                             return;
                         }
                         injectJavascript(view, "(function(){try { var v=document.querySelector('video'); if(v && typeof v.muted !== 'undefined') { v.muted = true; } } catch(e) {}})();");
-                        handler.postDelayed(injectAutoPlay, 1500L);
+                        handler.postDelayed(injectAutoPlay, AUTOPLAY_DELAY_MS);
+                        handler.postDelayed(muteLoop, MUTE_INTERVAL_MS);
                         handler.postDelayed(timeout, effectiveTimeoutMs);
+                        if (!captureTimerStarted[0]) {
+                            captureTimerStarted[0] = true;
+                            captureLimitTask[0] = captureLimit;
+                            handler.postDelayed(captureLimit, CAPTURE_LIMIT_MS);
+                        }
                     }
                 });
 
@@ -489,6 +663,7 @@ public class StreamResolverPlugin extends Plugin {
             }
         });
     }
+
 
     private void dispatchTap(WebView webView) {
         if (webView == null) {
@@ -573,14 +748,6 @@ public class StreamResolverPlugin extends Plugin {
             return "subtitle";
         }
         return "other";
-    }
-
-    private boolean isCaptureReady(CapturedRequest request, boolean[] foundAny) {
-        String type = request.type;
-        if ("hls".equals(type) || "mp4".equals(type)) {
-            return true;
-        }
-        return "subtitle".equals(type) && request.url.toLowerCase(Locale.US).matches(".*\\.(vtt|srt|ass)(\\?.*)?$");
     }
 
     private Map<String, String> filterHeaders(Map<String, String> raw) {
@@ -670,8 +837,8 @@ public class StreamResolverPlugin extends Plugin {
 
             if (capturedRequests != null) {
                 int rawCount = capturedRequests.size();
-                int uniqueByPath = calculateUniqueByPath(capturedRequests);
-                String captureCountEntry = "CAPTURED-COUNT raw=" + rawCount + " uniqueByPath=" + uniqueByPath;
+                int uniqueCount = calculateUniqueByFullUrl(capturedRequests);
+                String captureCountEntry = "CAPTURED-COUNT raw=" + rawCount + " unique=" + uniqueCount;
                 if (seenDebug.add(captureCountEntry)) {
                     debugArray.put(captureCountEntry);
                     logDebugEntry(captureCountEntry);
@@ -1100,8 +1267,8 @@ public class StreamResolverPlugin extends Plugin {
         logDebugEntry(entry);
     }
 
-    private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<String> debug,
-                                     boolean[] completed) {
+private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<String> debug,
+                                      boolean[] completed) {
         if (completed[0]) {
             return;
         }
@@ -1147,6 +1314,7 @@ public class StreamResolverPlugin extends Plugin {
         };
         handler.postDelayed(timeoutTask[0], 8000L);
         Map<String, String> extraHeaders = new LinkedHashMap<String, String>();
+
         if (referer != null && !referer.trim().isEmpty()) {
             extraHeaders.put("Referer", referer);
         }
@@ -1255,9 +1423,9 @@ public class StreamResolverPlugin extends Plugin {
         if (result == null || result.body.isEmpty()) {
             return bodyPrefix + "no body";
         }
-        String clean = shortenLongTokens(result.body.replace("\r\n", "\n").replace("\r", " ⏎ ").replace("\n", " ⏎ "));
+        String clean = shortenLongTokens(result.body.replace("\r\n", " // ").replace("\r", " // ").replace("\n", " // "));
         if (clean.length() > 400) {
-            clean = clean.substring(0, 400);
+            clean = clean.substring(0, 400) + "...";
         }
         return bodyPrefix + clean;
     }
@@ -1266,17 +1434,17 @@ public class StreamResolverPlugin extends Plugin {
                                      List<String> debug, String userAgent, String referer,
                                      List<CapturedRequest> captured) {
         boolean isMaster = body.contains("#EXT-X-STREAM-INF");
-        
+
         if (!isMaster) {
-            processMediaPlaylist(request, body, qualities, debug, userAgent, referer, null, 0, null, null);
+            processSingleMediaPlaylist(request, body, qualities, debug, userAgent, referer, null);
             return;
         }
 
         String masterUrl = request.url;
         ParsedMaster parsed = parseMasterPlaylist(body, masterUrl);
-        
+
         if (parsed.variants.isEmpty()) {
-            processMediaPlaylist(request, body, qualities, debug, userAgent, referer, masterUrl, 0, null, null);
+            processSingleMediaPlaylist(request, body, qualities, debug, userAgent, referer, masterUrl);
             return;
         }
 
@@ -1288,7 +1456,7 @@ public class StreamResolverPlugin extends Plugin {
 
         ExecutorService executor = Executors.newFixedThreadPool(4);
         AtomicInteger completedCount = new AtomicInteger(0);
-        
+
         for (VariantFetchTask task : tasks) {
             executor.submit(() -> {
                 task.run();
@@ -1338,7 +1506,7 @@ public class StreamResolverPlugin extends Plugin {
         }
 
         sortQualities(finalQualities);
-        
+
         for (int i = 0; i < finalQualities.size(); i++) {
             QualityResult qr = finalQualities.get(i);
             addQualityToList(qr, qualities, debug, masterUrl, i + 1);
@@ -1348,56 +1516,38 @@ public class StreamResolverPlugin extends Plugin {
         logSubReqDebug(captured, debug);
     }
 
-    private void processMediaPlaylist(CapturedRequest request, String body, List<JSObject> qualities,
-                                      List<String> debug, String userAgent, String referer,
-                                      String masterUrl, int variantIndex, MasterVariant variant,
-                                      Map<String, List<AudioMedia>> mediaGroups) {
+    private void processSingleMediaPlaylist(CapturedRequest request, String body, List<JSObject> qualities,
+                                            List<String> debug, String userAgent, String referer,
+                                            String masterUrl) {
         ParsedMedia parsed = parseMediaPlaylist(body, request.url);
-        
+
         QualityResult result = new QualityResult();
-        if (variant != null) {
-            result.variant = variant;
-        } else {
-            MasterVariant v = new MasterVariant();
-            v.url = request.url;
-            v.resolution = "";
-            v.bandwidth = 0;
-            v.avgBandwidth = 0;
-            v.codecs = "";
-            v.audioGroup = null;
-            result.variant = v;
-        }
+        MasterVariant v = new MasterVariant();
+        v.url = request.url;
+        v.label = "Best available";
+        v.resolution = "";
+        v.bandwidth = 0;
+        v.avgBandwidth = 0;
+        v.codecs = "";
+        v.audioGroup = null;
+        result.variant = v;
         result.segmentCount = parsed.segmentCount;
         result.durationSec = parsed.durationSec;
         result.container = parsed.container;
         result.encrypted = parsed.encrypted;
         result.keyMethod = parsed.keyMethod;
         result.live = parsed.live;
-        
-        if (variant != null && variant.audioGroup != null) {
-            AudioMedia audioMedia = findAudioMedia(variant.audioGroup, mediaGroups, request.url);
-            if (audioMedia != null) {
-                ParsedMedia audioParsed = fetchAndParseMediaPlaylist(audioMedia.url, userAgent, referer);
-                if (audioParsed != null) {
-                    result.audioUrl = audioMedia.url;
-                    result.audioSegmentCount = audioParsed.segmentCount;
-                    result.audioDurationSec = audioParsed.durationSec;
-                }
-            }
-        }
 
         long bw = result.variant.avgBandwidth > 0 ? result.variant.avgBandwidth : result.variant.bandwidth;
         if (result.durationSec > 0 && bw > 0) {
             double est = (bw * result.durationSec) / 8.0;
-            if (result.audioUrl != null && result.variant.avgBandwidth <= 0) {
-                est += (128000.0 * result.durationSec) / 8.0;
-            }
             result.estBytes = Math.round(est);
         } else {
             result.estBytes = -1;
         }
 
-        addQualityToList(result, qualities, debug, masterUrl, variantIndex > 0 ? variantIndex : 1);
+        addQualityToList(result, qualities, debug, masterUrl, 1);
+        logQualityDebug(Collections.singletonList(result), debug, masterUrl);
     }
 
     private ParsedMedia fetchAndParseMediaPlaylist(String url, String userAgent, String referer) {
@@ -1425,15 +1575,15 @@ public class StreamResolverPlugin extends Plugin {
     private ParsedMaster parseMasterPlaylist(String body, String masterUrl) {
         ParsedMaster result = new ParsedMaster();
         result.masterUrl = masterUrl;
-        
+
         String[] lines = body.split("\\r?\\n");
         String pendingStreamInfo = null;
         String pendingStreamInfoLine = null;
         String currentMediaGroup = null;
-        
+
         for (String line : lines) {
             String trimmed = line.trim();
-            
+
             if (trimmed.startsWith("#EXT-X-MEDIA:")) {
                 AudioMedia am = parseAudioMedia(trimmed, masterUrl);
                 if (am != null) {
@@ -1441,13 +1591,13 @@ public class StreamResolverPlugin extends Plugin {
                 }
                 continue;
             }
-            
+
             if (trimmed.startsWith("#EXT-X-STREAM-INF:")) {
                 pendingStreamInfo = trimmed;
                 pendingStreamInfoLine = trimmed;
                 continue;
             }
-            
+
             if (pendingStreamInfo != null && !trimmed.isEmpty() && !trimmed.startsWith("#")) {
                 String variantUrl;
                 try {
@@ -1456,58 +1606,58 @@ public class StreamResolverPlugin extends Plugin {
                     pendingStreamInfo = null;
                     continue;
                 }
-                
+
                 MasterVariant variant = new MasterVariant();
                 variant.url = variantUrl;
                 variant.originalStreamInfo = pendingStreamInfoLine;
-                
+
                 Matcher resMatch = Pattern.compile("RESOLUTION=(\\d+)x(\\d+)", Pattern.CASE_INSENSITIVE).matcher(pendingStreamInfo);
                 if (resMatch.find()) {
                     variant.width = parseInt(resMatch.group(1));
                     variant.height = parseInt(resMatch.group(2));
                     variant.resolution = variant.width + "x" + variant.height;
                 }
-                
+
                 Matcher bwMatch = Pattern.compile("BANDWIDTH=(\\d+)", Pattern.CASE_INSENSITIVE).matcher(pendingStreamInfo);
                 if (bwMatch.find()) {
                     variant.bandwidth = parseLong(bwMatch.group(1));
                 }
-                
+
                 Matcher avgBwMatch = Pattern.compile("AVERAGE-BANDWIDTH=(\\d+)", Pattern.CASE_INSENSITIVE).matcher(pendingStreamInfo);
                 if (avgBwMatch.find()) {
                     variant.avgBandwidth = parseLong(avgBwMatch.group(1));
                 }
-                
+
                 Matcher codecMatch = Pattern.compile("CODECS=\"([^\"]+)\"", Pattern.CASE_INSENSITIVE).matcher(pendingStreamInfo);
                 if (codecMatch.find()) {
                     variant.codecs = codecMatch.group(1);
                 }
-                
+
                 Matcher audioMatch = Pattern.compile("AUDIO=\"([^\"]+)\"", Pattern.CASE_INSENSITIVE).matcher(pendingStreamInfo);
                 if (audioMatch.find()) {
                     variant.audioGroup = audioMatch.group(1);
                 }
-                
+
                 result.variants.add(variant);
                 pendingStreamInfo = null;
                 pendingStreamInfoLine = null;
             }
         }
-        
+
         return result;
     }
 
     private AudioMedia parseAudioMedia(String line, String masterUrl) {
         Pattern attrPattern = Pattern.compile("([A-Z-]+)=\"([^\"]*)\"", Pattern.CASE_INSENSITIVE);
         Matcher matcher = attrPattern.matcher(line);
-        
+
         String type = null;
         String groupId = null;
         String name = null;
         String language = null;
         String isDefault = null;
         String uri = null;
-        
+
         while (matcher.find()) {
             String key = matcher.group(1);
             String value = matcher.group(2);
@@ -1518,17 +1668,17 @@ public class StreamResolverPlugin extends Plugin {
             else if ("DEFAULT".equalsIgnoreCase(key)) isDefault = value;
             else if ("URI".equalsIgnoreCase(key)) uri = value;
         }
-        
+
         if (!"AUDIO".equalsIgnoreCase(type) || groupId == null) {
             return null;
         }
-        
+
         AudioMedia am = new AudioMedia();
         am.groupId = groupId;
         am.name = name;
         am.language = language;
         am.isDefault = "YES".equalsIgnoreCase(isDefault);
-        
+
         if (uri != null && !uri.isEmpty()) {
             try {
                 am.url = new URL(new URL(masterUrl), uri).toString();
@@ -1536,14 +1686,14 @@ public class StreamResolverPlugin extends Plugin {
                 am.url = uri;
             }
         }
-        
+
         return am;
     }
 
     private ParsedMedia parseMediaPlaylist(String body, String playlistUrl) {
         ParsedMedia result = new ParsedMedia();
         result.playlistUrl = playlistUrl;
-        
+
         String[] lines = body.split("\\r?\\n");
         boolean hasExtMap = false;
         boolean hasEndList = false;
@@ -1551,10 +1701,10 @@ public class StreamResolverPlugin extends Plugin {
         String keyMethod = "NONE";
         double totalDuration = 0;
         int segmentCount = 0;
-        
+
         for (String line : lines) {
             String trimmed = line.trim();
-            
+
             if (trimmed.startsWith("#EXT-X-MAP")) {
                 hasExtMap = true;
             } else if (trimmed.startsWith("#EXT-X-ENDLIST")) {
@@ -1576,14 +1726,14 @@ public class StreamResolverPlugin extends Plugin {
                 }
             }
         }
-        
+
         result.segmentCount = segmentCount;
         result.durationSec = (int) Math.round(totalDuration);
         result.container = hasExtMap ? "fmp4" : "ts";
         result.encrypted = hasKey;
         result.keyMethod = keyMethod;
         result.live = !hasEndList;
-        
+
         return result;
     }
 
@@ -1595,20 +1745,23 @@ public class StreamResolverPlugin extends Plugin {
                 int bwB = b.variant.avgBandwidth > 0 ? (int) b.variant.avgBandwidth : (int) b.variant.bandwidth;
                 int bwDiff = Integer.compare(bwB, bwA);
                 if (bwDiff != 0) return bwDiff;
-                
+
                 String codecA = a.variant.codecs != null ? a.variant.codecs.toLowerCase() : "";
                 String codecB = b.variant.codecs != null ? b.variant.codecs.toLowerCase() : "";
                 boolean avc1A = codecA.contains("avc1");
                 boolean avc1B = codecB.contains("avc1");
                 if (avc1A && !avc1B) return -1;
                 if (!avc1A && avc1B) return 1;
-                
+
                 return 0;
             }
         });
     }
 
     private String getLabel(MasterVariant variant) {
+        if (variant.label != null && !variant.label.isEmpty()) {
+            return variant.label;
+        }
         if (variant.width > 0 && variant.height > 0) {
             if (variant.width >= 1800) return "1080p";
             if (variant.width >= 1200) return "720p";
@@ -1661,7 +1814,7 @@ public class StreamResolverPlugin extends Plugin {
         }
         quality.put("live", qr.live);
         quality.put("type", "hls");
-        
+
         synchronized (qualities) {
             qualities.add(quality);
         }
@@ -1686,11 +1839,11 @@ public class StreamResolverPlugin extends Plugin {
         quality.put("live", false);
         quality.put("type", "hls");
         quality.put("error", error);
-        
+
         synchronized (qualities) {
             qualities.add(quality);
         }
-        
+
         String debugLine = "Q " + getLabel(variant) + " " + variant.resolution + " " + getCodec(variant.codecs)
                 + " | bw=" + variant.bandwidth + " | seg=null | dur=null | est=nullMB | container=unknown | enc=false | audio=false | live=false // " + error;
         logAndAddDebug(debug, debugLine);
@@ -1699,8 +1852,12 @@ public class StreamResolverPlugin extends Plugin {
     private void logQualityDebug(List<QualityResult> qualities, List<String> debug, String masterUrl) {
         for (QualityResult qr : qualities) {
             String label = getLabel(qr.variant);
-            String resolution = qr.variant.resolution;
+            String resolution = (qr.variant.resolution != null && !qr.variant.resolution.isEmpty())
+                    ? qr.variant.resolution : "unknown";
             String codec = getCodec(qr.variant.codecs);
+            if (codec == null || codec.isEmpty() || codec.equals("unknown")) {
+                codec = "unknown";
+            }
             long bw = qr.variant.avgBandwidth > 0 ? qr.variant.avgBandwidth : qr.variant.bandwidth;
             int seg = qr.segmentCount;
             int dur = qr.durationSec;
@@ -1709,7 +1866,7 @@ public class StreamResolverPlugin extends Plugin {
             String enc = qr.encrypted ? qr.keyMethod : "false";
             String audio = qr.audioUrl != null ? "true" : "false";
             String live = qr.live ? "true" : "false";
-            
+
             String line = "Q " + label + " " + resolution + " " + codec
                     + " | bw=" + bw
                     + " | seg=" + seg
@@ -1719,7 +1876,7 @@ public class StreamResolverPlugin extends Plugin {
                     + " | enc=" + enc
                     + " | audio=" + audio
                     + " | live=" + live;
-            
+
             logAndAddDebug(debug, line);
         }
     }
@@ -1728,7 +1885,7 @@ public class StreamResolverPlugin extends Plugin {
         List<String> subReqs = new ArrayList<>();
         for (CapturedRequest req : captured) {
             String lower = req.url.toLowerCase(Locale.US);
-            if (lower.contains("sub") || lower.contains("caption") || lower.contains("vtt") 
+            if (lower.contains("sub") || lower.contains("caption") || lower.contains("vtt")
                     || lower.contains("srt") || lower.contains("track") || lower.contains("cc")) {
                 try {
                     Uri uri = Uri.parse(req.url);
@@ -1779,7 +1936,7 @@ public class StreamResolverPlugin extends Plugin {
         }
     }
 
-    private int calculateUniqueByPath(List<CapturedRequest> capturedRequests) {
+    private int calculateUniqueByFullUrl(List<CapturedRequest> capturedRequests) {
         if (capturedRequests == null || capturedRequests.isEmpty()) {
             return 0;
         }
@@ -1788,29 +1945,7 @@ public class StreamResolverPlugin extends Plugin {
             if (request == null || request.url == null || request.url.trim().isEmpty()) {
                 continue;
             }
-            String host = "unknown";
-            try {
-                Uri uri = Uri.parse(request.url);
-                if (uri.getHost() != null) {
-                    host = uri.getHost();
-                }
-            } catch (Exception ignored) { }
-            String path = request.url;
-            try {
-                Uri uri = Uri.parse(request.url);
-                String encodedPath = uri.getEncodedPath();
-                if (encodedPath != null && !encodedPath.trim().isEmpty()) {
-                    path = encodedPath;
-                }
-                String query = uri.getEncodedQuery();
-                if (query != null && !query.trim().isEmpty()) {
-                    path = path + "?" + query;
-                }
-            } catch (Exception ignored) { }
-            if (path.length() > 60) {
-                path = path.substring(0, 60);
-            }
-            unique.add(host + path);
+            unique.add(request.url);
         }
         return unique.size();
     }
@@ -1933,6 +2068,7 @@ public class StreamResolverPlugin extends Plugin {
     private static class MasterVariant {
         String url;
         String originalStreamInfo;
+        String label = null;
         String resolution = "";
         int width = 0;
         int height = 0;
@@ -1983,7 +2119,7 @@ public class StreamResolverPlugin extends Plugin {
         final String userAgent;
         final String referer;
         QualityResult result;
-        
+
         VariantFetchTask(int index, MasterVariant variant, String masterUrl,
                          Map<String, List<AudioMedia>> mediaGroups, String userAgent, String referer) {
             this.index = index;
@@ -1993,25 +2129,25 @@ public class StreamResolverPlugin extends Plugin {
             this.userAgent = userAgent;
             this.referer = referer;
         }
-        
+
         @Override
         public void run() {
             result = new QualityResult();
             result.variant = variant;
-            
+
             ParsedMedia parsed = fetchAndParseMediaPlaylist(variant.url, userAgent, referer);
             if (parsed == null) {
                 result.error = "variant fetch failed";
                 return;
             }
-            
+
             result.segmentCount = parsed.segmentCount;
             result.durationSec = parsed.durationSec;
             result.container = parsed.container;
             result.encrypted = parsed.encrypted;
             result.keyMethod = parsed.keyMethod;
             result.live = parsed.live;
-            
+
             if (variant.audioGroup != null) {
                 AudioMedia audioMedia = findAudioMediaStatic(variant.audioGroup, mediaGroups, masterUrl);
                 if (audioMedia != null) {
@@ -2023,7 +2159,7 @@ public class StreamResolverPlugin extends Plugin {
                     }
                 }
             }
-            
+
             long bw = variant.avgBandwidth > 0 ? variant.avgBandwidth : variant.bandwidth;
             if (result.durationSec > 0 && bw > 0) {
                 double est = (bw * result.durationSec) / 8.0;
@@ -2035,7 +2171,7 @@ public class StreamResolverPlugin extends Plugin {
                 result.estBytes = -1;
             }
         }
-        
+
         private ParsedMedia fetchAndParseMediaPlaylist(String url, String userAgent, String referer) {
             CapturedRequest tempRequest = new CapturedRequest(url, "hls", new LinkedHashMap<String, String>());
             FetchResult fetchResult = fetchPlaylistStatic(tempRequest, userAgent, referer);
@@ -2044,7 +2180,7 @@ public class StreamResolverPlugin extends Plugin {
             }
             return null;
         }
-        
+
         private static AudioMedia findAudioMediaStatic(String groupId, Map<String, List<AudioMedia>> mediaGroups, String masterUrl) {
             List<AudioMedia> audios = mediaGroups.get(groupId);
             if (audios == null || audios.isEmpty()) {
@@ -2057,7 +2193,7 @@ public class StreamResolverPlugin extends Plugin {
             }
             return audios.get(0);
         }
-        
+
         private static FetchResult fetchPlaylistStatic(CapturedRequest request, String userAgent, String referer) {
             int code = 0;
             String contentType = null;
@@ -2136,7 +2272,7 @@ public class StreamResolverPlugin extends Plugin {
                     error, sentHeaderNames, sentCookie != null, sentCookie == null ? 0 : sentCookie.length(),
                     responseHeaders);
         }
-        
+
         private static Map<String, String> buildFetchHeadersStatic(CapturedRequest request, String userAgent, String fallbackReferer) {
             Map<String, String> headers = new LinkedHashMap<String, String>();
             for (Map.Entry<String, String> entry : request.headers.entrySet()) {
@@ -2161,7 +2297,7 @@ public class StreamResolverPlugin extends Plugin {
             setHeaderStatic(headers, "Accept-Encoding", "identity");
             return headers;
         }
-        
+
         private static boolean isRestrictedRequestHeaderStatic(String name) {
             return "Host".equalsIgnoreCase(name)
                     || "Connection".equalsIgnoreCase(name)
@@ -2169,13 +2305,13 @@ public class StreamResolverPlugin extends Plugin {
                     || "Transfer-Encoding".equalsIgnoreCase(name)
                     || "Proxy-Connection".equalsIgnoreCase(name);
         }
-        
+
         private static void putHeaderIfMissingStatic(Map<String, String> headers, String name, String value) {
             if (value != null && getHeaderStatic(headers, name) == null) {
                 headers.put(name, value);
             }
         }
-        
+
         private static void setHeaderStatic(Map<String, String> headers, String name, String value) {
             String existing = null;
             for (String key : headers.keySet()) {
@@ -2189,7 +2325,7 @@ public class StreamResolverPlugin extends Plugin {
             }
             headers.put(name, value);
         }
-        
+
         private static String joinCookiesStatic(String capturedCookie, String webViewCookie) {
             boolean hasCaptured = capturedCookie != null && !capturedCookie.trim().isEmpty();
             boolean hasWebView = webViewCookie != null;
@@ -2201,7 +2337,7 @@ public class StreamResolverPlugin extends Plugin {
             }
             return hasWebView ? webViewCookie : null;
         }
-        
+
         private static String getSetCookieNamesStatic(HttpURLConnection connection) {
             List<String> names = new ArrayList<String>();
             Map<String, List<String>> headers = connection.getHeaderFields();
@@ -2221,11 +2357,11 @@ public class StreamResolverPlugin extends Plugin {
             }
             return names.toString();
         }
-        
+
         private static String valueOrNoneStatic(String value) {
             return value == null || value.trim().isEmpty() ? "none" : value;
         }
-        
+
         private static String getHeaderStatic(Map<String, String> headers, String name) {
             if (headers == null || name == null) {
                 return null;
@@ -2237,11 +2373,11 @@ public class StreamResolverPlugin extends Plugin {
             }
             return null;
         }
-        
+
         private static String firstNonEmptyStatic(String preferred, String fallback) {
             return preferred != null && !preferred.trim().isEmpty() ? preferred : fallback;
         }
-        
+
         private static String originFromRefererStatic(String referer) {
             if (referer == null || referer.trim().isEmpty()) {
                 return "";
@@ -2253,7 +2389,7 @@ public class StreamResolverPlugin extends Plugin {
                 return "";
             }
         }
-        
+
         private static byte[] readFullyStatic(InputStream stream) throws Exception {
             if (stream == null) {
                 return new byte[0];
@@ -2267,7 +2403,7 @@ public class StreamResolverPlugin extends Plugin {
                 return output.toByteArray();
             }
         }
-        
+
         private static boolean isRedirectStatic(int code) {
             return code == HttpURLConnection.HTTP_MOVED_PERM
                     || code == HttpURLConnection.HTTP_MOVED_TEMP
@@ -2275,11 +2411,11 @@ public class StreamResolverPlugin extends Plugin {
                     || code == 307
                     || code == 308;
         }
-        
+
         private static ParsedMedia parseMediaPlaylistStatic(String body, String playlistUrl) {
             ParsedMedia result = new ParsedMedia();
             result.playlistUrl = playlistUrl;
-            
+
             String[] lines = body.split("\\r?\\n");
             boolean hasExtMap = false;
             boolean hasEndList = false;
@@ -2287,10 +2423,10 @@ public class StreamResolverPlugin extends Plugin {
             String keyMethod = "NONE";
             double totalDuration = 0;
             int segmentCount = 0;
-            
+
             for (String line : lines) {
                 String trimmed = line.trim();
-                
+
                 if (trimmed.startsWith("#EXT-X-MAP")) {
                     hasExtMap = true;
                 } else if (trimmed.startsWith("#EXT-X-ENDLIST")) {
@@ -2312,14 +2448,14 @@ public class StreamResolverPlugin extends Plugin {
                     }
                 }
             }
-            
+
             result.segmentCount = segmentCount;
             result.durationSec = (int) Math.round(totalDuration);
             result.container = hasExtMap ? "fmp4" : "ts";
             result.encrypted = hasKey;
             result.keyMethod = keyMethod;
             result.live = !hasEndList;
-            
+
             return result;
         }
     }
