@@ -151,6 +151,12 @@ public class StreamResolverPlugin extends Plugin {
         final Runnable[] fetchLimitTask = {null};
         final Runnable[] muteLoopTask = {null};
 
+        final Runnable[] stopCaptureLimitFn = new Runnable[1];
+        final Runnable[] startFetchLimitFn = new Runnable[1];
+        final Runnable[] stopFetchLimitFn = new Runnable[1];
+        final Runnable[] stopMuteLoopFn = new Runnable[1];
+        final Runnable[] logTimeoutDiagnosticsFn = new Runnable[1];
+
         final Runnable captureAutoplayCounts = new Runnable() {
             @Override
             public void run() {
@@ -158,7 +164,7 @@ public class StreamResolverPlugin extends Plugin {
                     return;
                 }
                 final WebView wv = webViewRef[0].get();
-                if (wv == null || wv.isDestroyed()) {
+                if (wv == null || wv.getParent() == null) {
                     return;
                 }
                 String script = "(function(){var v=document.querySelectorAll('video').length;var i=document.querySelectorAll('iframe').length;return v+','+i;})()";
@@ -185,36 +191,15 @@ public class StreamResolverPlugin extends Plugin {
                     return;
                 }
                 completed[0] = true;
-                stopCaptureLimit();
-                stopFetchLimit();
-                stopMuteLoop();
+                stopCaptureLimitFn[0].run();
+                stopFetchLimitFn[0].run();
+                stopMuteLoopFn[0].run();
                 long elapsed = System.currentTimeMillis() - startTimeMs[0];
                 Log.d(TAG, "RESOLVE end host=" + embedHost + " result=ok elapsedMs=" + elapsed);
                 final JSObject payload = buildPayload(captured, debug, headersBag, playlistQualities, playlistSubtitles,
                         resolvedMasterUrl[0]);
                 Log.d(TAG, "final result built");
                 call.resolve(payload);
-            }
-
-            void stopCaptureLimit() {
-                if (captureLimitTask[0] != null) {
-                    handler.removeCallbacks(captureLimitTask[0]);
-                    captureLimitTask[0] = null;
-                }
-            }
-
-            void stopFetchLimit() {
-                if (fetchLimitTask[0] != null) {
-                    handler.removeCallbacks(fetchLimitTask[0]);
-                    fetchLimitTask[0] = null;
-                }
-            }
-
-            void stopMuteLoop() {
-                if (muteLoopTask[0] != null) {
-                    handler.removeCallbacks(muteLoopTask[0]);
-                    muteLoopTask[0] = null;
-                }
             }
         };
 
@@ -244,8 +229,8 @@ public class StreamResolverPlugin extends Plugin {
                 }
                 fetchStarted[0] = true;
                 fetchInProgress[0] = true;
-                stopCaptureLimit();
-                startFetchLimit();
+                stopCaptureLimitFn[0].run();
+                startFetchLimitFn[0].run();
                 final CapturedRequest requestToFetch = playlistRequest;
                 final String capturedReferer;
                 synchronized (headersBag) {
@@ -267,7 +252,7 @@ public class StreamResolverPlugin extends Plugin {
                             handler.post(new Runnable() {
                                 @Override
                                 public void run() {
-                                    stopFetchLimit();
+                                    stopFetchLimitFn[0].run();
                                     if (checkedMp4 != null) {
                                         addMp4Quality(checkedMp4, playlistQualities);
                                     }
@@ -309,10 +294,10 @@ public class StreamResolverPlugin extends Plugin {
                             handler.post(new Runnable() {
                                 @Override
                                 public void run() {
-                                    stopFetchLimit();
+                                    stopFetchLimitFn[0].run();
                                     long elapsed = System.currentTimeMillis() - startTimeMs[0];
                                     Log.d(TAG, "RESOLVE end host=" + embedHost + " result=nostream elapsedMs=" + elapsed);
-                                    logTimeoutDiagnostics();
+                                    logTimeoutDiagnosticsFn[0].run();
                                     rejectPlaylistFetch(call, result, debug, completed);
                                 }
                             });
@@ -324,7 +309,7 @@ public class StreamResolverPlugin extends Plugin {
                         handler.post(new Runnable() {
                             @Override
                             public void run() {
-                                stopFetchLimit();
+                                stopFetchLimitFn[0].run();
                                 fetchInProgress[0] = false;
                                 completeResolve.run();
                             }
@@ -341,7 +326,7 @@ public class StreamResolverPlugin extends Plugin {
                     return;
                 }
                 completed[0] = true;
-                stopMuteLoop();
+                stopMuteLoopFn[0].run();
                 captureAutoplayCounts.run();
                 JSObject errorData = new JSObject();
                 JSArray debugArray = new JSArray();
@@ -353,7 +338,7 @@ public class StreamResolverPlugin extends Plugin {
                 errorData.put("debug", debugArray);
                 long elapsed = System.currentTimeMillis() - startTimeMs[0];
                 Log.d(TAG, "RESOLVE end host=" + embedHost + " result=timeout elapsedMs=" + elapsed);
-                logTimeoutDiagnostics();
+                logTimeoutDiagnosticsFn[0].run();
                 call.reject("No stream found", (String) null, errorData);
             }
         };
@@ -365,7 +350,7 @@ public class StreamResolverPlugin extends Plugin {
                     return;
                 }
                 completed[0] = true;
-                stopMuteLoop();
+                stopMuteLoopFn[0].run();
                 captureAutoplayCounts.run();
                 JSObject errorData = new JSObject();
                 JSArray debugArray = new JSArray();
@@ -377,7 +362,7 @@ public class StreamResolverPlugin extends Plugin {
                 errorData.put("debug", debugArray);
                 long elapsed = System.currentTimeMillis() - startTimeMs[0];
                 Log.d(TAG, "RESOLVE end host=" + embedHost + " result=timeout elapsedMs=" + elapsed);
-                logTimeoutDiagnostics();
+                logTimeoutDiagnosticsFn[0].run();
                 call.reject("No stream found", (String) null, errorData);
             }
         };
@@ -416,8 +401,8 @@ public class StreamResolverPlugin extends Plugin {
                     return;
                 }
                 final WebView wv = webViewRef[0].get();
-                if (wv == null || wv.isDestroyed()) {
-                    stopMuteLoop();
+                if (wv == null || wv.getParent() == null) {
+                    stopMuteLoopFn[0].run();
                     return;
                 }
                 if (wv != null) {
@@ -425,6 +410,65 @@ public class StreamResolverPlugin extends Plugin {
                     injectJavascript(wv, script);
                 }
                 handler.postDelayed(this, MUTE_INTERVAL_MS);
+            }
+        };
+
+        stopCaptureLimitFn[0] = new Runnable() {
+            @Override
+            public void run() {
+                if (captureLimitTask[0] != null) {
+                    handler.removeCallbacks(captureLimitTask[0]);
+                    captureLimitTask[0] = null;
+                }
+            }
+        };
+
+        startFetchLimitFn[0] = new Runnable() {
+            @Override
+            public void run() {
+                if (fetchLimitTask[0] != null) {
+                    handler.removeCallbacks(fetchLimitTask[0]);
+                }
+                fetchLimitTask[0] = fetchLimit;
+                handler.postDelayed(fetchLimit, FETCH_LIMIT_MS);
+            }
+        };
+
+        stopFetchLimitFn[0] = new Runnable() {
+            @Override
+            public void run() {
+                if (fetchLimitTask[0] != null) {
+                    handler.removeCallbacks(fetchLimitTask[0]);
+                    fetchLimitTask[0] = null;
+                }
+            }
+        };
+
+        stopMuteLoopFn[0] = new Runnable() {
+            @Override
+            public void run() {
+                if (muteLoopTask[0] != null) {
+                    handler.removeCallbacks(muteLoopTask[0]);
+                    muteLoopTask[0] = null;
+                }
+                handler.removeCallbacks(muteLoop);
+            }
+        };
+
+        logTimeoutDiagnosticsFn[0] = new Runnable() {
+            @Override
+            public void run() {
+                Log.d(TAG, "RESOLVE timeout diagnostics host=" + embedHost);
+                synchronized (debug) {
+                    for (String line : debug) {
+                        Log.d(TAG, "  " + line);
+                    }
+                }
+                synchronized (captured) {
+                    for (CapturedRequest req : captured) {
+                        Log.d(TAG, "  CAPTURED " + req.type + " " + req.url);
+                    }
+                }
             }
         };
 
@@ -588,8 +632,8 @@ public class StreamResolverPlugin extends Plugin {
                                                     if (wv != null) {
                                                         wv.loadUrl("about:blank");
                                                     }
-                                                    stopCaptureLimit();
-                                                    startFetchLimit();
+                                                    stopCaptureLimitFn[0].run();
+                                                    startFetchLimitFn[0].run();
                                                     finish.run();
                                                 }
                                             });
@@ -626,7 +670,7 @@ public class StreamResolverPlugin extends Plugin {
                                         processPlaylistBody(fetchedRequest, body, playlistQualities, debug,
                                                 webViewUserAgent[0], headersBag.get("Referer"), captured);
                                         handler.post(() -> {
-                                            stopFetchLimit();
+                                            stopFetchLimitFn[0].run();
                                             fetchInProgress[0] = false;
                                             completeResolve.run();
                                         });
@@ -638,10 +682,10 @@ public class StreamResolverPlugin extends Plugin {
                                     }
                                     logAndAddDebug(debug, "BLOCKTEXT "
                                             + (visibleText.isEmpty() ? "no body" : visibleText));
-                                    stopFetchLimit();
+                                    stopFetchLimitFn[0].run();
                                     long elapsed = System.currentTimeMillis() - startTimeMs[0];
                                     Log.d(TAG, "RESOLVE end host=" + embedHost + " result=nostream elapsedMs=" + elapsed);
-                                    logTimeoutDiagnostics();
+                                    logTimeoutDiagnosticsFn[0].run();
                                     rejectPlaylistFetch(call, webViewNativeResult[0], debug, completed);
                                 }
                             });
@@ -649,8 +693,9 @@ public class StreamResolverPlugin extends Plugin {
                         }
                         injectJavascript(view, "(function(){try { var v=document.querySelector('video'); if(v && typeof v.muted !== 'undefined') { v.muted = true; } } catch(e) {}})();");
                         handler.postDelayed(injectAutoPlay, AUTOPLAY_DELAY_MS);
+                        muteLoopTask[0] = muteLoop;
                         handler.postDelayed(muteLoop, MUTE_INTERVAL_MS);
-                        handler.postDelayed(timeout, effectiveTimeoutMs);
+                        handler.postDelayed(captureLimit, CAPTURE_LIMIT_MS);
                         if (!captureTimerStarted[0]) {
                             captureTimerStarted[0] = true;
                             captureLimitTask[0] = captureLimit;
