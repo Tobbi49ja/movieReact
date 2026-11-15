@@ -8,6 +8,7 @@ export const resume = (id, req = {}) => Downloader.resume({ id, ...req });
 export const cancel = (id) => Downloader.cancel({ id });
 export const list = () => Downloader.list();
 export const storageInfo = () => Downloader.storageInfo();
+export const play = (path) => Downloader.play({ path });
 
 let initialized = false;
 let handles = [];

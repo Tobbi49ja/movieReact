@@ -185,4 +185,39 @@ public class DownloaderPlugin extends Plugin {
         payload.put("freeBytes", freeBytes);
         call.resolve(payload);
     }
+
+    @PluginMethod
+    public void play(PluginCall call) {
+        String path = call.getString("path");
+        if (path == null || path.isEmpty()) {
+            call.reject("INVALID");
+            return;
+        }
+        try {
+            File file = new File(path);
+            String canonical = file.getCanonicalPath();
+            String base = null;
+            File ext = getContext().getExternalFilesDir(null);
+            File internal = getContext().getFilesDir();
+            String extCanonical = ext != null ? ext.getCanonicalPath() : null;
+            String intCanonical = internal != null ? internal.getCanonicalPath() : null;
+            if (extCanonical != null && canonical.startsWith(extCanonical)) {
+                base = extCanonical;
+            } else if (intCanonical != null && canonical.startsWith(intCanonical)) {
+                base = intCanonical;
+            }
+            if (base == null || !file.exists()) {
+                call.reject("NOT_FOUND");
+                return;
+            }
+        } catch (java.io.IOException e) {
+            call.reject("NOT_FOUND");
+            return;
+        }
+        Intent intent = new Intent(getContext(), PlayerActivity.class)
+                .putExtra("EXTRA_PATH", path)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        getContext().startActivity(intent);
+        call.resolve();
+    }
 }
