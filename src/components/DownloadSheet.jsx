@@ -115,14 +115,22 @@ export default function DownloadSheet({
     if (!selectedQuality) return;
     const id = makeId();
     try {
+      const headers = resolverHeaders || {};
+      const h = (n) => { const k = Object.keys(headers).find((x) => x.toLowerCase() === n); return k ? headers[k] : ""; };
       await start({
+        ...selectedQuality,
+        referer: h("referer") || h("referrer"),
+        userAgent: h("user-agent"),
+        cookie: h("cookie"),
+        bandwidth: selectedQuality.bandwidth ?? selectedQuality.avgBandwidth ?? 0,
+        initUrl: selectedQuality.initUrl || "",
         id,
         title: title || "Download",
         poster: poster || "",
         label: selectedQuality.label || "",
         estBytes: selectedQuality.estBytes,
         quality: selectedQuality,
-        headers: resolverHeaders || {},
+        headers,
       });
       addDownload({
         id,
