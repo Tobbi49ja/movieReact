@@ -333,6 +333,36 @@ body:has(.downloads-page) footer {
   color: #ff8d8d;
 }
 
+.downloads-retry-btn {
+  margin-left: 8px;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 141, 141, 0.4);
+  border-radius: 8px;
+  background: rgba(229, 9, 20, 0.12);
+  color: #ffb4b4;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.downloads-retry-btn:hover {
+  background: rgba(229, 9, 20, 0.2);
+}
+
+.downloads-play-btn {
+  align-self: flex-start;
+  margin-top: 0.2rem;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--downloads-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
 @media (min-width: 640px) {
   .downloads-page {
     padding-top: 1.25rem;

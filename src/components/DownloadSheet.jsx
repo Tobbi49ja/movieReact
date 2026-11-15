@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { resolveSources } from "../lib/resolver";
+import { start } from "../lib/downloader";
+import { addDownload } from "../lib/downloads";
+
+function makeId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
 
 const parseQualityRank = (quality) => {
   const bandwidth = Number(quality?.avgBandwidth ?? quality?.bandwidth);
@@ -25,6 +32,7 @@ export default function DownloadSheet({
   season,
   episode,
   title,
+  poster,
   onClose,
 }) {
   const [status, setStatus] = useState("preparing");
@@ -34,6 +42,7 @@ export default function DownloadSheet({
   const [selectedSubtitle, setSelectedSubtitle] = useState("none");
   const [error, setError] = useState("");
   const [retryToken, setRetryToken] = useState(0);
+  const [resolverHeaders, setResolverHeaders] = useState({});
   const cancelledRef = useRef(false);
 
   const normalizedType = String(type || "movie").trim() || "movie";
@@ -64,6 +73,7 @@ export default function DownloadSheet({
 
         setQualities(sortedQualities);
         setSubtitles(nextSubtitles);
+        setResolverHeaders(result?.headers || {});
 
         if (sortedQualities.length > 0) {
           setSelectedQuality(sortedQualities[0]);
@@ -101,9 +111,37 @@ export default function DownloadSheet({
     onClose?.();
   };
 
-  const handleDownload = () => {
-    onClose?.();
-    toast("Downloader coming next");
+  const handleDownload = async () => {
+    if (!selectedQuality) return;
+    const id = makeId();
+    try {
+      await start({
+        id,
+        title: title || "Download",
+        poster: poster || "",
+        label: selectedQuality.label || "",
+        estBytes: selectedQuality.estBytes,
+        quality: selectedQuality,
+        headers: resolverHeaders || {},
+      });
+      addDownload({
+        id,
+        tmdbId: tmdbId ?? null,
+        type: normalizedType,
+        season: season ?? null,
+        episode: episode ?? null,
+        title: title || "Download",
+        poster: poster || "",
+        quality: selectedQuality.label || selectedQuality.quality || "",
+        status: "queued",
+        progress: 0,
+      });
+      onClose?.();
+      toast("Download started");
+    } catch (e) {
+      setError(e?.message || "Failed to start download.");
+      setStatus("error");
+    }
   };
 
   const showBestAvailable = sortedQualities.length === 1;

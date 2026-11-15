@@ -85,6 +85,13 @@ export function updateDownload(id, patch = {}) {
   return next.find((entry) => entry.id === id) || null;
 }
 
+export function mergeDownload(item = {}) {
+  if (!item.id) return null;
+  const existing = getDownloads().find((d) => d.id === item.id);
+  if (existing) return updateDownload(item.id, item);
+  return addDownload(item);
+}
+
 export function removeDownload(id) {
   const entries = readDownloads().filter((entry) => entry.id !== id);
   writeDownloads(entries);

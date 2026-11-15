@@ -6,7 +6,9 @@ import Sidebar from "./components/Sidebar";
 import { ContentModeProvider } from "./context/ContentModeContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { AuthProvider } from "./context/AuthContext";
-import React, { Suspense, lazy } from "react";
+import React, { Suspense, lazy, useEffect } from "react";
+import { Capacitor } from "@capacitor/core";
+import { initDownloader } from "./lib/downloader";
 
 import useScrollGlow from "./hooks/useScrollGlow";
 
@@ -40,6 +42,9 @@ import './styles/sidebar.css';
 
 function App() {
     useScrollGlow();
+    useEffect(() => {
+      if (Capacitor.isNativePlatform()) initDownloader();
+    }, []);
   return (
     <ContentModeProvider>
       <>

@@ -1693,26 +1693,14 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
     }
 
     private AudioMedia parseAudioMedia(String line, String masterUrl) {
-        Pattern attrPattern = Pattern.compile("([A-Z-]+)=\"([^\"]*)\"", Pattern.CASE_INSENSITIVE);
-        Matcher matcher = attrPattern.matcher(line);
+        Map<String, String> attrs = parseAttributes(line);
 
-        String type = null;
-        String groupId = null;
-        String name = null;
-        String language = null;
-        String isDefault = null;
-        String uri = null;
-
-        while (matcher.find()) {
-            String key = matcher.group(1);
-            String value = matcher.group(2);
-            if ("TYPE".equalsIgnoreCase(key)) type = value;
-            else if ("GROUP-ID".equalsIgnoreCase(key)) groupId = value;
-            else if ("NAME".equalsIgnoreCase(key)) name = value;
-            else if ("LANGUAGE".equalsIgnoreCase(key)) language = value;
-            else if ("DEFAULT".equalsIgnoreCase(key)) isDefault = value;
-            else if ("URI".equalsIgnoreCase(key)) uri = value;
-        }
+        String type = attrs.get("TYPE");
+        String groupId = attrs.get("GROUP-ID");
+        String name = attrs.get("NAME");
+        String language = attrs.get("LANGUAGE");
+        String isDefault = attrs.get("DEFAULT");
+        String uri = attrs.get("URI");
 
         if (!"AUDIO".equalsIgnoreCase(type) || groupId == null) {
             return null;
@@ -1733,6 +1721,39 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
         }
 
         return am;
+    }
+
+    private Map<String, String> parseAttributes(String line) {
+        Map<String, String> attrs = new LinkedHashMap<>();
+        int i = 0;
+        int n = line.length();
+        while (i < n) {
+            while (i < n && Character.isWhitespace(line.charAt(i))) i++;
+            if (i >= n) break;
+            int keyStart = i;
+            while (i < n && (Character.isLetterOrDigit(line.charAt(i)) || line.charAt(i) == '-')) i++;
+            String key = line.substring(keyStart, i).toUpperCase(Locale.US);
+            while (i < n && Character.isWhitespace(line.charAt(i))) i++;
+            if (i >= n || line.charAt(i) != '=') break;
+            i++;
+            while (i < n && Character.isWhitespace(line.charAt(i))) i++;
+            if (i >= n) break;
+            String value;
+            if (line.charAt(i) == '"') {
+                i++;
+                int valueStart = i;
+                while (i < n && line.charAt(i) != '"') i++;
+                value = line.substring(valueStart, i);
+                if (i < n && line.charAt(i) == '"') i++;
+            } else {
+                int valueStart = i;
+                while (i < n && line.charAt(i) != ',' && !Character.isWhitespace(line.charAt(i))) i++;
+                value = line.substring(valueStart, i);
+            }
+            attrs.put(key, value);
+            while (i < n && (Character.isWhitespace(line.charAt(i)) || line.charAt(i) == ',')) i++;
+        }
+        return attrs;
     }
 
     private ParsedMedia parseMediaPlaylist(String body, String playlistUrl) {
@@ -1909,7 +1930,12 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
             String est = qr.estBytes >= 0 ? String.format(Locale.US, "%.1f", qr.estBytes / 1024.0 / 1024.0) : "null";
             String container = qr.container;
             String enc = qr.encrypted ? qr.keyMethod : "false";
-            String audio = qr.audioUrl != null ? "true" : "false";
+            String audio;
+            if (qr.audioUrl != null) {
+                audio = "true(seg=" + qr.audioSegmentCount + ",dur=" + qr.audioDurationSec + ")";
+            } else {
+                audio = "false";
+            }
             String live = qr.live ? "true" : "false";
 
             String line = "Q " + label + " " + resolution + " " + codec
@@ -2201,7 +2227,11 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
                         result.audioUrl = audioMedia.url;
                         result.audioSegmentCount = audioParsed.segmentCount;
                         result.audioDurationSec = audioParsed.durationSec;
+                    } else {
+                        result.error = "AUDIO fail group=" + variant.audioGroup + " reason=fetch failed";
                     }
+                } else {
+                    result.error = "AUDIO fail group=" + variant.audioGroup + " reason=not found";
                 }
             }
 

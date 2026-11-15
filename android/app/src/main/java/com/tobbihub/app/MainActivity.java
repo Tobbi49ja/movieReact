@@ -74,6 +74,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(MediaSnifferPlugin.class);
         registerPlugin(StreamResolverPlugin.class);
+        registerPlugin(DownloaderPlugin.class);
         super.onCreate(savedInstanceState);
 
         Bridge bridge = getBridge();
@@ -81,6 +82,8 @@ public class MainActivity extends BridgeActivity {
         WebSettings webSettings = webview.getSettings();
         webSettings.setSupportMultipleWindows(true);
         webSettings.setJavaScriptCanOpenWindowsAutomatically(true);
+
+        handleRouteIntent(getIntent());
 
         webview.setDownloadListener(new DownloadListener() {
             @Override
@@ -186,5 +189,51 @@ public class MainActivity extends BridgeActivity {
                 return true;
             }
         });
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleRouteIntent(intent);
+    }
+
+    private void handleRouteIntent(Intent intent) {
+        if (intent != null && intent.hasExtra("route")) {
+            String route = intent.getStringExtra("route");
+            if (route != null && !route.isEmpty()) {
+                Bridge bridge = getBridge();
+                if (bridge != null && bridge.getWebView() != null) {
+                    String js = "window.history.pushState({},''," + escapeJsString(route) + ");window.dispatchEvent(new PopStateEvent('popstate'));";
+                    bridge.getWebView().evaluateJavascript(js, null);
+                } else {
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> handleRouteIntent(intent), 100);
+                }
+            }
+        }
+    }
+
+    private String escapeJsString(String s) {
+        StringBuilder sb = new StringBuilder();
+        sb.append('"');
+        for (char c : s.toCharArray()) {
+            switch (c) {
+                case '"': sb.append("\\\""); break;
+                case '\\': sb.append("\\\\"); break;
+                case '\n': sb.append("\\n"); break;
+                case '\r': sb.append("\\r"); break;
+                case '\t': sb.append("\\t"); break;
+                case '\b': sb.append("\\b"); break;
+                case '\f': sb.append("\\f"); break;
+                default:
+                    if (c < 0x20) {
+                        sb.append(String.format("\\u%04x", (int) c));
+                    } else {
+                        sb.append(c);
+                    }
+            }
+        }
+        sb.append('"');
+        return sb.toString();
     }
 }
