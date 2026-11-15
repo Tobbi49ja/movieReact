@@ -65,13 +65,15 @@ public class DownloadService extends Service {
                 if (sink != null) sink.onProgress(p);
                 String id = p.optString("id");
                 int percent = p.optInt("percent");
+                long bytesDone = p.optLong("bytesDone");
+                long totalBytes = p.optLong("totalBytes");
                 long speedBps = p.optLong("speedBps");
                 long now = System.currentTimeMillis();
                 if (now - lastProgressLogTime >= 10000) {
-                    Log.d(TAG, "Progress: " + id + " " + percent + "% " + (speedBps / 1024 / 1024) + " MB/s");
+                    Log.d(TAG, "Progress: " + id + " " + percent + "% " + formatSpeed(speedBps));
                     lastProgressLogTime = now;
                 }
-                updateNotification(id, percent, speedBps);
+                updateNotification(id, percent, bytesDone, totalBytes, speedBps);
             }
 
             @Override
@@ -155,33 +157,45 @@ public class DownloadService extends Service {
         return START_NOT_STICKY;
     }
 
+    private String formatSpeed(long speedBps) {
+        if (speedBps <= 0) return "—";
+        double mbps = speedBps / (1024.0 * 1024.0);
+        if (mbps >= 1.0) return String.format(java.util.Locale.US, "%.1f MB/s", mbps);
+        return Math.round(speedBps / 1024.0) + " KB/s";
+    }
+
+    private String formatBytes(long bytes) {
+        if (bytes <= 0) return "0 MB";
+        return Math.round(bytes / (1024.0 * 1024.0)) + " MB";
+    }
+
     private void startForegroundIfNeeded() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, buildOngoingNotification(0, 0), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+            startForeground(NOTIFICATION_ID, buildOngoingNotification(0, 0, 0, 0), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
         } else {
-            startForeground(NOTIFICATION_ID, buildOngoingNotification(0, 0));
+            startForeground(NOTIFICATION_ID, buildOngoingNotification(0, 0, 0, 0));
         }
     }
 
-    private void updateNotification(String id, int percent, long speedBps) {
+    private void updateNotification(String id, int percent, long bytesDone, long totalBytes, long speedBps) {
         long now = System.currentTimeMillis();
         if (now - lastNotificationUpdate < PROGRESS_UPDATE_INTERVAL_MS) return;
         lastNotificationUpdate = now;
-        String text = percent + "% - " + (speedBps / 1024 / 1024) + " MB/s";
-        Notification notification = buildOngoingNotification(percent, speedBps);
+        Notification notification = buildOngoingNotification(percent, bytesDone, totalBytes, speedBps);
         notificationManager.notify(NOTIFICATION_ID, notification);
     }
 
-    private Notification buildOngoingNotification(int percent, long speedBps) {
+    private Notification buildOngoingNotification(int percent, long bytesDone, long totalBytes, long speedBps) {
         Intent pauseIntent = new Intent(this, DownloadService.class).setAction(ACTION_PAUSE).putExtra(EXTRA_ID, getAnyActiveId());
         Intent cancelIntent = new Intent(this, DownloadService.class).setAction(ACTION_CANCEL).putExtra(EXTRA_ID, getAnyActiveId());
         int flags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0;
         PendingIntent pausePi = PendingIntent.getService(this, 0, pauseIntent, flags);
         PendingIntent cancelPi = PendingIntent.getService(this, 1, cancelIntent, flags);
+        String text = percent + "% • " + formatBytes(bytesDone) + " / " + formatBytes(totalBytes) + " • " + formatSpeed(speedBps);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ONGOING)
                 .setContentTitle(currentTitle.isEmpty() ? "Downloading" : currentTitle)
-                .setContentText(percent + "% - " + (speedBps / 1024 / 1024) + " MB/s")
+                .setContentText(text)
                 .setSmallIcon(android.R.drawable.stat_sys_download)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)

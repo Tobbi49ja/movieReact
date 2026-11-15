@@ -16,6 +16,10 @@ import java.io.FileOutputStream;
 
 public class HttpUtil {
 
+    public static class PausedException extends IOException {
+        public PausedException() { super("Download paused"); }
+    }
+
     public static class Result {
         public int code;
         public String body;
@@ -128,7 +132,7 @@ public class HttpUtil {
         return result;
     }
 
-    public static int downloadToFile(String url, Map<String, String> headers, File dest, AtomicBoolean cancel, AtomicLong bytes) throws IOException {
+    public static int downloadToFile(String url, Map<String, String> headers, File dest, AtomicBoolean cancel, AtomicBoolean pause, AtomicLong bytes) throws IOException {
         int redirects = 0;
         URL currentUrl;
         try {
@@ -185,6 +189,9 @@ public class HttpUtil {
                         if (cancel != null && cancel.get()) {
                             throw new IOException("Download cancelled");
                         }
+                        if (pause != null && pause.get()) {
+                            throw new PausedException();
+                        }
                         fos.write(buffer, 0, len);
                         if (bytes != null) {
                             bytes.addAndGet(len);
@@ -201,6 +208,9 @@ public class HttpUtil {
                 }
             }
             throw new IOException("Too many redirects");
+        } catch (PausedException pe) {
+            if (dest != null) dest.delete();
+            throw pe;
         } finally {
             if (fos != null) {
                 try {

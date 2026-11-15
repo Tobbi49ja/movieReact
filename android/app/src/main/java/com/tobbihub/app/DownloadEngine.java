@@ -237,13 +237,14 @@ public class DownloadEngine {
         }
     }
 
-    private void notifyProgress(String id, int percent, long bytesDone, long speedBps, int segDone, int segTotal, long etaSec) {
+    private void notifyProgress(String id, int percent, long bytesDone, long totalBytes, long speedBps, int segDone, int segTotal, long etaSec) {
         if (listener != null) {
             JSONObject p = new JSONObject();
             try {
                 p.put("id", id);
                 p.put("percent", percent);
                 p.put("bytesDone", bytesDone);
+                p.put("totalBytes", totalBytes);
                 p.put("speedBps", speedBps);
                 p.put("segDone", segDone);
                 p.put("segTotal", segTotal);
@@ -282,6 +283,13 @@ public class DownloadEngine {
         private final AtomicBoolean cancelled = new AtomicBoolean(false);
         private final AtomicInteger consecutiveAuthErrors = new AtomicInteger(0);
         private Future<?> downloadFuture;
+        private long[] lastProgressBytesRef;
+        private long[] lastProgressTimeRef;
+        private long[] speedWindowBytes;
+        private int[] speedWindowIndex;
+        private volatile long lastSpeedBps = 0;
+        private final AtomicBoolean firstSegmentLogged = new AtomicBoolean(false);
+        private long downloadStartMs = 0;
         private long lastProgressTime = 0;
         private long lastProgressBytes = 0;
 
@@ -309,6 +317,13 @@ public class DownloadEngine {
 
         void resume(JSONObject newReq) {
             paused.set(false);
+            synchronized (manifest) {
+                java.util.Arrays.fill(speedWindowBytes, 0);
+                speedWindowIndex[0] = 0;
+                lastProgressBytesRef[0] = manifest.bytesDone;
+                lastProgressTimeRef[0] = System.currentTimeMillis();
+            }
+            Log.d("Downloader", "Download resumed: " + id);
             manifest.status = "downloading";
             manifest.updatedAt = System.currentTimeMillis();
             manifest.save(folder);
@@ -427,9 +442,13 @@ public class DownloadEngine {
             final long[] lastProgressTime = {System.currentTimeMillis()};
             final long[] speedWindowBytes = new long[5];
             final int[] speedWindowIndex = {0};
+            this.lastProgressBytesRef = lastProgressBytes;
+            this.lastProgressTimeRef = lastProgressTime;
+            this.speedWindowBytes = speedWindowBytes;
+            this.speedWindowIndex = speedWindowIndex;
 
             Runnable progressTask = () -> {
-                if (cancelled.get()) return;
+                if (cancelled.get() || paused.get()) return;
                 synchronized (manifest) {
                     long bytesDone = manifest.bytesDone;
                     int segDone = manifest.segDone;
@@ -450,13 +469,20 @@ public class DownloadEngine {
                     long totalSpeed = 0;
                     for (long b : speedWindowBytes) totalSpeed += b;
                     long speedBps = totalSpeed / 5;
+                    lastSpeedBps = speedBps;
 
                     int totalSegs = segTotal + audioSegTotal;
                     int doneSegs = segDone + audioSegDone;
                     int percent = totalSegs > 0 ? (doneSegs * 100 / totalSegs) : 0;
-                    long etaSec = speedBps > 0 && manifest.estBytes > 0 ? (manifest.estBytes - bytesDone) / speedBps : 0;
+                    long totalBytes = manifest.estBytes;
+                    if (doneSegs >= 3 && totalSegs > 0) {
+                        totalBytes = (bytesDone * (long) totalSegs) / doneSegs;
+                        manifest.estBytes = totalBytes;
+                    }
+                    long etaSec = speedBps > 0 && totalBytes > 0 ? (totalBytes - bytesDone) / speedBps : 0;
+                    if (etaSec < 0) etaSec = 0;
 
-                    notifyProgress(id, percent, bytesDone, speedBps, doneSegs, totalSegs, etaSec);
+                    notifyProgress(id, percent, bytesDone, totalBytes, speedBps, doneSegs, totalSegs, etaSec);
                 }
             };
 
@@ -484,6 +510,7 @@ public class DownloadEngine {
                     }
                 }
 
+                downloadStartMs = System.currentTimeMillis();
                 for (int i = 0; i < manifest.segTotal; i++) {
                     if (cancelled.get()) break;
                     while (paused.get() && !cancelled.get()) {
@@ -502,6 +529,7 @@ public class DownloadEngine {
                                 manifest.segDone++;
                                 manifest.bytesDone += finalFile.length();
                                 manifest.updatedAt = System.currentTimeMillis();
+                                onSegCompleted(manifest.segDone, manifest.segTotal);
                             }
                             return;
                         }
@@ -512,6 +540,7 @@ public class DownloadEngine {
                                     manifest.segDone++;
                                     manifest.bytesDone += finalFile.length();
                                     manifest.updatedAt = System.currentTimeMillis();
+                                    onSegCompleted(manifest.segDone, manifest.segTotal);
                                 }
                             }
                         } else if (code == 401 || code == 403 || code == 410) {
@@ -543,6 +572,7 @@ public class DownloadEngine {
                                     manifest.audioSegDone++;
                                     manifest.bytesDone += finalFile.length();
                                     manifest.updatedAt = System.currentTimeMillis();
+                                    onSegCompleted(manifest.segDone + manifest.audioSegDone, manifest.segTotal + manifest.audioSegTotal);
                                 }
                                 return;
                             }
@@ -553,6 +583,7 @@ public class DownloadEngine {
                                         manifest.audioSegDone++;
                                         manifest.bytesDone += finalFile.length();
                                         manifest.updatedAt = System.currentTimeMillis();
+                                        onSegCompleted(manifest.segDone + manifest.audioSegDone, manifest.segTotal + manifest.audioSegTotal);
                                     }
                                 }
                             } else if (code == 401 || code == 403 || code == 410) {
@@ -599,6 +630,7 @@ public class DownloadEngine {
         private List<String> parsedSegmentUrls;
 
         private int downloadWithRetries(String url, Map<String, String> headers, File dest, int segIndex) {
+            String host = hostOnly(url);
             for (int attempt = 0; attempt <= MAX_RETRIES; attempt++) {
                 if (cancelled.get()) return 0;
                 while (paused.get() && !cancelled.get()) {
@@ -608,11 +640,15 @@ public class DownloadEngine {
 
                 try {
                     AtomicLong bytes = new AtomicLong(0);
-                    int code = HttpUtil.downloadToFile(url, headers, dest, cancelled, bytes);
+                    int code = HttpUtil.downloadToFile(url, headers, dest, cancelled, paused, bytes);
                     if (code >= 200 && code < 300) {
                         consecutiveAuthErrors.set(0);
+                        if (segIndex >= 0 && firstSegmentLogged.compareAndSet(false, true)) {
+                            Log.d("Downloader", "SEG first ok idx=" + segIndex + " bytes=" + bytes.get() + " ms=" + (System.currentTimeMillis() - downloadStartMs));
+                        }
                         return code;
                     }
+                    if (segIndex >= 0) Log.d("Downloader", "SEG fail idx=" + segIndex + " http=" + code + " attempt=" + attempt + " host=" + host);
                     if (code == 401 || code == 403 || code == 410) {
                         int count = consecutiveAuthErrors.incrementAndGet();
                         if (count >= CONSECUTIVE_AUTH_ERRORS_LIMIT) {
@@ -623,7 +659,13 @@ public class DownloadEngine {
                     if (attempt < MAX_RETRIES) {
                         Thread.sleep(RETRY_DELAYS_MS[attempt]);
                     }
+                } catch (HttpUtil.PausedException e) {
+                    attempt--;
+                    while (paused.get() && !cancelled.get()) {
+                        try { Thread.sleep(200); } catch (InterruptedException ignored) {}
+                    }
                 } catch (IOException e) {
+                    if (segIndex >= 0) Log.d("Downloader", "SEG error idx=" + segIndex + " attempt=" + attempt + " " + e.getClass().getSimpleName() + " " + e.getMessage());
                     if (attempt < MAX_RETRIES) {
                         try { Thread.sleep(RETRY_DELAYS_MS[attempt]); } catch (InterruptedException ignored) {}
                     }
@@ -635,7 +677,18 @@ public class DownloadEngine {
             return 0;
         }
 
+        private String hostOnly(String url) {
+            try { return new java.net.URL(url).getHost(); } catch (Exception e) { return ""; }
+        }
+
+        private void onSegCompleted(int done, int total) {
+            if (done > 0 && done % 10 == 0) {
+                Log.d("Downloader", "SEGS done=" + done + "/" + total + " bytes=" + manifest.bytesDone + " speedBps=" + lastSpeedBps);
+            }
+        }
+
         private void complete() {
+            Log.d("Downloader", "Finalize start " + id);
             manifest.status = "done";
             manifest.updatedAt = System.currentTimeMillis();
             manifest.save(folder);
@@ -651,6 +704,7 @@ public class DownloadEngine {
                 Log.e(TAG, "Finalizer error", e);
             }
 
+            Log.d("Downloader", "Finalize end " + id);
             notifyComplete(id, folder.getAbsolutePath(), manifest.size);
         }
 
