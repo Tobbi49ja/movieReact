@@ -3,9 +3,7 @@ package com.tobbihub.app;
 import android.app.Activity;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
-import android.media.MediaController;
 import android.media.MediaPlayer;
-import android.media.VideoView;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -13,7 +11,9 @@ import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.MediaController;
 import android.widget.Toast;
+import android.widget.VideoView;
 
 import java.io.File;
 
@@ -110,7 +110,7 @@ public class PlayerActivity extends Activity {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
             WindowInsetsController controller = getWindow().getInsetsController();
             if (controller != null) {
-                controller.hide(WindowInsetsController.TYPE_STATUS_BAR | WindowInsetsController.TYPE_NAVIGATION_BAR);
+                controller.hide(android.view.WindowInsets.Type.statusBars() | android.view.WindowInsets.Type.navigationBars());
                 controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
             }
         } else {
