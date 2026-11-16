@@ -16,6 +16,37 @@ function formatSpeed(bps) {
   return `${(bps / (1024 * 1024)).toFixed(1)} MB/s`;
 }
 
+function formatBytes(bytes) {
+  const n = Number(bytes);
+  if (!Number.isFinite(n) || n <= 0) return "—";
+  const gb = n / (1024 * 1024 * 1024);
+  if (gb >= 1) return `${gb.toFixed(1)} GB`;
+  const mb = n / (1024 * 1024);
+  return `${mb >= 100 ? Math.round(mb) : mb.toFixed(1)} MB`;
+}
+
+function firstPositive(...values) {
+  for (const value of values) {
+    const n = Number(value);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return 0;
+}
+
+function resolveSizeBytes(download) {
+  if (download.status === "done") {
+    return firstPositive(download.size, download.totalBytes, download.bytesDone);
+  }
+  return firstPositive(
+    download.totalBytes,
+    download.estBytes,
+    download.quality?.estBytes,
+    download.selectedQuality?.estBytes,
+    download.size,
+    download.bytesDone
+  );
+}
+
 const FRIENDLY = {
   ENCRYPTED: "This stream is encrypted and cannot be downloaded.",
   LIVE: "Live streams can't be downloaded.",
@@ -151,7 +182,7 @@ export default function DownloadsPage() {
                     <div className="downloads-card-meta">
                       <span className="downloads-card-quality">
                         {download.quality || "1080p"}
-                        {download.size ? ` • ${download.size}` : ""}
+                        {download.status === "failed" ? " • Failed" : ` • ${formatBytes(resolveSizeBytes(download))}`}
                       </span>
                       <span className={`downloads-card-status ${download.status}`}>
                         {formatStatus(download.status)}

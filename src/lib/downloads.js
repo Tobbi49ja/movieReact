@@ -1,5 +1,8 @@
+import { Capacitor, registerPlugin } from "@capacitor/core";
+
 const STORAGE_KEY = "tobbihub_downloads";
 const listeners = new Set();
+let progressWired = false;
 
 function getStorage() {
   if (typeof window === "undefined") return null;
@@ -48,7 +51,38 @@ export function getDownloads() {
   return readDownloads();
 }
 
+function resolveTotalBytes(event, existing) {
+  const direct = Number(event?.totalBytes);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  const done = Number(event?.bytesDone);
+  const percent = Number(event?.percent);
+  if (Number.isFinite(done) && done > 0 && Number.isFinite(percent) && percent > 0) {
+    return Math.round(done / (percent / 100));
+  }
+  return Number(existing?.totalBytes) || 0;
+}
+
+function wireProgressListener() {
+  if (progressWired || typeof window === "undefined") return;
+  if (!Capacitor.isNativePlatform()) return;
+  progressWired = true;
+  try {
+    const plugin = registerPlugin("Downloader");
+    Promise.resolve(plugin.addListener("downloadProgress", (event) => {
+      if (!event || !event.id) return;
+      const existing = getDownloads().find((d) => d.id === event.id);
+      updateDownload(event.id, {
+        bytesDone: Number.isFinite(event.bytesDone) ? event.bytesDone : (existing?.bytesDone ?? 0),
+        totalBytes: resolveTotalBytes(event, existing) || Number(existing?.totalBytes) || 0,
+      });
+    })).catch(() => {});
+  } catch {
+    progressWired = false;
+  }
+}
+
 export function addDownload(download = {}) {
+  wireProgressListener();
   const entries = readDownloads();
   const entry = {
     id: download.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -63,6 +97,11 @@ export function addDownload(download = {}) {
     progress: Number.isFinite(download.progress) ? Math.min(Math.max(download.progress, 0), 100) : 0,
     path: download.path || "",
     size: download.size || "",
+    totalBytes: Number.isFinite(download.totalBytes) ? download.totalBytes : 0,
+    bytesDone: Number.isFinite(download.bytesDone) ? download.bytesDone : 0,
+    estBytes: Number.isFinite(download.estBytes)
+      ? download.estBytes
+      : (Number(download.quality?.estBytes) || Number(download.selectedQuality?.estBytes) || 0),
     createdAt: download.createdAt || new Date().toISOString(),
     ...download,
   };

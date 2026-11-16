@@ -4,6 +4,7 @@ import android.media.MediaCodec;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
 import android.media.MediaMuxer;
+import android.util.Log;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -19,6 +20,10 @@ public class Finalizer {
 
     public static void run(File dir, DownloadManifest m, DownloadEngine.Listener l) {
         try {
+            String sniffed = sniffContainer(dir);
+            if (sniffed != null) {
+                m.container = sniffed;
+            }
             if ("fmp4".equals(m.container) && m.hasAudio) {
                 handleFmp4WithAudio(dir, m, l);
             } else if ("ts".equals(m.container)) {
@@ -54,9 +59,19 @@ public class Finalizer {
         concatenateFiles(audioInit, audioSegs, audioMp4);
 
         File outFile = new File(dir, "movie.mp4");
-        muxVideoAudio(videoMp4, audioMp4, outFile);
+        try {
+            muxVideoAudio(videoMp4, audioMp4, outFile);
+        } catch (Exception e) {
+            Log.d("Downloader", "remux failed, kept fragmented mp4");
+            if (outFile.exists()) {
+                outFile.delete();
+            }
+            if (!videoMp4.renameTo(outFile)) {
+                throw new IllegalStateException("Output file is empty");
+            }
+        }
 
-        if (outFile.length() <= 0) {
+        if (!outFile.exists() || outFile.length() <= 0) {
             throw new IllegalStateException("Output file is empty");
         }
 
@@ -109,40 +124,80 @@ public class Finalizer {
 
     private static void handleFmp4VideoOnly(File dir, DownloadManifest m, DownloadEngine.Listener l) throws Exception {
         File initFile = new File(dir, "init.mp4");
+        File rawFile = new File(dir, "movie_raw.mp4");
         File outFile = new File(dir, "movie.mp4");
         List<File> segFiles = collectSegments(dir);
 
-        try (FileOutputStream fos = new FileOutputStream(outFile, false);
-             FileChannel out = fos.getChannel()) {
-            if (initFile.exists()) {
-                transferFile(initFile, out);
-            }
-            for (File seg : segFiles) {
-                transferFile(seg, out);
-            }
-        }
+        concatenateFiles(initFile, segFiles, rawFile);
 
-        if (outFile.length() <= 0) {
-            m.status = "failed";
-            m.errorCode = "FINALIZE_EMPTY";
-            m.error = "Output file is empty";
-            m.save(dir);
-            l.onError(m.id, "FINALIZE_EMPTY", "Output file is empty");
+        if (rawFile.length() <= 0) {
+            finalizeEmpty(dir, m, l);
             return;
         }
 
-        for (File f : dir.listFiles()) {
-            String name = f.getName();
-            if (name.equals("init.mp4") || name.equals("init.bin") || name.startsWith("seg_")) {
-                f.delete();
+        try {
+            remuxTsToMp4(rawFile, outFile);
+        } catch (Exception e) {
+            Log.d("Downloader", "remux failed, kept fragmented mp4");
+            if (outFile.exists()) {
+                outFile.delete();
+            }
+            if (!rawFile.renameTo(outFile)) {
+                finalizeEmpty(dir, m, l);
+                return;
             }
         }
+
+        if (!outFile.exists() || outFile.length() <= 0) {
+            finalizeEmpty(dir, m, l);
+            return;
+        }
+
+        deleteIntermediates(dir, null, rawFile);
 
         m.status = "done";
         m.path = outFile.getAbsolutePath();
         m.size = outFile.length();
         m.save(dir);
         l.onComplete(m.id, m.path, m.size);
+    }
+
+    private static void finalizeEmpty(File dir, DownloadManifest m, DownloadEngine.Listener l) {
+        m.status = "failed";
+        m.errorCode = "FINALIZE_EMPTY";
+        m.error = "Output file is empty";
+        m.save(dir);
+        l.onError(m.id, "FINALIZE_EMPTY", "Output file is empty");
+    }
+
+    private static String sniffContainer(File dir) {
+        File seg = new File(dir, "seg_00000.seg");
+        if (!seg.exists()) {
+            return null;
+        }
+        byte[] head = new byte[16];
+        int length = 0;
+        try (FileInputStream fis = new FileInputStream(seg)) {
+            while (length < head.length) {
+                int read = fis.read(head, length, head.length - length);
+                if (read < 0) {
+                    break;
+                }
+                length += read;
+            }
+        } catch (Exception ignored) {
+            return null;
+        }
+        if (length >= 8) {
+            String tag = new String(head, 4, 4, java.nio.charset.StandardCharsets.US_ASCII);
+            if ("styp".equals(tag) || "ftyp".equals(tag) || "moof".equals(tag) || "sidx".equals(tag)) {
+                return "fmp4";
+            }
+        }
+        if (length >= 1 && (head[0] & 0xFF) == 0x47) {
+            return "ts";
+        }
+        return null;
     }
 
     private static List<File> collectSegments(File dir) {

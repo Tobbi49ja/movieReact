@@ -365,7 +365,9 @@ public class DownloadEngine {
             }
 
             manifest.segTotal = parsed.segmentUrls.size();
-            manifest.container = parsed.container;
+            if (!"fmp4".equals(manifest.container)) {
+                manifest.container = parsed.container;
+            }
             if (manifest.estBytes <= 0 && parsed.totalDuration > 0) {
                 long bw = originalReq.optLong("bandwidth", 0);
                 if (bw > 0) {
@@ -497,10 +499,19 @@ public class DownloadEngine {
             ScheduledFuture<?> saveFuture = timerExecutor.scheduleAtFixedRate(saveTask, SAVE_INTERVAL_MS, SAVE_INTERVAL_MS, TimeUnit.MILLISECONDS);
 
             try {
-                if (manifest.initUrl != null && !manifest.initUrl.isEmpty()) {
+                if ("fmp4".equals(manifest.container)) {
                     File initFile = new File(folder, "init.mp4");
-                    if (!initFile.exists()) {
-                        downloadWithRetries(manifest.initUrl, headers, initFile, -1);
+                    if (manifest.initUrl == null || manifest.initUrl.isEmpty()) {
+                        Log.d("Downloader", "fmp4 without init");
+                    } else if (!initFile.exists()) {
+                        int initCode = downloadWithRetries(manifest.initUrl, headers, initFile, -1);
+                        if (cancelled.get()) return;
+                        if (initCode < 200 || initCode >= 300 || !initFile.exists() || initFile.length() <= 0) {
+                            progressFuture.cancel(false);
+                            saveFuture.cancel(false);
+                            fail("INIT_MISSING", "Init segment download failed");
+                            return;
+                        }
                     }
                 }
                 if (audioInitUrlRef[0] != null && !audioInitUrlRef[0].isEmpty() && audioDirRef[0] != null) {
@@ -688,7 +699,7 @@ public class DownloadEngine {
         }
 
         private void complete() {
-            Log.d("Downloader", "Finalize start " + id);
+            Log.d("Downloader", "Finalize start " + id + " container=" + manifest.container);
 
             String referer = originalReq.optString("referer", "");
             String ua = originalReq.optString("userAgent", "");
@@ -704,11 +715,11 @@ public class DownloadEngine {
                 manifest.updatedAt = System.currentTimeMillis();
                 manifest.save(folder);
                 notifyError(id, "MUX_FAILED", e.getMessage());
-                Log.d("Downloader", "Finalize end " + id);
+                Log.d("Downloader", "Finalize end " + id + " container=" + manifest.container);
                 return;
             }
 
-            Log.d("Downloader", "Finalize end " + id);
+            Log.d("Downloader", "Finalize end " + id + " container=" + manifest.container);
 
             if ("failed".equals(manifest.status)) {
                 return;

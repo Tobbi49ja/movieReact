@@ -1564,7 +1564,7 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
     private void processSingleMediaPlaylist(CapturedRequest request, String body, List<JSObject> qualities,
                                             List<String> debug, String userAgent, String referer,
                                             String masterUrl) {
-        ParsedMedia parsed = parseMediaPlaylist(body, request.url);
+        ParsedMedia parsed = parseMediaPlaylist(body, request.url, userAgent, referer);
 
         QualityResult result = new QualityResult();
         MasterVariant v = new MasterVariant();
@@ -1579,6 +1579,8 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
         result.segmentCount = parsed.segmentCount;
         result.durationSec = parsed.durationSec;
         result.container = parsed.container;
+        result.initUrl = parsed.initUrl;
+        result.initByteRange = parsed.initByteRange;
         result.encrypted = parsed.encrypted;
         result.keyMethod = parsed.keyMethod;
         result.live = parsed.live;
@@ -1599,7 +1601,7 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
         CapturedRequest tempRequest = new CapturedRequest(url, "hls", new LinkedHashMap<String, String>());
         FetchResult result = fetchPlaylist(tempRequest, userAgent, referer);
         if (result.code == 200 && result.startsWithExtM3u) {
-            return parseMediaPlaylist(result.body, url);
+            return parseMediaPlaylist(result.body, url, userAgent, referer);
         }
         return null;
     }
@@ -1756,12 +1758,84 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
         return attrs;
     }
 
-    private ParsedMedia parseMediaPlaylist(String body, String playlistUrl) {
+    private static String resolveUrl(String base, String uri) {
+        if (uri == null || uri.trim().isEmpty()) {
+            return uri;
+        }
+        try {
+            return new URL(new URL(base), uri).toString();
+        } catch (Exception ignored) {
+            return uri;
+        }
+    }
+
+    private static String containerFromBytes(byte[] bytes, int length) {
+        if (bytes == null || length < 8) {
+            return null;
+        }
+        String tag = new String(bytes, 4, 4, StandardCharsets.US_ASCII);
+        if ("styp".equals(tag) || "ftyp".equals(tag) || "moof".equals(tag) || "sidx".equals(tag)) {
+            return "fmp4";
+        }
+        if ((bytes[0] & 0xFF) == 0x47) {
+            return "ts";
+        }
+        return null;
+    }
+
+    private String sniffSegmentContainer(String segmentUrl, String userAgent, String referer) {
+        if (segmentUrl == null || segmentUrl.trim().isEmpty()) {
+            return null;
+        }
+        HttpURLConnection connection = null;
+        try {
+            CapturedRequest tempRequest = new CapturedRequest(segmentUrl, "other", new LinkedHashMap<String, String>());
+            Map<String, String> headers = buildFetchHeaders(tempRequest, userAgent, referer);
+            URL url = new URL(segmentUrl);
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setInstanceFollowRedirects(true);
+            connection.setConnectTimeout(10000);
+            connection.setReadTimeout(15000);
+            for (Map.Entry<String, String> header : headers.entrySet()) {
+                connection.setRequestProperty(header.getKey(), header.getValue());
+            }
+            CookieManager cookieManager = CookieManager.getInstance();
+            cookieManager.flush();
+            String webViewCookie = cookieManager.getCookie(url.toString());
+            String sentCookie = joinCookies(getHeader(tempRequest.headers, "Cookie"), webViewCookie);
+            if (sentCookie != null) {
+                connection.setRequestProperty("Cookie", sentCookie);
+            }
+            byte[] bytes = new byte[16];
+            int length = 0;
+            try (InputStream input = connection.getInputStream()) {
+                while (length < bytes.length) {
+                    int count = input.read(bytes, length, bytes.length - length);
+                    if (count == -1) {
+                        break;
+                    }
+                    length += count;
+                }
+            }
+            return containerFromBytes(bytes, length);
+        } catch (Exception ignored) {
+            return null;
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
+        }
+    }
+
+    private ParsedMedia parseMediaPlaylist(String body, String playlistUrl, String userAgent, String referer) {
         ParsedMedia result = new ParsedMedia();
         result.playlistUrl = playlistUrl;
 
         String[] lines = body.split("\\r?\\n");
         boolean hasExtMap = false;
+        String mapUri = null;
+        String mapByteRange = null;
+        String firstSegment = null;
         boolean hasEndList = false;
         boolean hasKey = false;
         String keyMethod = "NONE";
@@ -1773,6 +1847,14 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
 
             if (trimmed.startsWith("#EXT-X-MAP")) {
                 hasExtMap = true;
+                Matcher uriMatch = Pattern.compile("URI=\"([^\"]*)\"", Pattern.CASE_INSENSITIVE).matcher(trimmed);
+                if (uriMatch.find()) {
+                    mapUri = uriMatch.group(1);
+                }
+                Matcher rangeMatch = Pattern.compile("BYTERANGE=\"([^\"]*)\"", Pattern.CASE_INSENSITIVE).matcher(trimmed);
+                if (rangeMatch.find()) {
+                    mapByteRange = rangeMatch.group(1);
+                }
             } else if (trimmed.startsWith("#EXT-X-ENDLIST")) {
                 hasEndList = true;
             } else if (trimmed.startsWith("#EXT-X-KEY:")) {
@@ -1790,15 +1872,31 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
                     segmentCount++;
                 } catch (NumberFormatException ignored) {
                 }
+            } else if (!trimmed.isEmpty() && !trimmed.startsWith("#") && firstSegment == null) {
+                firstSegment = trimmed;
             }
         }
 
         result.segmentCount = segmentCount;
         result.durationSec = (int) Math.round(totalDuration);
-        result.container = hasExtMap ? "fmp4" : "ts";
         result.encrypted = hasKey;
         result.keyMethod = keyMethod;
         result.live = !hasEndList;
+
+        if (hasExtMap) {
+            result.container = "fmp4";
+            if (mapUri != null && !mapUri.trim().isEmpty()) {
+                result.initUrl = resolveUrl(playlistUrl, mapUri);
+                if (mapByteRange != null && !mapByteRange.trim().isEmpty()) {
+                    result.initByteRange = mapByteRange.trim();
+                }
+            }
+        } else {
+            String sniffed = firstSegment != null
+                    ? sniffSegmentContainer(resolveUrl(playlistUrl, firstSegment), userAgent, referer)
+                    : null;
+            result.container = sniffed != null ? sniffed : "ts";
+        }
 
         return result;
     }
@@ -1867,6 +1965,12 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
             quality.put("audioUrl", qr.audioUrl);
         }
         quality.put("container", qr.container);
+        if (qr.initUrl != null && !qr.initUrl.isEmpty()) {
+            quality.put("initUrl", qr.initUrl);
+        }
+        if (qr.initByteRange != null && !qr.initByteRange.isEmpty()) {
+            quality.put("initByteRange", qr.initByteRange);
+        }
         quality.put("encrypted", qr.encrypted);
         if (qr.keyMethod != null) {
             quality.put("keyMethod", qr.keyMethod);
@@ -1946,7 +2050,8 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
                     + " | container=" + container
                     + " | enc=" + enc
                     + " | audio=" + audio
-                    + " | live=" + live;
+                    + " | live=" + live
+                    + " | init=" + (qr.initUrl != null && !qr.initUrl.isEmpty() ? "true" : "false");
 
             logAndAddDebug(debug, line);
         }
@@ -2165,6 +2270,8 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
         boolean encrypted = false;
         String keyMethod = "NONE";
         boolean live = false;
+        String initUrl = null;
+        String initByteRange = null;
     }
 
     private static class QualityResult {
@@ -2180,6 +2287,8 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
         int audioDurationSec = 0;
         long estBytes = -1;
         String error = null;
+        String initUrl = null;
+        String initByteRange = null;
     }
 
     private static class VariantFetchTask implements Runnable {
@@ -2215,6 +2324,8 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
             result.segmentCount = parsed.segmentCount;
             result.durationSec = parsed.durationSec;
             result.container = parsed.container;
+            result.initUrl = parsed.initUrl;
+            result.initByteRange = parsed.initByteRange;
             result.encrypted = parsed.encrypted;
             result.keyMethod = parsed.keyMethod;
             result.live = parsed.live;
@@ -2251,7 +2362,7 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
             CapturedRequest tempRequest = new CapturedRequest(url, "hls", new LinkedHashMap<String, String>());
             FetchResult fetchResult = fetchPlaylistStatic(tempRequest, userAgent, referer);
             if (fetchResult.code == 200 && fetchResult.startsWithExtM3u) {
-                return parseMediaPlaylistStatic(fetchResult.body, url);
+                return parseMediaPlaylistStatic(fetchResult.body, url, userAgent, referer);
             }
             return null;
         }
@@ -2487,12 +2598,59 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
                     || code == 308;
         }
 
-        private static ParsedMedia parseMediaPlaylistStatic(String body, String playlistUrl) {
+        private static String sniffSegmentContainerStatic(String segmentUrl, String userAgent, String referer) {
+            if (segmentUrl == null || segmentUrl.trim().isEmpty()) {
+                return null;
+            }
+            HttpURLConnection connection = null;
+            try {
+                CapturedRequest tempRequest = new CapturedRequest(segmentUrl, "other", new LinkedHashMap<String, String>());
+                Map<String, String> headers = buildFetchHeadersStatic(tempRequest, userAgent, referer);
+                URL url = new URL(segmentUrl);
+                connection = (HttpURLConnection) url.openConnection();
+                connection.setInstanceFollowRedirects(true);
+                connection.setConnectTimeout(10000);
+                connection.setReadTimeout(15000);
+                for (Map.Entry<String, String> header : headers.entrySet()) {
+                    connection.setRequestProperty(header.getKey(), header.getValue());
+                }
+                CookieManager cookieManager = CookieManager.getInstance();
+                cookieManager.flush();
+                String webViewCookie = cookieManager.getCookie(url.toString());
+                String sentCookie = joinCookiesStatic(getHeaderStatic(tempRequest.headers, "Cookie"), webViewCookie);
+                if (sentCookie != null) {
+                    connection.setRequestProperty("Cookie", sentCookie);
+                }
+                byte[] bytes = new byte[16];
+                int length = 0;
+                try (InputStream input = connection.getInputStream()) {
+                    while (length < bytes.length) {
+                        int count = input.read(bytes, length, bytes.length - length);
+                        if (count == -1) {
+                            break;
+                        }
+                        length += count;
+                    }
+                }
+                return containerFromBytes(bytes, length);
+            } catch (Exception ignored) {
+                return null;
+            } finally {
+                if (connection != null) {
+                    connection.disconnect();
+                }
+            }
+        }
+
+        private static ParsedMedia parseMediaPlaylistStatic(String body, String playlistUrl, String userAgent, String referer) {
             ParsedMedia result = new ParsedMedia();
             result.playlistUrl = playlistUrl;
 
             String[] lines = body.split("\\r?\\n");
             boolean hasExtMap = false;
+            String mapUri = null;
+            String mapByteRange = null;
+            String firstSegment = null;
             boolean hasEndList = false;
             boolean hasKey = false;
             String keyMethod = "NONE";
@@ -2504,6 +2662,14 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
 
                 if (trimmed.startsWith("#EXT-X-MAP")) {
                     hasExtMap = true;
+                    Matcher uriMatch = Pattern.compile("URI=\"([^\"]*)\"", Pattern.CASE_INSENSITIVE).matcher(trimmed);
+                    if (uriMatch.find()) {
+                        mapUri = uriMatch.group(1);
+                    }
+                    Matcher rangeMatch = Pattern.compile("BYTERANGE=\"([^\"]*)\"", Pattern.CASE_INSENSITIVE).matcher(trimmed);
+                    if (rangeMatch.find()) {
+                        mapByteRange = rangeMatch.group(1);
+                    }
                 } else if (trimmed.startsWith("#EXT-X-ENDLIST")) {
                     hasEndList = true;
                 } else if (trimmed.startsWith("#EXT-X-KEY:")) {
@@ -2521,15 +2687,31 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
                         segmentCount++;
                     } catch (NumberFormatException ignored) {
                     }
+                } else if (!trimmed.isEmpty() && !trimmed.startsWith("#") && firstSegment == null) {
+                    firstSegment = trimmed;
                 }
             }
 
             result.segmentCount = segmentCount;
             result.durationSec = (int) Math.round(totalDuration);
-            result.container = hasExtMap ? "fmp4" : "ts";
             result.encrypted = hasKey;
             result.keyMethod = keyMethod;
             result.live = !hasEndList;
+
+            if (hasExtMap) {
+                result.container = "fmp4";
+                if (mapUri != null && !mapUri.trim().isEmpty()) {
+                    result.initUrl = resolveUrl(playlistUrl, mapUri);
+                    if (mapByteRange != null && !mapByteRange.trim().isEmpty()) {
+                        result.initByteRange = mapByteRange.trim();
+                    }
+                }
+            } else {
+                String sniffed = firstSegment != null
+                        ? sniffSegmentContainerStatic(resolveUrl(playlistUrl, firstSegment), userAgent, referer)
+                        : null;
+                result.container = sniffed != null ? sniffed : "ts";
+            }
 
             return result;
         }
