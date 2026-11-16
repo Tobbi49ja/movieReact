@@ -823,6 +823,7 @@ export default function TVShowWatchPage() {
           season={selectedSeason}
           episode={selectedEpisode?.episode_number}
           title={show?.name || "TV show"}
+          poster={show?.poster_path ? tmdbImg(show?.poster_path, "w342", "poster") : ""}
           onClose={() => setIsDownloadModalOpen(false)}
         />
       )}

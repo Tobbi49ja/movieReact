@@ -704,6 +704,7 @@ export default function WatchPage() {
           tmdbId={movie?.id ?? id}
           type="movie"
           title={movie?.title || movie?.original_title || "Movie"}
+          poster={movie?.poster_path ? tmdbImg(movie?.poster_path, "w342", "poster") : ""}
           onClose={() => setIsDownloadModalOpen(false)}
         />
       )}

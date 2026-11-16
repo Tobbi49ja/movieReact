@@ -689,9 +689,6 @@ public class DownloadEngine {
 
         private void complete() {
             Log.d("Downloader", "Finalize start " + id);
-            manifest.status = "done";
-            manifest.updatedAt = System.currentTimeMillis();
-            manifest.save(folder);
 
             String referer = originalReq.optString("referer", "");
             String ua = originalReq.optString("userAgent", "");
@@ -701,11 +698,34 @@ public class DownloadEngine {
             try {
                 Finalizer.run(folder, manifest, listener);
             } catch (Exception e) {
-                Log.e(TAG, "Finalizer error", e);
+                manifest.status = "failed";
+                manifest.errorCode = "MUX_FAILED";
+                manifest.error = e.getMessage();
+                manifest.updatedAt = System.currentTimeMillis();
+                manifest.save(folder);
+                notifyError(id, "MUX_FAILED", e.getMessage());
+                Log.d("Downloader", "Finalize end " + id);
+                return;
             }
 
             Log.d("Downloader", "Finalize end " + id);
-            notifyComplete(id, folder.getAbsolutePath(), manifest.size);
+
+            if ("failed".equals(manifest.status)) {
+                return;
+            }
+
+            File outFile = new File(folder, "movie.mp4");
+            if (!outFile.exists() || outFile.length() <= 0) {
+                manifest.status = "failed";
+                manifest.errorCode = "FINALIZE_EMPTY";
+                manifest.error = "Output file is empty or missing";
+                manifest.updatedAt = System.currentTimeMillis();
+                manifest.save(folder);
+                notifyError(id, "FINALIZE_EMPTY", "Output file is empty or missing");
+                return;
+            }
+
+            notifyComplete(id, outFile.getAbsolutePath(), manifest.size);
         }
 
         private void fail(String code, String msg) {

@@ -3,6 +3,9 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import { useContentMode } from "../context/ContentModeContext";
+import useSearchHistory from "../hooks/useSearchHistory";
+import useMovieSuggest from "../hooks/useMovieSuggest";
+import SearchSuggestions from "../components/SearchSuggestions";
 
 export default function Navbar() {
   const [navOpen, setNavOpen] = useState(false);
@@ -10,6 +13,10 @@ export default function Navbar() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [scrolled, setScrolled] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const { items: recents, add: addRecent, remove: removeRecent, clear: clearRecents } = useSearchHistory("tobbihub_movie_recent");
+  const { results, loading } = useMovieSuggest(searchTerm);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -78,10 +85,57 @@ export default function Navbar() {
   const handleSearch = (e) => {
     e.preventDefault();
     if (!searchTerm.trim()) return;
+    addRecent(searchTerm.trim());
     navigate("/search", { state: { query: searchTerm.trim() } });
     setSearchTerm("");
+    setSearchOpen(false);
     closeMenu();
   };
+
+  const handlePick = (item) => {
+    addRecent(item.title);
+    setSearchTerm("");
+    setSearchOpen(false);
+    if (item.mediaType === "tv") {
+      navigate(`/tv/${item.id}`);
+    } else {
+      navigate(`/watch/${item.id}`);
+    }
+    closeMenu();
+  };
+
+  const handlePickRecent = (text) => {
+    addRecent(text);
+    setSearchTerm(text);
+    setSearchOpen(false);
+    navigate("/search", { state: { query: text } });
+    closeMenu();
+  };
+
+  // Open suggestions on focus
+  const handleSearchFocus = () => {
+    setSearchOpen(true);
+  };
+
+  // Close on Escape / outside tap
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") setSearchOpen(false);
+    };
+    const handleClickOutside = (e) => {
+      if (!searchOpen) return;
+      const target = e.target;
+      const isInput = target.tagName === "INPUT" && target.type === "search";
+      const isSuggestions = target.closest(".search-suggestions");
+      if (!isInput && !isSuggestions) setSearchOpen(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [searchOpen]);
 
   // Logout handler
   const handleLogout = () => {
@@ -284,22 +338,58 @@ export default function Navbar() {
 
         {/* Mobile search — only inside the open drawer */}
         {navOpen && (
-          <form onSubmit={handleSearch} style={{width:"100%",marginTop:"12px",display:"flex",gap:"8px"}} role="search">
-            <input type="search" placeholder="Search movies..." value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} style={{flex:1,padding:"10px 14px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.08)",color:"white",fontSize:"0.9rem"}}/>
-            <button type="submit" style={{padding:"10px 16px",borderRadius:"8px",background:"#e50914",border:"none",color:"white",cursor:"pointer"}}>🔍</button>
-          </form>
+          <div style={{ position: "relative", width: "100%" }}>
+            <form onSubmit={handleSearch} style={{width:"100%",marginTop:"12px",display:"flex",gap:"8px"}} role="search">
+              <input
+                type="search"
+                placeholder="Search movies..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onFocus={handleSearchFocus}
+                style={{flex:1,padding:"10px 14px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.08)",color:"white",fontSize:"0.9rem"}}
+              />
+              <button type="submit" style={{padding:"10px 16px",borderRadius:"8px",background:"#e50914",border:"none",color:"white",cursor:"pointer"}}>🔍</button>
+            </form>
+            {searchOpen && (
+              <SearchSuggestions
+                query={searchTerm}
+                recents={recents}
+                results={results}
+                loading={loading}
+                onPick={handlePick}
+                onPickRecent={handlePickRecent}
+                onRemoveRecent={removeRecent}
+                onClearRecents={clearRecents}
+              />
+            )}
+          </div>
         )}
         {isMobile && (
-          <form className="search-box mobile-search" onSubmit={handleSearch} role="search">
-            <input
-              className="input-search"
-              type="search"
-              placeholder="Search movies..."
-              aria-label="Search movies and TV shows"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </form>
+          <div style={{ position: "relative", width: "100%" }}>
+            <form className="search-box mobile-search" onSubmit={handleSearch} role="search">
+              <input
+                className="input-search"
+                type="search"
+                placeholder="Search movies..."
+                aria-label="Search movies and TV shows"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onFocus={handleSearchFocus}
+              />
+            </form>
+            {searchOpen && (
+              <SearchSuggestions
+                query={searchTerm}
+                recents={recents}
+                results={results}
+                loading={loading}
+                onPick={handlePick}
+                onPickRecent={handlePickRecent}
+                onRemoveRecent={removeRecent}
+                onClearRecents={clearRecents}
+              />
+            )}
+          </div>
         )}
         {isMobile && (
           <div className="navbar-auth drawer-auth">{authContent}</div>
@@ -308,16 +398,31 @@ export default function Navbar() {
 
         {/* Desktop search */}
         {!isMobile && (
-          <form className="search-box" onSubmit={handleSearch} role="search">
-            <input
-              className="input-search"
-              type="search"
-              placeholder="Search movies..."
-              aria-label="Search movies and TV shows"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </form>
+          <div style={{ position: "relative", width: "100%" }}>
+            <form className="search-box" onSubmit={handleSearch} role="search">
+              <input
+                className="input-search"
+                type="search"
+                placeholder="Search movies..."
+                aria-label="Search movies and TV shows"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onFocus={handleSearchFocus}
+              />
+            </form>
+            {searchOpen && (
+              <SearchSuggestions
+                query={searchTerm}
+                recents={recents}
+                results={results}
+                loading={loading}
+                onPick={handlePick}
+                onPickRecent={handlePickRecent}
+                onRemoveRecent={removeRecent}
+                onClearRecents={clearRecents}
+              />
+            )}
+          </div>
         )}
 
         {/* Desktop mode toggle */}
