@@ -1481,12 +1481,17 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
         boolean isMaster = body.contains("#EXT-X-STREAM-INF");
 
         if (!isMaster) {
+            Log.d(TAG, "AUDIO groups in master: none");
             processSingleMediaPlaylist(request, body, qualities, debug, userAgent, referer, null);
             return;
         }
 
         String masterUrl = request.url;
         ParsedMaster parsed = parseMasterPlaylist(body, masterUrl);
+
+        List<String> audioGroupIds = new ArrayList<>(parsed.mediaGroups.keySet());
+        Log.d(TAG, "AUDIO groups in master: "
+                + (audioGroupIds.isEmpty() ? "none" : android.text.TextUtils.join(", ", audioGroupIds)));
 
         if (parsed.variants.isEmpty()) {
             processSingleMediaPlaylist(request, body, qualities, debug, userAgent, referer, masterUrl);
@@ -1496,7 +1501,7 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
         List<VariantFetchTask> tasks = new ArrayList<>();
         for (int i = 0; i < parsed.variants.size(); i++) {
             MasterVariant variant = parsed.variants.get(i);
-            tasks.add(new VariantFetchTask(i, variant, masterUrl, parsed.mediaGroups, userAgent, referer));
+            tasks.add(new VariantFetchTask(i, variant, masterUrl, parsed.mediaGroups, userAgent, referer, request.headers));
         }
 
         ExecutorService executor = Executors.newFixedThreadPool(4);
@@ -2035,7 +2040,9 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
             String container = qr.container;
             String enc = qr.encrypted ? qr.keyMethod : "false";
             String audio;
-            if (qr.audioUrl != null) {
+            if (qr.audioWarning != null) {
+                audio = "false(" + qr.audioWarning + ")";
+            } else if (qr.audioUrl != null) {
                 audio = "true(seg=" + qr.audioSegmentCount + ",dur=" + qr.audioDurationSec + ")";
             } else {
                 audio = "false";
@@ -2289,6 +2296,7 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
         String error = null;
         String initUrl = null;
         String initByteRange = null;
+        String audioWarning = null;
     }
 
     private static class VariantFetchTask implements Runnable {
@@ -2298,16 +2306,19 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
         final Map<String, List<AudioMedia>> mediaGroups;
         final String userAgent;
         final String referer;
+        final Map<String, String> masterHeaders;
         QualityResult result;
 
         VariantFetchTask(int index, MasterVariant variant, String masterUrl,
-                         Map<String, List<AudioMedia>> mediaGroups, String userAgent, String referer) {
+                         Map<String, List<AudioMedia>> mediaGroups, String userAgent, String referer,
+                         Map<String, String> masterHeaders) {
             this.index = index;
             this.variant = variant;
             this.masterUrl = masterUrl;
             this.mediaGroups = mediaGroups;
             this.userAgent = userAgent;
             this.referer = referer;
+            this.masterHeaders = masterHeaders;
         }
 
         @Override
@@ -2339,10 +2350,10 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
                         result.audioSegmentCount = audioParsed.segmentCount;
                         result.audioDurationSec = audioParsed.durationSec;
                     } else {
-                        result.error = "AUDIO fail group=" + variant.audioGroup + " reason=fetch failed";
+                        result.audioWarning = "AUDIO fail group=" + variant.audioGroup + " reason=fetch failed";
                     }
                 } else {
-                    result.error = "AUDIO fail group=" + variant.audioGroup + " reason=not found";
+                    result.audioWarning = "AUDIO fail group=" + variant.audioGroup + " reason=not found";
                 }
             }
 
@@ -2359,7 +2370,10 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
         }
 
         private ParsedMedia fetchAndParseMediaPlaylist(String url, String userAgent, String referer) {
-            CapturedRequest tempRequest = new CapturedRequest(url, "hls", new LinkedHashMap<String, String>());
+            Map<String, String> reqHeaders = masterHeaders != null
+                    ? new LinkedHashMap<String, String>(masterHeaders)
+                    : new LinkedHashMap<String, String>();
+            CapturedRequest tempRequest = new CapturedRequest(url, "hls", reqHeaders);
             FetchResult fetchResult = fetchPlaylistStatic(tempRequest, userAgent, referer);
             if (fetchResult.code == 200 && fetchResult.startsWithExtM3u) {
                 return parseMediaPlaylistStatic(fetchResult.body, url, userAgent, referer);

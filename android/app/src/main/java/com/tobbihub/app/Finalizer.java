@@ -52,6 +52,11 @@ public class Finalizer {
         List<File> videoSegs = collectSegments(videoDir);
         List<File> audioSegs = collectSegments(audioDir);
 
+        if (!videoInit.exists() || videoInit.length() <= 0) {
+            failInitMissing(dir, m, l);
+            return;
+        }
+
         File videoMp4 = new File(dir, "video.mp4");
         File audioMp4 = new File(dir, "audio.mp4");
 
@@ -68,6 +73,10 @@ public class Finalizer {
             }
             if (!videoMp4.renameTo(outFile)) {
                 throw new IllegalStateException("Output file is empty");
+            }
+            if (!hasFtyp(outFile)) {
+                failInitMissing(dir, m, l);
+                return;
             }
         }
 
@@ -128,6 +137,11 @@ public class Finalizer {
         File outFile = new File(dir, "movie.mp4");
         List<File> segFiles = collectSegments(dir);
 
+        if (!initFile.exists() || initFile.length() <= 0) {
+            failInitMissing(dir, m, l);
+            return;
+        }
+
         concatenateFiles(initFile, segFiles, rawFile);
 
         if (rawFile.length() <= 0) {
@@ -144,6 +158,10 @@ public class Finalizer {
             }
             if (!rawFile.renameTo(outFile)) {
                 finalizeEmpty(dir, m, l);
+                return;
+            }
+            if (!hasFtyp(outFile)) {
+                failInitMissing(dir, m, l);
                 return;
             }
         }
@@ -168,6 +186,29 @@ public class Finalizer {
         m.error = "Output file is empty";
         m.save(dir);
         l.onError(m.id, "FINALIZE_EMPTY", "Output file is empty");
+    }
+
+    private static void failInitMissing(File dir, DownloadManifest m, DownloadEngine.Listener l) {
+        m.status = "failed";
+        m.errorCode = "INIT_MISSING";
+        m.error = "Init segment missing";
+        m.save(dir);
+        l.onError(m.id, "INIT_MISSING", "Init segment missing");
+    }
+
+    private static boolean hasFtyp(File file) {
+        if (file == null || !file.exists() || file.length() < 8) {
+            return false;
+        }
+        byte[] head = new byte[8];
+        try (FileInputStream fis = new FileInputStream(file)) {
+            if (fis.read(head) < 8) {
+                return false;
+            }
+        } catch (Exception ignored) {
+            return false;
+        }
+        return "ftyp".equals(new String(head, 4, 4, java.nio.charset.StandardCharsets.US_ASCII));
     }
 
     private static String sniffContainer(File dir) {

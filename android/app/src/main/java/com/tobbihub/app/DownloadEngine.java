@@ -404,6 +404,17 @@ public class DownloadEngine {
             PlaylistParser.Parsed parsed = PlaylistParser.parseMedia(playlistResult.body, qualityUrl);
             parsedSegmentUrls = parsed.segmentUrls;
 
+            String requestedInit = originalReq.optString("initUrl", "");
+            boolean initFromPlaylist = requestedInit.isEmpty()
+                    && parsed.initUrl != null && !parsed.initUrl.isEmpty();
+            if (initFromPlaylist) {
+                manifest.initUrl = parsed.initUrl;
+                manifest.container = "fmp4";
+                manifest.updatedAt = System.currentTimeMillis();
+                manifest.save(folder);
+            }
+            Log.d("Downloader", "INIT from playlist=" + initFromPlaylist);
+
             final File[] audioDirRef = {null};
             final Object[] audioSegmentUrlsRef = {null};
             final String[] audioInitUrlRef = {null};
