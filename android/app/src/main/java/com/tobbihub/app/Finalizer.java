@@ -17,6 +17,7 @@ import java.util.List;
 
 public class Finalizer {
     private static final int BUFFER_SIZE = 1024 * 1024;
+    private static final boolean REMUX_FMP4 = false;
 
     public static void run(File dir, DownloadManifest m, DownloadEngine.Listener l) {
         try {
@@ -146,6 +147,29 @@ public class Finalizer {
 
         if (rawFile.length() <= 0) {
             finalizeEmpty(dir, m, l);
+            return;
+        }
+
+        if (!REMUX_FMP4) {
+            if (hasFtyp(rawFile)) {
+                if (!rawFile.renameTo(outFile)) {
+                    finalizeEmpty(dir, m, l);
+                    return;
+                }
+                if (outFile.length() > 0) {
+                    Log.d("Downloader", "fmp4 kept as fragmented mp4 (no remux)");
+                    deleteIntermediates(dir, null, rawFile);
+                    m.status = "done";
+                    m.path = outFile.getAbsolutePath();
+                    m.size = outFile.length();
+                    m.save(dir);
+                    l.onComplete(m.id, m.path, m.size);
+                    return;
+                }
+                finalizeEmpty(dir, m, l);
+                return;
+            }
+            failInitMissing(dir, m, l);
             return;
         }
 

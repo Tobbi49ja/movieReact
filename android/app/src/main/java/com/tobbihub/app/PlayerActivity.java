@@ -3,17 +3,24 @@ package com.tobbihub.app;
 import android.app.Activity;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
-import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
-import android.widget.MediaController;
 import android.widget.Toast;
-import android.widget.VideoView;
+
+import androidx.media3.common.MediaItem;
+import androidx.media3.common.PlaybackException;
+import androidx.media3.common.Player;
+import androidx.media3.exoplayer.DefaultRenderersFactory;
+import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.ui.AspectRatioFrameLayout;
+import androidx.media3.ui.PlayerView;
 
 import java.io.File;
 
@@ -22,33 +29,41 @@ public class PlayerActivity extends Activity {
     public static final String EXTRA_PATH = "path";
     private static final String STATE_POSITION = "position";
 
-    private VideoView videoView;
-    private int savedPosition = 0;
-    private boolean hasError = false;
+    private PlayerView playerView;
+    private ExoPlayer player;
+    private File videoFile;
+    private long savedPosition = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         if (savedInstanceState != null) {
-            savedPosition = savedInstanceState.getInt(STATE_POSITION, 0);
+            savedPosition = savedInstanceState.getLong(STATE_POSITION, 0);
         }
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
+        String path = getIntent().getStringExtra(EXTRA_PATH);
+        if (path == null || !new File(path).isFile()) {
+            Toast.makeText(this, "File not found", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        videoFile = new File(path);
+
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
 
-        videoView = new VideoView(this);
-        FrameLayout.LayoutParams videoParams = new FrameLayout.LayoutParams(
+        playerView = new PlayerView(this);
+        playerView.setUseController(true);
+        playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
+        playerView.setBackgroundColor(Color.BLACK);
+        FrameLayout.LayoutParams playerParams = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT);
-        videoParams.gravity = Gravity.CENTER;
-        root.addView(videoView, videoParams);
-
-        MediaController mediaController = new MediaController(this);
-        mediaController.setAnchorView(videoView);
-        videoView.setMediaController(mediaController);
+        playerParams.gravity = Gravity.CENTER;
+        root.addView(playerView, playerParams);
 
         Button backButton = new Button(this);
         backButton.setText("←");
@@ -72,37 +87,31 @@ public class PlayerActivity extends Activity {
         });
 
         setContentView(root);
+        createPlayer();
+        enterImmersiveMode();
+    }
 
-        String path = getIntent().getStringExtra(EXTRA_PATH);
-        if (path == null || !new File(path).exists()) {
-            Toast.makeText(this, "File not found", Toast.LENGTH_SHORT).show();
-            finish();
+    private void createPlayer() {
+        if (player != null || videoFile == null) {
             return;
         }
 
-        videoView.setVideoPath(path);
-        videoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+        DefaultRenderersFactory renderersFactory =
+                new DefaultRenderersFactory(this).setEnableDecoderFallback(true);
+        player = new ExoPlayer.Builder(this, renderersFactory).build();
+        playerView.setPlayer(player);
+        player.addListener(new Player.Listener() {
             @Override
-            public void onPrepared(MediaPlayer mp) {
-                if (savedPosition > 0) {
-                    videoView.seekTo(savedPosition);
-                }
-                videoView.start();
+            public void onPlayerError(PlaybackException error) {
+                Toast.makeText(PlayerActivity.this, "Can't play this file", Toast.LENGTH_SHORT).show();
+                Log.d("PlayerActivity", error.getErrorCodeName() + " " + error.getMessage());
+                finish();
             }
         });
-        videoView.setOnErrorListener(new MediaPlayer.OnErrorListener() {
-            @Override
-            public boolean onError(MediaPlayer mp, int what, int extra) {
-                if (!hasError) {
-                    hasError = true;
-                    Toast.makeText(PlayerActivity.this, "Can't play this file", Toast.LENGTH_SHORT).show();
-                    finish();
-                }
-                return true;
-            }
-        });
-
-        enterImmersiveMode();
+        player.setMediaItem(MediaItem.fromUri(Uri.fromFile(videoFile)));
+        player.prepare();
+        player.seekTo(savedPosition);
+        player.setPlayWhenReady(true);
     }
 
     private void enterImmersiveMode() {
@@ -110,7 +119,8 @@ public class PlayerActivity extends Activity {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
             WindowInsetsController controller = getWindow().getInsetsController();
             if (controller != null) {
-                controller.hide(android.view.WindowInsets.Type.statusBars() | android.view.WindowInsets.Type.navigationBars());
+                controller.hide(android.view.WindowInsets.Type.statusBars()
+                        | android.view.WindowInsets.Type.navigationBars());
                 controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
             }
         } else {
@@ -125,17 +135,30 @@ public class PlayerActivity extends Activity {
     }
 
     @Override
-    protected void onPause() {
-        super.onPause();
-        if (videoView != null) {
-            savedPosition = videoView.getCurrentPosition();
+    protected void onStart() {
+        super.onStart();
+        createPlayer();
+        enterImmersiveMode();
+    }
+
+    @Override
+    protected void onStop() {
+        if (player != null) {
+            savedPosition = player.getCurrentPosition();
+            player.release();
+            player = null;
+            playerView.setPlayer(null);
         }
+        super.onStop();
     }
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        outState.putInt(STATE_POSITION, savedPosition);
+        if (player != null) {
+            savedPosition = player.getCurrentPosition();
+        }
+        outState.putLong(STATE_POSITION, savedPosition);
     }
 
     private int dp(int value) {
