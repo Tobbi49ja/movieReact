@@ -221,8 +221,23 @@ body:has(.downloads-page) footer {
 }
 
 .downloads-overlay-btn.play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  align-self: auto;
+  width: 56px;
+  height: 56px;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  pointer-events: auto;
+  opacity: 1;
   background: var(--downloads-red);
   border-color: var(--downloads-red);
+}
+
+.downloads-overlay-btn.play:hover:not(:disabled) {
+  transform: translate(-50%, -50%) scale(1.1);
 }
 
 .downloads-overlay-btn.delete {
@@ -237,10 +252,11 @@ body:has(.downloads-page) footer {
 
 .downloads-toast {
   position: fixed;
-  bottom: 1.5rem;
+  top: calc(env(safe-area-inset-top, 0px) + 16px);
+  bottom: auto;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 9999;
+  z-index: 99999;
   padding: 0.8rem 1.2rem;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.85);

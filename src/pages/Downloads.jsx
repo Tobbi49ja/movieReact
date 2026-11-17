@@ -67,6 +67,7 @@ export default function DownloadsPage() {
   const [toast, setToast] = useState("");
 
   const handlePlay = async (download) => {
+    window.alert("PLAY tap: " + (download.path || "NO PATH")); // TEMP-DEBUG
     try {
       console.log("PLAY tap", download.id, download.status, JSON.stringify(download.path));
       setToast("Opening: " + (download.path ? download.path.split("/").slice(-2).join("/") : "NO PATH"));
@@ -115,7 +116,7 @@ export default function DownloadsPage() {
         <header className="downloads-header">
           <div className="downloads-heading-group">
             <p className="downloads-kicker">Library</p>
-            <h1 className="downloads-title">Downloads</h1>
+            <h1 className="downloads-title">Downloads · dbg1</h1> {/* TEMP-DEBUG */}
           </div>
           <div className="downloads-count">
             <FiDownload aria-hidden="true" />
@@ -141,7 +142,7 @@ export default function DownloadsPage() {
 
               return (
                 <article key={download.id} className={`downloads-card ${download.status}`}>
-                  <div className="downloads-card-poster">
+                  <div className="downloads-card-poster" onClick={() => download.status === "done" && handlePlay(download)} style={{ cursor: download.status === "done" ? "pointer" : undefined }}>
                     {download.poster ? (
                       <img src={download.poster} alt={download.title || "Download poster"} />
                     ) : (
@@ -154,21 +155,21 @@ export default function DownloadsPage() {
                         <button
                           type="button"
                           className="downloads-overlay-btn"
-                          onClick={() => handleTogglePause(download)}
+                          onClick={(e) => { e.stopPropagation(); handleTogglePause(download); }}
                           aria-label={canPause ? "Pause download" : "Resume download"}
                         >
                           {canPause ? <FiPause aria-hidden="true" /> : <FiPlay aria-hidden="true" />}
                         </button>
                       )}
                       {download.status === "done" && (
-                        <button type="button" className="downloads-overlay-btn play" onClick={() => handlePlay(download)} aria-label="Play download">
+                        <button type="button" className="downloads-overlay-btn play" onClick={(e) => { e.stopPropagation(); handlePlay(download); }} aria-label="Play download">
                           <FiPlay aria-hidden="true" />
                         </button>
                       )}
                       <button
                         type="button"
                         className="downloads-overlay-btn delete"
-                        onClick={() => handleDelete(download.id)}
+                        onClick={(e) => { e.stopPropagation(); handleDelete(download.id); }}
                         aria-label="Delete download"
                       >
                         <FiTrash2 aria-hidden="true" />
