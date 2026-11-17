@@ -68,10 +68,14 @@ export default function DownloadsPage() {
 
   const handlePlay = async (download) => {
     try {
-      await play(download.path);
-    } catch {
-      setToast("Can't open this file");
+      console.log("PLAY tap", download.id, download.status, JSON.stringify(download.path));
+      setToast("Opening: " + (download.path ? download.path.split("/").slice(-2).join("/") : "NO PATH"));
       setTimeout(() => setToast(""), 2500);
+      await play(download.path);
+    } catch (e) {
+      console.log("PLAY error", JSON.stringify(e), e && e.message);
+      setToast("Play failed: " + ((e && (e.code || e.message)) || "unknown"));
+      setTimeout(() => setToast(""), 4000);
     }
   };
 

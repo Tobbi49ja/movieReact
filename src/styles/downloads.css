@@ -235,6 +235,36 @@ body:has(.downloads-page) footer {
   height: 1.1rem;
 }
 
+.downloads-toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  padding: 0.8rem 1.2rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.85);
+  color: var(--downloads-text);
+  border: 1px solid var(--downloads-border);
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  max-width: calc(100vw - 2rem);
+  text-align: center;
+}
+
+@media (hover: none) {
+  .downloads-card-overlay {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .downloads-overlay-btn {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 .downloads-card-progress {
   position: absolute;
   bottom: 0;
