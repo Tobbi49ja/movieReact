@@ -371,11 +371,6 @@ public class PlayerActivity extends Activity {
             SubtitleEntry entry = subtitleEntries.get(selectedSubtitleIndex);
             builder.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false);
             builder.setPreferredTextLanguage(entry.lang);
-            if (entry.label != null && !entry.label.isEmpty()) {
-                builder.setPreferredTextLabels(entry.label);
-            } else {
-                builder.setPreferredTextLabels();
-            }
             builder.setSelectUndeterminedTextLanguage(true);
         } else {
             builder.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true);
