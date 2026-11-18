@@ -13,8 +13,31 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.util.Collections;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 public class HttpUtil {
+
+    private static final int SEGMENT_DEADLINE_MS = 40000;
+    private static final Set<HttpURLConnection> ACTIVE_CONNECTIONS =
+            Collections.newSetFromMap(new ConcurrentHashMap<HttpURLConnection, Boolean>());
+    private static final ScheduledExecutorService DEADLINE_EXECUTOR =
+            Executors.newScheduledThreadPool(2, r -> {
+                Thread t = new Thread(r, "HttpDeadline");
+                t.setDaemon(true);
+                return t;
+            });
+
+    public static void disconnectAll() {
+        for (HttpURLConnection connection : ACTIVE_CONNECTIONS) {
+            try { connection.disconnect(); } catch (Exception ignored) {}
+        }
+    }
 
     public static class PausedException extends IOException {
         public PausedException() { super("Download paused"); }
@@ -70,6 +93,7 @@ public class HttpUtil {
             HttpURLConnection connection = null;
             try {
                 connection = (HttpURLConnection) currentUrl.openConnection();
+                ACTIVE_CONNECTIONS.add(connection);
                 connection.setInstanceFollowRedirects(false);
                 connection.setConnectTimeout(10000);
                 connection.setReadTimeout(20000);
@@ -122,6 +146,7 @@ public class HttpUtil {
                 return result;
             } finally {
                 if (connection != null) {
+                    ACTIVE_CONNECTIONS.remove(connection);
                     connection.disconnect();
                 }
             }
@@ -142,19 +167,28 @@ public class HttpUtil {
         }
 
         FileOutputStream fos = null;
+        long deadline = System.currentTimeMillis() + SEGMENT_DEADLINE_MS;
         try {
             while (redirects <= 5) {
                 HttpURLConnection connection = null;
+                ScheduledFuture<?> deadlineTask = null;
                 try {
                     connection = (HttpURLConnection) currentUrl.openConnection();
+                    ACTIVE_CONNECTIONS.add(connection);
                     connection.setInstanceFollowRedirects(false);
                     connection.setConnectTimeout(10000);
-                    connection.setReadTimeout(15000);
+                    long remaining = Math.max(1, deadline - System.currentTimeMillis());
+                    connection.setReadTimeout((int) Math.min(15000, remaining));
                     connection.setRequestMethod("GET");
 
                     for (Map.Entry<String, String> header : headers.entrySet()) {
                         connection.setRequestProperty(header.getKey(), header.getValue());
                     }
+
+                    final HttpURLConnection deadlineConnection = connection;
+                    deadlineTask = DEADLINE_EXECUTOR.schedule(() -> {
+                        try { deadlineConnection.disconnect(); } catch (Exception ignored) {}
+                    }, remaining, TimeUnit.MILLISECONDS);
 
                     int code = connection.getResponseCode();
                     String location = connection.getHeaderField("Location");
@@ -185,7 +219,24 @@ public class HttpUtil {
 
                     byte[] buffer = new byte[8192];
                     int len;
-                    while ((len = inputStream.read(buffer)) != -1) {
+                    while (true) {
+                        if (System.currentTimeMillis() > deadline) {
+                            throw new IOException("Segment deadline exceeded");
+                        }
+                        try {
+                            len = inputStream.read(buffer);
+                        } catch (IOException readError) {
+                            if (pause != null && pause.get()) {
+                                throw new PausedException();
+                            }
+                            if (cancel != null && cancel.get()) {
+                                throw new IOException("Download cancelled");
+                            }
+                            throw readError;
+                        }
+                        if (len == -1) {
+                            break;
+                        }
                         if (cancel != null && cancel.get()) {
                             throw new IOException("Download cancelled");
                         }
@@ -202,7 +253,11 @@ public class HttpUtil {
                     return code;
 
                 } finally {
+                    if (deadlineTask != null) {
+                        deadlineTask.cancel(false);
+                    }
                     if (connection != null) {
+                        ACTIVE_CONNECTIONS.remove(connection);
                         connection.disconnect();
                     }
                 }
@@ -211,6 +266,12 @@ public class HttpUtil {
         } catch (PausedException pe) {
             if (dest != null) dest.delete();
             throw pe;
+        } catch (IOException e) {
+            if (pause != null && pause.get()) {
+                if (dest != null) dest.delete();
+                throw new PausedException();
+            }
+            throw e;
         } finally {
             if (fos != null) {
                 try {

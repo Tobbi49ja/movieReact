@@ -19,27 +19,36 @@ public class Finalizer {
     private static final int BUFFER_SIZE = 1024 * 1024;
     private static final boolean REMUX_FMP4 = false;
 
-    public static void run(File dir, DownloadManifest m, DownloadEngine.Listener l) {
-        try {
-            String sniffed = sniffContainer(dir);
-            if (sniffed != null) {
-                m.container = sniffed;
+    public static void run(File dir, DownloadManifest m, int segTotal, int audioSegTotal, DownloadEngine.Listener l) throws Exception {
+        String sniffed = sniffContainer(dir);
+        if (sniffed != null) {
+            m.container = sniffed;
+        }
+        verifySegments(dir, segTotal, "video");
+        if (m.hasAudio) {
+            verifySegments(new File(dir, "audio"), audioSegTotal, "audio");
+        }
+        if ("fmp4".equals(m.container) && m.hasAudio) {
+            handleFmp4WithAudio(dir, m, l);
+        } else if ("ts".equals(m.container)) {
+            handleTsContainer(dir, m, l);
+        } else if ("fmp4".equals(m.container) && !m.hasAudio) {
+            handleFmp4VideoOnly(dir, m, l);
+        } else {
+            throw new IllegalStateException("Container not supported: " + m.container);
+        }
+    }
+
+    private static void verifySegments(File dir, int total, String label) {
+        int missing = 0;
+        for (int i = 0; i < total; i++) {
+            File f = new File(dir, String.format("seg_%05d.seg", i));
+            if (!f.exists() || f.length() <= 0) {
+                missing++;
             }
-            if ("fmp4".equals(m.container) && m.hasAudio) {
-                handleFmp4WithAudio(dir, m, l);
-            } else if ("ts".equals(m.container)) {
-                handleTsContainer(dir, m, l);
-            } else if ("fmp4".equals(m.container) && !m.hasAudio) {
-                handleFmp4VideoOnly(dir, m, l);
-            } else {
-                l.onError(m.id, "FINALIZE_UNSUPPORTED", "Container not supported: " + m.container);
-            }
-        } catch (Exception e) {
-            m.status = "failed";
-            m.errorCode = "MUX_FAILED";
-            m.error = e.getMessage();
-            m.save(dir);
-            l.onError(m.id, "MUX_FAILED", e.getMessage());
+        }
+        if (missing > 0 || total <= 0) {
+            throw new IllegalStateException("Incomplete: " + Math.max(missing, 1) + " " + label + " segments missing");
         }
     }
 
@@ -91,8 +100,6 @@ public class Finalizer {
         m.save(dir);
 
         deleteIntermediates(dir, audioDir, videoMp4, audioMp4);
-
-        l.onComplete(m.id, m.path, m.size);
     }
 
     private static void handleTsContainer(File dir, DownloadManifest m, DownloadEngine.Listener l) throws Exception {
@@ -128,8 +135,6 @@ public class Finalizer {
         m.save(dir);
 
         deleteIntermediates(dir, null, tsFile);
-
-        l.onComplete(m.id, m.path, m.size);
     }
 
     private static void handleFmp4VideoOnly(File dir, DownloadManifest m, DownloadEngine.Listener l) throws Exception {
@@ -163,7 +168,6 @@ public class Finalizer {
                     m.path = outFile.getAbsolutePath();
                     m.size = outFile.length();
                     m.save(dir);
-                    l.onComplete(m.id, m.path, m.size);
                     return;
                 }
                 finalizeEmpty(dir, m, l);
@@ -200,9 +204,7 @@ public class Finalizer {
         m.status = "done";
         m.path = outFile.getAbsolutePath();
         m.size = outFile.length();
-        m.save(dir);
-        l.onComplete(m.id, m.path, m.size);
-    }
+        m.save(dir);    }
 
     private static void finalizeEmpty(File dir, DownloadManifest m, DownloadEngine.Listener l) {
         m.status = "failed";

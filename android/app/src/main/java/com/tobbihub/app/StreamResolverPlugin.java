@@ -93,6 +93,26 @@ public class StreamResolverPlugin extends Plugin {
     private static final long AUTOPLAY_DELAY_MS = 4000L;
     private static final long MUTE_INTERVAL_MS = 400L;
 
+    private volatile Runnable activeCleanup;
+
+    private void runActiveCleanup() {
+        Runnable cleanup = activeCleanup;
+        if (cleanup == null) {
+            return;
+        }
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            cleanup.run();
+        } else {
+            new Handler(Looper.getMainLooper()).post(cleanup);
+        }
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        runActiveCleanup();
+        super.handleOnDestroy();
+    }
+
     @PluginMethod
     public void resolve(PluginCall call) {
         if (call == null) {
@@ -157,6 +177,54 @@ public class StreamResolverPlugin extends Plugin {
         final Runnable[] stopMuteLoopFn = new Runnable[1];
         final Runnable[] logTimeoutDiagnosticsFn = new Runnable[1];
 
+        final boolean[] cleaned = {false};
+        final Runnable cleanupWebView = new Runnable() {
+            @Override
+            public void run() {
+                if (Looper.myLooper() != Looper.getMainLooper()) {
+                    handler.post(this);
+                    return;
+                }
+                if (cleaned[0]) {
+                    return;
+                }
+                cleaned[0] = true;
+                activeCleanup = null;
+                if (stopCaptureLimitFn[0] != null) {
+                    stopCaptureLimitFn[0].run();
+                }
+                if (stopFetchLimitFn[0] != null) {
+                    stopFetchLimitFn[0].run();
+                }
+                if (stopMuteLoopFn[0] != null) {
+                    stopMuteLoopFn[0].run();
+                }
+                if (webViewRef[0] == null) {
+                    return;
+                }
+                WebView webView = webViewRef[0].get();
+                webViewRef[0] = null;
+                if (webView == null) {
+                    return;
+                }
+                try {
+                    String script = "(function(){var m=document.querySelectorAll('video,audio');for(var i=0;i<m.length;i++){try{m[i].pause();m[i].muted=true;m[i].volume=0;}catch(e){}}var f=document.querySelectorAll('iframe');for(var j=0;j<f.length;j++){try{var d=f[j].contentWindow.document.querySelectorAll('video,audio');for(var k=0;k<d.length;k++){try{d[k].pause();d[k].muted=true;d[k].volume=0;}catch(e){}}}}catch(e){}}})();";
+                    webView.evaluateJavascript(script, null);
+                } catch (Exception ignored) {}
+                try { webView.stopLoading(); } catch (Exception ignored) {}
+                try { webView.onPause(); } catch (Exception ignored) {}
+                try { webView.pauseTimers(); } catch (Exception ignored) {}
+                try { webView.loadUrl("about:blank"); } catch (Exception ignored) {}
+                try {
+                    ViewParent parent = webView.getParent();
+                    if (parent instanceof ViewGroup) {
+                        ((ViewGroup) parent).removeView(webView);
+                    }
+                } catch (Exception ignored) {}
+                try { webView.destroy(); } catch (Exception ignored) {}
+            }
+        };
+
         final Runnable captureAutoplayCounts = new Runnable() {
             @Override
             public void run() {
@@ -199,6 +267,7 @@ public class StreamResolverPlugin extends Plugin {
                 final JSObject payload = buildPayload(captured, debug, headersBag, playlistQualities, playlistSubtitles,
                         resolvedMasterUrl[0]);
                 Log.d(TAG, "final result built");
+                cleanupWebView.run();
                 call.resolve(payload);
             }
         };
@@ -339,6 +408,7 @@ public class StreamResolverPlugin extends Plugin {
                 long elapsed = System.currentTimeMillis() - startTimeMs[0];
                 Log.d(TAG, "RESOLVE end host=" + embedHost + " result=timeout elapsedMs=" + elapsed);
                 logTimeoutDiagnosticsFn[0].run();
+                cleanupWebView.run();
                 call.reject("No stream found", (String) null, errorData);
             }
         };
@@ -363,6 +433,7 @@ public class StreamResolverPlugin extends Plugin {
                 long elapsed = System.currentTimeMillis() - startTimeMs[0];
                 Log.d(TAG, "RESOLVE end host=" + embedHost + " result=timeout elapsedMs=" + elapsed);
                 logTimeoutDiagnosticsFn[0].run();
+                cleanupWebView.run();
                 call.reject("No stream found", (String) null, errorData);
             }
         };
@@ -490,6 +561,7 @@ public class StreamResolverPlugin extends Plugin {
                 hiddenWebView.setY(0f);
                 root.addView(hiddenWebView, layoutParams);
                 webViewRef[0] = new WeakReference<WebView>(hiddenWebView);
+                activeCleanup = cleanupWebView;
 
                 WebSettings settings = hiddenWebView.getSettings();
                 webViewUserAgent[0] = settings.getUserAgentString();
@@ -1329,6 +1401,7 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
             }
         }
         errorData.put("debug", debugArray);
+        runActiveCleanup();
         call.reject("Playlist fetch failed: " + reason, (String) null, errorData);
     }
 
