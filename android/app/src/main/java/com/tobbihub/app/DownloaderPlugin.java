@@ -8,6 +8,7 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Environment;
 import android.os.StatFs;
+import android.util.Log;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -214,8 +215,9 @@ public class DownloaderPlugin extends Plugin {
             call.reject("NOT_FOUND");
             return;
         }
+        Log.d("Downloader", "play path=" + path + " exists=" + new File(path).exists());
         Intent intent = new Intent(getContext(), PlayerActivity.class)
-                .putExtra("EXTRA_PATH", path)
+                .putExtra(PlayerActivity.EXTRA_PATH, path)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         getContext().startActivity(intent);
         call.resolve();

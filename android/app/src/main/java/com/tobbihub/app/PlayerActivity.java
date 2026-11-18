@@ -26,7 +26,7 @@ import java.io.File;
 
 public class PlayerActivity extends Activity {
 
-    public static final String EXTRA_PATH = "path";
+    public static final String EXTRA_PATH = "com.tobbihub.app.EXTRA_PATH";
     private static final String STATE_POSITION = "position";
 
     private PlayerView playerView;
@@ -95,6 +95,8 @@ public class PlayerActivity extends Activity {
         if (player != null || videoFile == null) {
             return;
         }
+        String path = videoFile.getAbsolutePath();
+        Log.d("PlayerActivity", "open path=" + path + " exists=" + (path != null && new File(path).exists()));
 
         DefaultRenderersFactory renderersFactory =
                 new DefaultRenderersFactory(this).setEnableDecoderFallback(true);
