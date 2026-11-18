@@ -1,5 +1,6 @@
 package com.tobbihub.app;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONException;
 import java.io.File;
@@ -11,6 +12,9 @@ import java.io.IOException;
 public class DownloadManifest {
     public String id;
     public String title;
+    public Integer tmdbId;
+    public Integer season;
+    public Integer episode;
     public String poster;
     public String label;
     public String status;
@@ -29,6 +33,7 @@ public class DownloadManifest {
     public String path;
     public long size = 0;
     public String initUrl;
+    public JSONArray subtitles = new JSONArray();
 
     public static DownloadManifest load(File dir) {
         File file = new File(dir, "manifest.json");
@@ -68,6 +73,15 @@ public class DownloadManifest {
         try {
             json.put("id", id);
             json.put("title", title);
+            if (tmdbId != null) {
+                json.put("tmdbId", tmdbId.intValue());
+            }
+            if (season != null) {
+                json.put("season", season.intValue());
+            }
+            if (episode != null) {
+                json.put("episode", episode.intValue());
+            }
             json.put("poster", poster);
             json.put("label", label);
             json.put("status", status);
@@ -86,6 +100,7 @@ public class DownloadManifest {
             json.put("path", path);
             json.put("size", size);
             json.put("initUrl", initUrl);
+            json.put("subtitles", subtitles != null ? subtitles : new JSONArray());
         } catch (JSONException ignored) {}
         return json;
     }
@@ -94,6 +109,15 @@ public class DownloadManifest {
         DownloadManifest m = new DownloadManifest();
         m.id = json.optString("id", "");
         m.title = json.optString("title", "");
+        if (json.has("tmdbId") && !json.isNull("tmdbId")) {
+            m.tmdbId = json.optInt("tmdbId");
+        }
+        if (json.has("season") && !json.isNull("season")) {
+            m.season = json.optInt("season");
+        }
+        if (json.has("episode") && !json.isNull("episode")) {
+            m.episode = json.optInt("episode");
+        }
         m.poster = json.optString("poster", "");
         m.label = json.optString("label", "");
         m.status = json.optString("status", "queued");
@@ -111,6 +135,8 @@ public class DownloadManifest {
         m.error = json.optString("error", "");
         m.path = json.optString("path", "");
         m.size = json.optLong("size", 0);
+        JSONArray loadedSubtitles = json.optJSONArray("subtitles");
+        m.subtitles = loadedSubtitles != null ? loadedSubtitles : new JSONArray();
         return m;
     }
 }

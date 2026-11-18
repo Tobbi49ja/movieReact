@@ -4,4 +4,5 @@
     <string name="title_activity_main">Tobbihub</string>
     <string name="package_name">com.tobbihub.app</string>
     <string name="custom_url_scheme">com.tobbihub.app</string>
+    <string name="server_base_url">https://mamateetastykitchen.co.uk/tobbihub-api</string>
 </resources>

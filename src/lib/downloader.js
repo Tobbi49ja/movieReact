@@ -10,6 +10,15 @@ export const list = () => Downloader.list();
 export const storageInfo = () => Downloader.storageInfo();
 export const play = (path) => Downloader.play({ path });
 
+export const saveSubtitle = async ({ downloadId, lang, label, content }) =>
+  (await Downloader.saveSubtitle({ downloadId, lang, label, content }))?.subtitles || [];
+export const importSubtitle = async ({ downloadId }) =>
+  (await Downloader.importSubtitle({ downloadId }))?.subtitles || [];
+export const listSubtitles = async ({ downloadId }) =>
+  (await Downloader.listSubtitles({ downloadId }))?.subtitles || [];
+export const deleteSubtitle = async ({ downloadId, id }) =>
+  (await Downloader.deleteSubtitle({ downloadId, id }))?.subtitles || [];
+
 let initialized = false;
 let handles = [];
 

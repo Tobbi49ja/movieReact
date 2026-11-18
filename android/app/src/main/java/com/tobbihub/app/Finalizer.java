@@ -5,7 +5,11 @@ import android.media.MediaExtractor;
 import android.media.MediaFormat;
 import android.media.MediaMuxer;
 import android.media.MediaMetadataRetriever;
+import android.os.StatFs;
 import android.util.Log;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -24,6 +28,7 @@ public class Finalizer {
         if (sniffed != null) {
             m.container = sniffed;
         }
+        checkFreeSpaceForOutput(dir, m);
         boolean remuxInputsReady = "fmp4".equals(m.container) && m.hasAudio
                 && isNonEmpty(new File(dir, "video.mp4"))
                 && isNonEmpty(new File(dir, "audio.mp4"));
@@ -61,6 +66,73 @@ public class Finalizer {
         return file != null && file.exists() && file.length() > 0;
     }
 
+    private static void checkFreeSpaceForOutput(File dir, DownloadManifest m) {
+        long videoBytes = estimatedVideoBytes(dir, m);
+        long audioBytes = estimatedAudioBytes(dir, m);
+        long totalBytes = videoBytes + audioBytes;
+        if (totalBytes <= 0) {
+            return;
+        }
+        long requiredBytes = (totalBytes * 115 + 99) / 100;
+        long freeBytes;
+        try {
+            freeBytes = new StatFs(dir.getAbsolutePath()).getAvailableBytes();
+        } catch (Exception e) {
+            return;
+        }
+        if (freeBytes < requiredBytes) {
+            long needMb = (requiredBytes + (1024 * 1024) - 1) / (1024 * 1024);
+            throw new IllegalStateException("Not enough storage to finish: need " + needMb + " MB");
+        }
+    }
+
+    private static long estimatedVideoBytes(File dir, DownloadManifest m) {
+        if ("fmp4".equals(m.container) && m.hasAudio) {
+            File video = new File(dir, "video.mp4");
+            if (isNonEmpty(video)) {
+                return video.length();
+            }
+        } else if ("fmp4".equals(m.container)) {
+            File raw = new File(dir, "movie_raw.mp4");
+            if (isNonEmpty(raw)) {
+                return raw.length();
+            }
+        } else if ("ts".equals(m.container)) {
+            File ts = new File(dir, "movie.ts");
+            if (isNonEmpty(ts)) {
+                return ts.length();
+            }
+        }
+        return concatInputBytes(dir);
+    }
+
+    private static long estimatedAudioBytes(File dir, DownloadManifest m) {
+        if (!"fmp4".equals(m.container) || !m.hasAudio) {
+            return 0;
+        }
+        File audio = new File(dir, "audio.mp4");
+        if (isNonEmpty(audio)) {
+            return audio.length();
+        }
+        return concatInputBytes(new File(dir, "audio"));
+    }
+
+    private static long concatInputBytes(File dir) {
+        long total = 0;
+        File[] files = dir.listFiles();
+        if (files == null) {
+            return 0;
+        }
+        for (File f : files) {
+            String name = f.getName();
+            if (f.isFile() && (name.equals("init.mp4") || name.equals("init.ts")
+                    || (name.startsWith("seg_") && name.endsWith(".seg")))) {
+                total += f.length();
+            }
+        }
+        return total;
+    }
+
     private static void handleFmp4WithAudio(File dir, DownloadManifest m, DownloadEngine.Listener l) throws Exception {
         File videoDir = dir;
         File audioDir = new File(dir, "audio");
@@ -84,12 +156,12 @@ public class Finalizer {
             List<File> videoSegs = collectSegments(videoDir);
             List<File> audioSegs = collectSegments(audioDir);
 
-            concatenateFiles(videoInit, videoSegs, videoMp4);
-            concatenateFiles(audioInit, audioSegs, audioMp4);
+            concatenateFiles(videoInit, videoSegs, videoMp4, true);
+            concatenateFiles(audioInit, audioSegs, audioMp4, true);
         }
 
         File outFile = new File(dir, "movie.mp4");
-        remuxMp4(videoMp4, audioMp4, outFile, m);
+        remuxMp4(videoMp4, audioMp4, outFile, m, l);
 
         if (!outFile.exists() || outFile.length() <= 0) {
             throw new IllegalStateException("Output file is empty");
@@ -150,13 +222,13 @@ public class Finalizer {
             return;
         }
 
-        concatenateFiles(initFile, segFiles, rawFile);
+        concatenateFiles(initFile, segFiles, rawFile, false);
 
         if (rawFile.length() <= 0) {
             throw new IllegalStateException("Output file is empty");
         }
 
-        remuxMp4(rawFile, null, outFile, m);
+        remuxMp4(rawFile, null, outFile, m, l);
 
         if (!outFile.exists() || outFile.length() <= 0) {
             throw new IllegalStateException("Output file is empty");
@@ -224,7 +296,7 @@ public class Finalizer {
         return segFiles;
     }
 
-    private static void concatenateFiles(File initFile, List<File> segments, File output) throws Exception {
+    private static void concatenateFiles(File initFile, List<File> segments, File output, boolean deleteSegments) throws Exception {
         try (FileOutputStream fos = new FileOutputStream(output, false);
              FileChannel out = fos.getChannel()) {
             if (initFile != null && initFile.exists()) {
@@ -232,6 +304,9 @@ public class Finalizer {
             }
             for (File seg : segments) {
                 transferFile(seg, out);
+                if (deleteSegments) {
+                    seg.delete();
+                }
             }
         }
     }
@@ -251,7 +326,7 @@ public class Finalizer {
 
     private static final String REMUX_FAIL_MESSAGE = "Remux failed - tap Retry to remux without re-downloading";
 
-    private static void remuxMp4(File videoFile, File audioFile, File outFile, DownloadManifest m) throws Exception {
+    private static void remuxMp4(File videoFile, File audioFile, File outFile, DownloadManifest m, DownloadEngine.Listener l) throws Exception {
         File tmpFile = new File(outFile.getAbsolutePath() + ".tmp");
         boolean hasAudioFile = audioFile != null && audioFile.exists() && audioFile.length() > 0;
 
@@ -302,6 +377,24 @@ public class Finalizer {
                 }
                 muxer.start();
 
+                long videoDuration = durationUs(vFormat);
+                if (videoDuration <= 0) {
+                    videoDuration = durationUs(videoFile);
+                }
+                long audioDuration = durationUs(aFormat);
+                if (audioDuration <= 0 && hasAudioFile) {
+                    audioDuration = durationUs(audioFile);
+                }
+                boolean progressOnVideo = audioDuration <= videoDuration;
+                MediaExtractor progressExtractor = progressOnVideo ? vEx : aEx;
+                long progressDuration = progressOnVideo ? videoDuration : audioDuration;
+                long lastProgressMs = 0;
+                int lastPercent = 0;
+                if (progressDuration > 0) {
+                    emitFinishing(l, m, 0);
+                    lastProgressMs = System.currentTimeMillis();
+                }
+
                 int bufferSize = Math.max(Math.max(maxInputSize(vFormat), maxInputSize(aFormat)), 2 * 1024 * 1024);
                 ByteBuffer buffer = ByteBuffer.allocate(bufferSize);
                 MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
@@ -343,6 +436,23 @@ public class Finalizer {
                         audioSamples++;
                         audioTime = aEx.getSampleTime();
                     }
+
+                    long now = System.currentTimeMillis();
+                    if (progressDuration > 0 && now - lastProgressMs >= 1000) {
+                        long position = progressExtractor.getSampleTime();
+                        if (position < 0) {
+                            position = progressDuration;
+                        }
+                        int percent = (int) Math.min(100, Math.max(0, position * 100 / progressDuration));
+                        emitFinishing(l, m, percent);
+                        lastPercent = percent;
+                        lastProgressMs = now;
+                    }
+                }
+
+                if (progressDuration > 0 && lastPercent < 100
+                        && System.currentTimeMillis() - lastProgressMs >= 1000) {
+                    emitFinishing(l, m, 100);
                 }
 
                 Log.d("Downloader", "REMUX done video_samples=" + videoSamples + " audio_samples=" + audioSamples);
@@ -417,6 +527,56 @@ public class Finalizer {
             }
         }
         return 0;
+    }
+
+    private static long durationUs(MediaFormat format) {
+        if (format != null && format.containsKey(MediaFormat.KEY_DURATION)) {
+            try {
+                return format.getLong(MediaFormat.KEY_DURATION);
+            } catch (Exception ignored) {}
+        }
+        return -1;
+    }
+
+    private static long durationUs(File file) {
+        if (file == null || !file.exists()) {
+            return -1;
+        }
+        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+        try {
+            retriever.setDataSource(file.getAbsolutePath());
+            String value = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+            if (value != null) {
+                return Long.parseLong(value) * 1000L;
+            }
+        } catch (Exception ignored) {
+        } finally {
+            try { retriever.release(); } catch (Exception ignored) {}
+        }
+        return -1;
+    }
+
+    private static void emitFinishing(DownloadEngine.Listener listener, DownloadManifest m, int percent) {
+        if (listener == null) {
+            return;
+        }
+        Log.d("Downloader", "Finishing " + percent + "%");
+        JSONObject progress = new JSONObject();
+        try {
+            progress.put("id", m != null && m.id != null ? m.id : "");
+            progress.put("percent", percent);
+            progress.put("stage", "Finishing");
+            progress.put("message", "Finishing " + percent + "%");
+            progress.put("bytesDone", 0);
+            progress.put("totalBytes", 0);
+            progress.put("speedBps", 0);
+            progress.put("segDone", 0);
+            progress.put("segTotal", 0);
+            progress.put("etaSec", 0);
+        } catch (JSONException ignored) {}
+        try {
+            listener.onProgress(progress);
+        } catch (Exception ignored) {}
     }
 
     private static void logOutput(File outFile) {

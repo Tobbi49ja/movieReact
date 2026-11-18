@@ -2,6 +2,7 @@ package com.tobbihub.app;
 
 import android.content.Context;
 import android.os.Environment;
+import android.os.PowerManager;
 import android.os.StatFs;
 import android.util.Log;
 
@@ -144,7 +145,7 @@ public class DownloadEngine {
         return array;
     }
 
-    private File getBaseDownloadsDir() {
+    public static File getDownloadsRoot(Context context) {
         File external = context.getExternalFilesDir(Environment.DIRECTORY_MOVIES);
         File base = external != null ? new File(external, "downloads") : new File(context.getFilesDir(), "downloads");
         if (!base.exists()) {
@@ -153,8 +154,16 @@ public class DownloadEngine {
         return base;
     }
 
+    public static File getDownloadFolder(Context context, String id) {
+        return new File(getDownloadsRoot(context), id);
+    }
+
+    private File getBaseDownloadsDir() {
+        return getDownloadsRoot(context);
+    }
+
     private File getDownloadFolder(String id) {
-        return new File(getBaseDownloadsDir(), id);
+        return getDownloadFolder(context, id);
     }
 
     private static boolean hasRemuxInputs(File folder) {
@@ -185,6 +194,19 @@ public class DownloadEngine {
             manifest.updatedAt = System.currentTimeMillis();
             manifest.status = "queued";
             manifest.path = req.optString("url", "");
+        }
+
+        if (req.has("tmdbId") && !req.isNull("tmdbId")) {
+            manifest.tmdbId = req.optInt("tmdbId");
+        }
+        if (req.has("season") && !req.isNull("season")) {
+            manifest.season = req.optInt("season");
+        }
+        if (req.has("episode") && !req.isNull("episode")) {
+            manifest.episode = req.optInt("episode");
+        }
+        if ((manifest.title == null || manifest.title.isEmpty()) && req.has("title")) {
+            manifest.title = req.optString("title", "");
         }
 
         boolean remuxDirect = isResume && "failed".equals(manifest.status) && hasRemuxInputs(folder);
@@ -962,7 +984,13 @@ public class DownloadEngine {
             String cookie = originalReq.optString("cookie", "");
             Map<String, String> headers = HttpUtil.buildHeaders(ua, referer, null, cookie);
 
+            PowerManager.WakeLock wakeLock = null;
             try {
+                PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+                if (pm != null) {
+                    wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "DownloadEngine::Finalize");
+                    wakeLock.acquire();
+                }
                 Finalizer.run(folder, manifest, manifest.segTotal, manifest.audioSegTotal, listener);
             } catch (Exception e) {
                 String message = e.getMessage() != null ? e.getMessage() : "Finalize failed";
@@ -975,6 +1003,10 @@ public class DownloadEngine {
                 notifyError(id, code, message);
                 Log.d("Downloader", "Finalize end " + id + " container=" + manifest.container);
                 return;
+            } finally {
+                if (wakeLock != null && wakeLock.isHeld()) {
+                    wakeLock.release();
+                }
             }
 
             Log.d("Downloader", "Finalize end " + id + " container=" + manifest.container);
