@@ -172,7 +172,7 @@ public class PlayerActivity extends Activity {
                 showSubtitleSheet();
             }
         });
-        playerView.setControllerVisibilityListener(visibility -> ccButton.setVisibility(visibility));
+        playerView.setControllerVisibilityListener((PlayerView.ControllerVisibilityListener) visibility -> ccButton.setVisibility(visibility));
 
         Button backButton = new Button(this);
         backButton.setText("←");
