@@ -255,6 +255,21 @@ public class Finalizer {
                 audioExtractor.setDataSource(audioFile.getAbsolutePath());
             }
 
+            int audioTracks = audioExtractor != null ? audioExtractor.getTrackCount() : 0;
+            Log.d("Downloader", "REMUX video.mp4=" + videoFile.length()
+                    + " audio.mp4=" + (hasAudioFile ? audioFile.length() : 0));
+            Log.d("Downloader", "REMUX video tracks=" + videoTracks + " mimes=" + trackMimes(videoExtractor));
+            if (audioExtractor != null) {
+                Log.d("Downloader", "REMUX audio tracks=" + audioTracks + " mimes=" + trackMimes(audioExtractor));
+            }
+            for (int i = 0; i < audioTracks; i++) {
+                String mime = audioExtractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME);
+                if (!isMuxerAudioMime(mime)) {
+                    Log.d("Downloader", "REMUX unsupported audio mime=" + mime);
+                    throw new IllegalStateException("Unsupported audio track mime: " + mime);
+                }
+            }
+
             int maxInputSize = 0;
             int rotation = -1;
             for (int i = 0; i < videoTracks; i++) {
@@ -267,7 +282,6 @@ public class Finalizer {
                     }
                 }
             }
-            int audioTracks = audioExtractor != null ? audioExtractor.getTrackCount() : 0;
             for (int i = 0; i < audioTracks; i++) {
                 maxInputSize = Math.max(maxInputSize, maxInputSize(audioExtractor.getTrackFormat(i)));
             }
@@ -339,6 +353,35 @@ public class Finalizer {
             muxer.release();
             muxer = null;
 
+            MediaExtractor checkExtractor = new MediaExtractor();
+            boolean hasAudioTrack = false;
+            StringBuilder outMimes = new StringBuilder();
+            int outTracks;
+            try {
+                checkExtractor.setDataSource(tmpFile.getAbsolutePath());
+                outTracks = checkExtractor.getTrackCount();
+                for (int i = 0; i < outTracks; i++) {
+                    String mime = checkExtractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME);
+                    if (i > 0) {
+                        outMimes.append(",");
+                    }
+                    outMimes.append(mime);
+                    if (mime != null && mime.startsWith("audio/")) {
+                        hasAudioTrack = true;
+                    }
+                }
+            } finally {
+                checkExtractor.release();
+            }
+            Log.d("Downloader", "REMUX output tracks=" + outTracks + " mimes=" + outMimes);
+            if (hasAudioFile && !hasAudioTrack) {
+                Log.d("Downloader", "REMUX audio missing after mux");
+                if (tmpFile.exists()) {
+                    tmpFile.delete();
+                }
+                throw new IllegalStateException("Audio missing after mux");
+            }
+
             if (outFile.exists()) {
                 outFile.delete();
             }
@@ -361,6 +404,26 @@ public class Finalizer {
                 audioExtractor.release();
             }
         }
+    }
+
+    private static String trackMimes(MediaExtractor extractor) {
+        StringBuilder mimes = new StringBuilder();
+        for (int i = 0; i < extractor.getTrackCount(); i++) {
+            if (i > 0) {
+                mimes.append(",");
+            }
+            mimes.append(extractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME));
+        }
+        return mimes.toString();
+    }
+
+    private static boolean isMuxerAudioMime(String mime) {
+        if (mime == null) {
+            return false;
+        }
+        return "audio/mp4a-latm".equalsIgnoreCase(mime)
+                || "audio/3gpp".equalsIgnoreCase(mime)
+                || "audio/amr-wb".equalsIgnoreCase(mime);
     }
 
     private static int maxInputSize(MediaFormat format) {

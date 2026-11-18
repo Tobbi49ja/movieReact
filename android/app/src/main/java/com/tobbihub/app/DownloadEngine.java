@@ -34,7 +34,8 @@ public class DownloadEngine {
     private static final String TAG = "DownloadEngine";
     private static final int MAX_RETRIES = 3;
     private static final int[] RETRY_DELAYS_MS = {1000, 2000, 4000};
-    private static final int WORKER_THREADS = 4;
+    private static final int WORKER_THREADS = 3;
+    private static final int MAX_CONCURRENT_DOWNLOADS = 2;
     private static final int SAVE_INTERVAL_MS = 5000;
     private static final int PROGRESS_INTERVAL_MS = 1000;
     private static final int CONSECUTIVE_AUTH_ERRORS_LIMIT = 3;
@@ -49,7 +50,7 @@ public class DownloadEngine {
 
     private final Context context;
     private final Listener listener;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private ExecutorService executor = Executors.newFixedThreadPool(MAX_CONCURRENT_DOWNLOADS);
     private final ScheduledExecutorService timerExecutor = Executors.newSingleThreadScheduledExecutor();
     private final Map<String, DownloadTask> activeTasks = Collections.synchronizedMap(new HashMap<>());
 
@@ -70,6 +71,9 @@ public class DownloadEngine {
             return;
         }
 
+        if (executor.isShutdown()) {
+            executor = Executors.newFixedThreadPool(MAX_CONCURRENT_DOWNLOADS);
+        }
         executor.execute(() -> runDownload(id, req));
     }
 
@@ -285,6 +289,10 @@ public class DownloadEngine {
         private String audioUrl;
         private final AtomicBoolean paused = new AtomicBoolean(false);
         private final AtomicBoolean cancelled = new AtomicBoolean(false);
+        private final AtomicBoolean aborted = new AtomicBoolean(false);
+        private final AtomicBoolean authLimitReached = new AtomicBoolean(false);
+        private final AtomicBoolean recoveredOnce = new AtomicBoolean(false);
+        private final AtomicBoolean expiredEmitted = new AtomicBoolean(false);
         private final AtomicInteger consecutiveAuthErrors = new AtomicInteger(0);
         private final Set<Integer> failedSegs = Collections.synchronizedSet(new HashSet<Integer>());
         private Future<?> downloadFuture;
@@ -542,7 +550,7 @@ public class DownloadEngine {
                         Log.d("Downloader", "fmp4 without init");
                     } else if (!initFile.exists()) {
                         int initCode = downloadWithRetries(manifest.initUrl, headers, initFile, -1);
-                        if (cancelled.get()) return;
+                        if (cancelled.get() || aborted.get()) return;
                         if (initCode < 200 || initCode >= 300 || !initFile.exists() || initFile.length() <= 0) {
                             progressFuture.cancel(false);
                             saveFuture.cancel(false);
@@ -560,18 +568,18 @@ public class DownloadEngine {
 
                 downloadStartMs = System.currentTimeMillis();
                 for (int i = 0; i < manifest.segTotal; i++) {
-                    if (cancelled.get()) break;
-                    while (paused.get() && !cancelled.get()) {
+                    if (cancelled.get() || aborted.get()) break;
+                    while (paused.get() && !cancelled.get() && !aborted.get()) {
                         Thread.sleep(200);
                     }
-                    if (cancelled.get()) break;
+                    if (cancelled.get() || aborted.get()) break;
 
                     File existingVideo = new File(folder, String.format("seg_%05d.seg", i));
                     if (existingVideo.exists() && existingVideo.length() > 0) continue;
 
                     final int segIndex = i;
                     futures.add(workers.submit(() -> {
-                        if (cancelled.get()) return;
+                        if (cancelled.get() || aborted.get()) return;
                         String segUrl = parsedSegmentUrls.get(segIndex);
                         File partFile = new File(folder, String.format("seg_%05d.seg.part", segIndex));
                         File finalFile = new File(folder, String.format("seg_%05d.seg", segIndex));
@@ -591,7 +599,7 @@ public class DownloadEngine {
                                 onSegCompleted(manifest.segDone, manifest.segTotal);
                             }
                         } else if (code == 0) {
-                            if (!cancelled.get()) failedSegs.add(segIndex);
+                            if (!cancelled.get() && !aborted.get()) failedSegs.add(segIndex);
                             partFile.delete();
                         } else if (code == 401 || code == 403 || code == 410) {
                             consecutiveAuthErrors.incrementAndGet();
@@ -606,11 +614,11 @@ public class DownloadEngine {
                 if (audioSegmentUrlsRef[0] != null && audioDirRef[0] != null) {
                     final List<String> audioSegUrls = (List<String>) audioSegmentUrlsRef[0];
                     for (int i = 0; i < audioSegUrls.size(); i++) {
-                        if (cancelled.get()) break;
-                        while (paused.get() && !cancelled.get()) {
+                        if (cancelled.get() || aborted.get()) break;
+                        while (paused.get() && !cancelled.get() && !aborted.get()) {
                             Thread.sleep(200);
                         }
-                        if (cancelled.get()) break;
+                        if (cancelled.get() || aborted.get()) break;
 
                         File existingAudio = new File(audioDirRef[0], String.format("seg_%05d.seg", i));
                         if (existingAudio.exists() && existingAudio.length() > 0) continue;
@@ -618,7 +626,7 @@ public class DownloadEngine {
                         final int segIndex = i;
                         final File audioDir = audioDirRef[0];
                         futures.add(workers.submit(() -> {
-                            if (cancelled.get()) return;
+                            if (cancelled.get() || aborted.get()) return;
                             String segUrl = audioSegUrls.get(segIndex);
                             File partFile = new File(audioDir, String.format("seg_%05d.seg.part", segIndex));
                             File finalFile = new File(audioDir, String.format("seg_%05d.seg", segIndex));
@@ -638,7 +646,7 @@ public class DownloadEngine {
                                     onSegCompleted(manifest.segDone + manifest.audioSegDone, manifest.segTotal + manifest.audioSegTotal);
                                 }
                             } else if (code == 0) {
-                                if (!cancelled.get()) failedSegs.add(-(segIndex + 1));
+                                if (!cancelled.get() && !aborted.get()) failedSegs.add(-(segIndex + 1));
                                 partFile.delete();
                             } else if (code == 401 || code == 403 || code == 410) {
                                 consecutiveAuthErrors.incrementAndGet();
@@ -661,9 +669,21 @@ public class DownloadEngine {
                 workers.awaitTermination(1, TimeUnit.HOURS);
 
                 if (!cancelled.get()) {
-                    for (int pass = 0; pass < 2; pass++) {
+                    if (authLimitReached.get() && recoveredOnce.compareAndSet(false, true)) {
+                        aborted.set(false);
+                        consecutiveAuthErrors.set(0);
+                        authLimitReached.set(false);
+                        boolean ok = refetchPlaylists(headers, audioSegmentUrlsRef, audioDirRef);
+                        int missingNow = countMissingSegments(audioDirRef);
+                        Log.d("Downloader", "RECOVER playlist refetch " + (ok ? "ok" : "fail") + " missing=" + missingNow);
+                        if (!ok) {
+                            failExpiredOnce();
+                            return;
+                        }
+                    }
+                    for (int pass = 0; pass < 2 && !aborted.get(); pass++) {
                         boolean anyMissing = false;
-                        for (int i = 0; i < manifest.segTotal && !cancelled.get(); i++) {
+                        for (int i = 0; i < manifest.segTotal && !cancelled.get() && !aborted.get(); i++) {
                             File f = new File(folder, String.format("seg_%05d.seg", i));
                             if (f.exists() && f.length() > 0) continue;
                             anyMissing = true;
@@ -673,7 +693,7 @@ public class DownloadEngine {
                         }
                         if (audioDirRef[0] != null && audioSegmentUrlsRef[0] != null) {
                             final List<String> audioUrls = (List<String>) audioSegmentUrlsRef[0];
-                            for (int i = 0; i < audioUrls.size() && !cancelled.get(); i++) {
+                            for (int i = 0; i < audioUrls.size() && !cancelled.get() && !aborted.get(); i++) {
                                 File f = new File(audioDirRef[0], String.format("seg_%05d.seg", i));
                                 if (f.exists() && f.length() > 0) continue;
                                 anyMissing = true;
@@ -690,6 +710,10 @@ public class DownloadEngine {
                         manifest.updatedAt = System.currentTimeMillis();
                         manifest.save(folder);
                     }
+                    if (authLimitReached.get()) {
+                        failExpiredOnce();
+                        return;
+                    }
                 }
 
                 progressFuture.cancel(false);
@@ -699,21 +723,23 @@ public class DownloadEngine {
                         + (manifest.hasAudio ? manifest.audioSegTotal - manifest.audioSegDone : 0);
                 boolean videoDone = manifest.segDone == manifest.segTotal;
                 boolean audioDone = !manifest.hasAudio || manifest.audioSegDone == manifest.audioSegTotal;
-                if (!cancelled.get() && videoDone && audioDone) {
+                if (!cancelled.get() && !aborted.get() && videoDone && audioDone) {
                     complete();
                 } else if (cancelled.get()) {
                     manifest.status = "failed";
                     manifest.errorCode = "CANCELLED";
                     manifest.error = "Download cancelled";
                     manifest.save(folder);
-                } else {
+                } else if (!aborted.get()) {
                     fail("INCOMPLETE", "Incomplete: " + Math.max(missing, 1) + " segments missing");
                 }
 
             } catch (Exception e) {
                 progressFuture.cancel(false);
                 saveFuture.cancel(false);
-                fail("NETWORK", e.getMessage());
+                if (!aborted.get() && !expiredEmitted.get()) {
+                    fail("NETWORK", e.getMessage());
+                }
             } finally {
                 workers.shutdownNow();
             }
@@ -725,11 +751,11 @@ public class DownloadEngine {
             String host = hostOnly(url);
             long expected = contentLength(url, headers);
             for (int attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-                if (cancelled.get()) return 0;
-                while (paused.get() && !cancelled.get()) {
+                if (cancelled.get() || aborted.get()) return 0;
+                while (paused.get() && !cancelled.get() && !aborted.get()) {
                     try { Thread.sleep(200); } catch (InterruptedException ignored) {}
                 }
-                if (cancelled.get()) return 0;
+                if (cancelled.get() || aborted.get()) return 0;
 
                 try {
                     dest.delete();
@@ -744,15 +770,17 @@ public class DownloadEngine {
                             }
                             return code;
                         }
-                        if (segIndex >= 0) Log.d("Downloader", "SEG short idx=" + segIndex + " bytes=" + written + " expected=" + expected + " attempt=" + attempt);
+                        if (segIndex >= 0 && !aborted.get()) Log.d("Downloader", "SEG short idx=" + segIndex + " bytes=" + written + " expected=" + expected + " attempt=" + attempt);
                         dest.delete();
                     }
-                    if (segIndex >= 0) Log.d("Downloader", "SEG fail idx=" + segIndex + " http=" + code + " attempt=" + attempt + " host=" + host);
+                    if (segIndex >= 0 && !aborted.get()) Log.d("Downloader", "SEG fail idx=" + segIndex + " http=" + code + " attempt=" + attempt + " host=" + host);
                     dest.delete();
                     if (code == 401 || code == 403 || code == 410) {
                         int count = consecutiveAuthErrors.incrementAndGet();
                         if (count >= CONSECUTIVE_AUTH_ERRORS_LIMIT) {
-                            fail("EXPIRED", "Stream expired or access denied");
+                            authLimitReached.set(true);
+                            aborted.set(true);
+                            HttpUtil.disconnectAll();
                             return code;
                         }
                     }
@@ -762,13 +790,13 @@ public class DownloadEngine {
                 } catch (HttpUtil.PausedException e) {
                     dest.delete();
                     attempt--;
-                    while (paused.get() && !cancelled.get()) {
+                    while (paused.get() && !cancelled.get() && !aborted.get()) {
                         try { Thread.sleep(200); } catch (InterruptedException ignored) {}
                     }
                 } catch (IOException e) {
                     dest.delete();
-                    if (cancelled.get()) return 0;
-                    if (segIndex >= 0) Log.d("Downloader", "SEG error idx=" + segIndex + " attempt=" + attempt + " " + e.getClass().getSimpleName() + " " + e.getMessage());
+                    if (cancelled.get() || aborted.get()) return 0;
+                    if (segIndex >= 0 && !aborted.get()) Log.d("Downloader", "SEG error idx=" + segIndex + " attempt=" + attempt + " " + e.getClass().getSimpleName() + " " + e.getMessage());
                     if (attempt < MAX_RETRIES) {
                         try { Thread.sleep(RETRY_DELAYS_MS[attempt]); } catch (InterruptedException ignored) {}
                     }
@@ -778,6 +806,69 @@ public class DownloadEngine {
                 }
             }
             return 0;
+        }
+
+        private int countMissingSegments(File[] audioDirRef) {
+            int missing = 0;
+            for (int i = 0; i < manifest.segTotal; i++) {
+                File f = new File(folder, String.format("seg_%05d.seg", i));
+                if (!f.exists() || f.length() <= 0) missing++;
+            }
+            if (manifest.hasAudio && audioDirRef[0] != null) {
+                for (int i = 0; i < manifest.audioSegTotal; i++) {
+                    File f = new File(audioDirRef[0], String.format("seg_%05d.seg", i));
+                    if (!f.exists() || f.length() <= 0) missing++;
+                }
+            }
+            return missing;
+        }
+
+        private boolean refetchPlaylists(Map<String, String> headers, Object[] audioUrlsRef, File[] audioDirRef) {
+            try {
+                HttpUtil.Result video = HttpUtil.fetchText(qualityUrl, headers);
+                if (video == null || video.code != 200) {
+                    return false;
+                }
+                PlaylistParser.Parsed parsed = PlaylistParser.parseMedia(video.body, qualityUrl);
+                if (parsed.segmentUrls.isEmpty()) {
+                    return false;
+                }
+                parsedSegmentUrls = parsed.segmentUrls;
+                synchronized (manifest) {
+                    manifest.segTotal = parsed.segmentUrls.size();
+                }
+                if (audioUrl != null && !audioUrl.isEmpty() && audioDirRef[0] != null) {
+                    HttpUtil.Result audio = HttpUtil.fetchText(audioUrl, headers);
+                    if (audio == null || audio.code != 200) {
+                        return false;
+                    }
+                    PlaylistParser.Parsed audioParsed = PlaylistParser.parseMedia(audio.body, audioUrl);
+                    if (audioParsed.segmentUrls.isEmpty()) {
+                        return false;
+                    }
+                    audioUrlsRef[0] = audioParsed.segmentUrls;
+                    synchronized (manifest) {
+                        manifest.hasAudio = true;
+                        manifest.audioSegTotal = audioParsed.segmentUrls.size();
+                    }
+                }
+                manifest.updatedAt = System.currentTimeMillis();
+                manifest.save(folder);
+                return true;
+            } catch (Exception e) {
+                Log.d("Downloader", "RECOVER playlist refetch exception " + e.getMessage());
+                return false;
+            }
+        }
+
+        private void failExpiredOnce() {
+            if (!expiredEmitted.compareAndSet(false, true)) {
+                return;
+            }
+            aborted.set(true);
+            HttpUtil.disconnectAll();
+            fail("EXPIRED", "Stream expired or access denied");
+            executor.shutdownNow();
         }
 
         private long contentLength(String url, Map<String, String> headers) {
