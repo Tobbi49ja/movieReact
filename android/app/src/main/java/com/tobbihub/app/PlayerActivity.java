@@ -362,6 +362,7 @@ public class PlayerActivity extends Activity {
         if (selectedSubtitleIndex >= 0 && selectedSubtitleIndex < subtitleEntries.size()) {
             value = subtitleEntries.get(selectedSubtitleIndex).lang;
         }
+        if ("off".equalsIgnoreCase(value) || "none".equalsIgnoreCase(value)) return;
         prefs().edit().putString(lastLangKey(), value).apply();
     }
 
@@ -657,17 +658,19 @@ public class PlayerActivity extends Activity {
 
         showProgress("Searching subtitles…");
         new Thread(() -> {
+            String url = null;
             try {
                 String base = getString(R.string.server_base_url);
-                StringBuilder url = new StringBuilder(base)
+                StringBuilder urlBuilder = new StringBuilder(base)
                         .append("/api/subtitles/search?tmdbId=").append(tmdbId)
                         .append("&lang=").append(URLEncoder.encode(lang, "UTF-8"));
                 if (season != null && episode != null) {
-                    url.append("&season=").append(season)
+                    urlBuilder.append("&season=").append(season)
                             .append("&episode=").append(episode);
                 }
+                url = urlBuilder.toString();
 
-                String json = httpGet(url.toString(), "application/json");
+                String json = httpGet(url, "application/json");
                 JSONArray array = new JSONArray(json);
                 final List<SubtitleResult> results = new ArrayList<>();
                 for (int i = 0; i < array.length(); i++) {
@@ -690,9 +693,11 @@ public class PlayerActivity extends Activity {
                     }
                 });
             } catch (Exception e) {
+                final String failedUrl = url;
                 runOnUiThread(() -> {
                     dismissProgress();
                     if (!isFinishing()) {
+                        Log.e("TobbiSubs", "search failed url=" + failedUrl + " err=" + e.getMessage());
                         Toast.makeText(this, "Search failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
                     }
                 });
@@ -705,8 +710,9 @@ public class PlayerActivity extends Activity {
         if (selectedSubtitleIndex >= 0 && selectedSubtitleIndex < subtitleEntries.size()) {
             value = subtitleEntries.get(selectedSubtitleIndex).lang;
         }
+        value = normalizeSearchLang(value);
         if (value == null) {
-            value = prefs().getString(lastLangKey(), null);
+            value = normalizeSearchLang(prefs().getString(lastLangKey(), null));
         }
         if (value != null && value.matches("[A-Za-z]{2,5}")) {
             return value.toLowerCase(Locale.US);
@@ -716,6 +722,15 @@ public class PlayerActivity extends Activity {
             return device.toLowerCase(Locale.US);
         }
         return "en";
+    }
+
+    private String normalizeSearchLang(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) return null;
+        String lower = trimmed.toLowerCase(Locale.US);
+        if ("off".equals(lower) || "none".equals(lower)) return null;
+        return value;
     }
 
     private void showSearchResults(final List<SubtitleResult> results) {
