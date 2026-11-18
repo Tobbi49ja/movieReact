@@ -8,6 +8,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.view.View;
+import android.view.WindowManager;
 import java.lang.ref.WeakReference;
 import android.view.ViewGroup;
 import android.view.ViewParent;
@@ -136,6 +137,9 @@ public class StreamResolverPlugin extends Plugin {
             call.reject("Activity unavailable");
             return;
         }
+        try {
+            activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        } catch (Exception ignored) {}
 
         final Uri embedUri = Uri.parse(embedUrl.trim());
         final String finalEmbedUrl = embedUrl.trim();
@@ -176,6 +180,7 @@ public class StreamResolverPlugin extends Plugin {
         final Runnable[] stopFetchLimitFn = new Runnable[1];
         final Runnable[] stopMuteLoopFn = new Runnable[1];
         final Runnable[] logTimeoutDiagnosticsFn = new Runnable[1];
+        final Runnable[] resolveTimeoutTask = new Runnable[1];
 
         final boolean[] cleaned = {false};
         final Runnable cleanupWebView = new Runnable() {
@@ -190,6 +195,13 @@ public class StreamResolverPlugin extends Plugin {
                 }
                 cleaned[0] = true;
                 activeCleanup = null;
+                try {
+                    activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                } catch (Exception ignored) {}
+                if (resolveTimeoutTask[0] != null) {
+                    handler.removeCallbacks(resolveTimeoutTask[0]);
+                    resolveTimeoutTask[0] = null;
+                }
                 if (stopCaptureLimitFn[0] != null) {
                     stopCaptureLimitFn[0].run();
                 }
@@ -213,7 +225,7 @@ public class StreamResolverPlugin extends Plugin {
                 } catch (Exception ignored) {}
                 try { webView.stopLoading(); } catch (Exception ignored) {}
                 try { webView.onPause(); } catch (Exception ignored) {}
-                try { webView.pauseTimers(); } catch (Exception ignored) {}
+                try { webView.resumeTimers(); } catch (Exception ignored) {}
                 try { webView.loadUrl("about:blank"); } catch (Exception ignored) {}
                 try {
                     ViewParent parent = webView.getParent();
@@ -438,6 +450,32 @@ public class StreamResolverPlugin extends Plugin {
             }
         };
 
+        final long resolveStartElapsedMs = SystemClock.elapsedRealtime();
+        final Runnable resolveTimeout = new Runnable() {
+            @Override
+            public void run() {
+                if (completed[0]) {
+                    return;
+                }
+                completed[0] = true;
+                long elapsed = SystemClock.elapsedRealtime() - resolveStartElapsedMs;
+                Log.d(TAG, "RESOLVE end host=" + embedHost + " result=timeout reason=native elapsedMs=" + elapsed);
+                logTimeoutDiagnosticsFn[0].run();
+                cleanupWebView.run();
+                JSObject errorData = new JSObject();
+                JSArray debugArray = new JSArray();
+                synchronized (debug) {
+                    for (String item : debug) {
+                        debugArray.put(item);
+                    }
+                }
+                errorData.put("debug", debugArray);
+                call.reject("No stream found", (String) null, errorData);
+            }
+        };
+        resolveTimeoutTask[0] = resolveTimeout;
+        handler.postDelayed(resolveTimeout, effectiveTimeoutMs);
+
         final Runnable injectAutoPlay = new Runnable() {
             int attempts = 0;
 
@@ -546,6 +584,9 @@ public class StreamResolverPlugin extends Plugin {
         handler.post(new Runnable() {
             @Override
             public void run() {
+                if (completed[0] || cleaned[0]) {
+                    return;
+                }
                 final WebView hiddenWebView = new WebView(activity);
                 ViewParent parent = hiddenWebView.getParent();
                 if (parent instanceof ViewGroup) {
@@ -1105,6 +1146,29 @@ public class StreamResolverPlugin extends Plugin {
     }
 
     private FetchResult fetchPlaylist(CapturedRequest request, String userAgent, String headerReferer) {
+        FetchResult result = fetchPlaylistOnce(request, userAgent, headerReferer);
+        for (int attempt = 1; attempt <= 2; attempt++) {
+            boolean retryable = (result.code >= 500 && result.code < 600)
+                    || (result.error != null && (result.error.contains("UnknownHostException")
+                    || result.error.contains("SocketTimeoutException")));
+            if (!retryable) {
+                return result;
+            }
+            long backoffMs = attempt == 1 ? 1000L : 2000L;
+            Log.d(TAG, "PLAYLIST retry attempt=" + attempt + " backoffMs=" + backoffMs
+                    + " code=" + result.code + " error=" + result.error);
+            try {
+                Thread.sleep(backoffMs);
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+                return result;
+            }
+            result = fetchPlaylistOnce(request, userAgent, headerReferer);
+        }
+        return result;
+    }
+
+    private FetchResult fetchPlaylistOnce(CapturedRequest request, String userAgent, String headerReferer) {
         int code = 0;
         String contentType = null;
         String body = "";
