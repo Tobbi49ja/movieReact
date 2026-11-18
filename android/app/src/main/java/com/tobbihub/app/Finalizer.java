@@ -24,9 +24,14 @@ public class Finalizer {
         if (sniffed != null) {
             m.container = sniffed;
         }
-        verifySegments(dir, segTotal, "video");
-        if (m.hasAudio) {
-            verifySegments(new File(dir, "audio"), audioSegTotal, "audio");
+        boolean remuxInputsReady = "fmp4".equals(m.container) && m.hasAudio
+                && isNonEmpty(new File(dir, "video.mp4"))
+                && isNonEmpty(new File(dir, "audio.mp4"));
+        if (!remuxInputsReady) {
+            verifySegments(dir, segTotal, "video");
+            if (m.hasAudio) {
+                verifySegments(new File(dir, "audio"), audioSegTotal, "audio");
+            }
         }
         if ("fmp4".equals(m.container) && m.hasAudio) {
             handleFmp4WithAudio(dir, m, l);
@@ -52,33 +57,39 @@ public class Finalizer {
         }
     }
 
+    private static boolean isNonEmpty(File file) {
+        return file != null && file.exists() && file.length() > 0;
+    }
+
     private static void handleFmp4WithAudio(File dir, DownloadManifest m, DownloadEngine.Listener l) throws Exception {
         File videoDir = dir;
         File audioDir = new File(dir, "audio");
 
-        File videoInit = new File(videoDir, "init.mp4");
-        File audioInit = new File(audioDir, "init.mp4");
-
-        List<File> videoSegs = collectSegments(videoDir);
-        List<File> audioSegs = collectSegments(audioDir);
-
-        if (!videoInit.exists() || videoInit.length() <= 0) {
-            failInitMissing(dir, m, l);
-            return;
-        }
-        if (!audioInit.exists() || audioInit.length() <= 0) {
-            failInitMissing(dir, m, l);
-            return;
-        }
-
         File videoMp4 = new File(dir, "video.mp4");
         File audioMp4 = new File(dir, "audio.mp4");
 
-        concatenateFiles(videoInit, videoSegs, videoMp4);
-        concatenateFiles(audioInit, audioSegs, audioMp4);
+        if (!isNonEmpty(videoMp4) || !isNonEmpty(audioMp4)) {
+            File videoInit = new File(videoDir, "init.mp4");
+            File audioInit = new File(audioDir, "init.mp4");
+
+            if (!videoInit.exists() || videoInit.length() <= 0) {
+                failInitMissing(dir, m, l);
+                return;
+            }
+            if (!audioInit.exists() || audioInit.length() <= 0) {
+                failInitMissing(dir, m, l);
+                return;
+            }
+
+            List<File> videoSegs = collectSegments(videoDir);
+            List<File> audioSegs = collectSegments(audioDir);
+
+            concatenateFiles(videoInit, videoSegs, videoMp4);
+            concatenateFiles(audioInit, audioSegs, audioMp4);
+        }
 
         File outFile = new File(dir, "movie.mp4");
-        remuxMp4(videoMp4, audioMp4, outFile);
+        remuxMp4(videoMp4, audioMp4, outFile, m);
 
         if (!outFile.exists() || outFile.length() <= 0) {
             throw new IllegalStateException("Output file is empty");
@@ -145,7 +156,7 @@ public class Finalizer {
             throw new IllegalStateException("Output file is empty");
         }
 
-        remuxMp4(rawFile, null, outFile);
+        remuxMp4(rawFile, null, outFile, m);
 
         if (!outFile.exists() || outFile.length() <= 0) {
             throw new IllegalStateException("Output file is empty");
@@ -238,120 +249,115 @@ public class Finalizer {
         }
     }
 
-    private static void remuxMp4(File videoFile, File audioFile, File outFile) throws Exception {
-        MediaExtractor videoExtractor = new MediaExtractor();
-        MediaExtractor audioExtractor = null;
-        MediaMuxer muxer = null;
+    private static final String REMUX_FAIL_MESSAGE = "Remux failed - tap Retry to remux without re-downloading";
+
+    private static void remuxMp4(File videoFile, File audioFile, File outFile, DownloadManifest m) throws Exception {
         File tmpFile = new File(outFile.getAbsolutePath() + ".tmp");
+        boolean hasAudioFile = audioFile != null && audioFile.exists() && audioFile.length() > 0;
+
+        MediaExtractor vEx = null;
+        MediaExtractor aEx = null;
+        MediaMuxer muxer = null;
         try {
-            videoExtractor.setDataSource(videoFile.getAbsolutePath());
-            int videoTracks = videoExtractor.getTrackCount();
-            if (videoTracks <= 0) {
-                throw new IllegalStateException("No tracks found in video file");
-            }
-            boolean hasAudioFile = audioFile != null && audioFile.exists() && audioFile.length() > 0;
-            if (hasAudioFile) {
-                audioExtractor = new MediaExtractor();
-                audioExtractor.setDataSource(audioFile.getAbsolutePath());
-            }
-
-            int audioTracks = audioExtractor != null ? audioExtractor.getTrackCount() : 0;
-            Log.d("Downloader", "REMUX video.mp4=" + videoFile.length()
-                    + " audio.mp4=" + (hasAudioFile ? audioFile.length() : 0));
-            Log.d("Downloader", "REMUX video tracks=" + videoTracks + " mimes=" + trackMimes(videoExtractor));
-            if (audioExtractor != null) {
-                Log.d("Downloader", "REMUX audio tracks=" + audioTracks + " mimes=" + trackMimes(audioExtractor));
-            }
-            for (int i = 0; i < audioTracks; i++) {
-                String mime = audioExtractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME);
-                if (!isMuxerAudioMime(mime)) {
-                    Log.d("Downloader", "REMUX unsupported audio mime=" + mime);
-                    throw new IllegalStateException("Unsupported audio track mime: " + mime);
+            try {
+                vEx = new MediaExtractor();
+                vEx.setDataSource(videoFile.getAbsolutePath());
+                int videoTrack = selectTrack(vEx, "video/");
+                if (videoTrack < 0) {
+                    throw new IllegalStateException("No video track found in video.mp4");
                 }
-            }
+                vEx.selectTrack(videoTrack);
+                MediaFormat vFormat = vEx.getTrackFormat(videoTrack);
 
-            int maxInputSize = 0;
-            int rotation = -1;
-            for (int i = 0; i < videoTracks; i++) {
-                MediaFormat format = videoExtractor.getTrackFormat(i);
-                maxInputSize = Math.max(maxInputSize, maxInputSize(format));
-                if (rotation < 0 && format.containsKey(MediaFormat.KEY_ROTATION)) {
-                    Integer value = format.getInteger(MediaFormat.KEY_ROTATION);
-                    if (value != null) {
-                        rotation = value;
+                int audioTrack = -1;
+                MediaFormat aFormat = null;
+                if (hasAudioFile) {
+                    aEx = new MediaExtractor();
+                    aEx.setDataSource(audioFile.getAbsolutePath());
+                    audioTrack = selectTrack(aEx, "audio/");
+                    if (audioTrack < 0) {
+                        throw new IllegalStateException("No audio track found in audio.mp4");
+                    }
+                    aEx.selectTrack(audioTrack);
+                    aFormat = aEx.getTrackFormat(audioTrack);
+                }
+
+                Log.d("Downloader", "REMUX video.mp4=" + videoFile.length()
+                        + " audio.mp4=" + (hasAudioFile ? audioFile.length() : 0));
+
+                if (tmpFile.exists() && !tmpFile.delete()) {
+                    throw new IllegalStateException("Cannot delete stale tmp file");
+                }
+
+                muxer = new MediaMuxer(tmpFile.getAbsolutePath(), MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+                int videoMuxTrack = muxer.addTrack(vFormat);
+                int audioMuxTrack = aFormat != null ? muxer.addTrack(aFormat) : -1;
+                Log.d("Downloader", "REMUX addTrack video_index=" + videoMuxTrack + " audio_index=" + audioMuxTrack);
+
+                if (vFormat.containsKey(MediaFormat.KEY_ROTATION)) {
+                    Integer rotation = vFormat.getInteger(MediaFormat.KEY_ROTATION);
+                    if (rotation != null && rotation != 0) {
+                        muxer.setOrientationHint(rotation);
                     }
                 }
-            }
-            for (int i = 0; i < audioTracks; i++) {
-                maxInputSize = Math.max(maxInputSize, maxInputSize(audioExtractor.getTrackFormat(i)));
-            }
-            if (maxInputSize <= 0) {
-                maxInputSize = 2 * 1024 * 1024;
-            }
+                muxer.start();
 
-            if (tmpFile.exists() && !tmpFile.delete()) {
-                throw new IllegalStateException("Cannot delete stale tmp file");
-            }
+                int bufferSize = Math.max(Math.max(maxInputSize(vFormat), maxInputSize(aFormat)), 2 * 1024 * 1024);
+                ByteBuffer buffer = ByteBuffer.allocate(bufferSize);
+                MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
 
-            muxer = new MediaMuxer(tmpFile.getAbsolutePath(), MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
-            if (rotation > 0) {
-                muxer.setOrientationHint(rotation);
-            }
+                long videoSamples = 0;
+                long audioSamples = 0;
+                long videoTime = vEx.getSampleTime();
+                long audioTime = aEx != null ? aEx.getSampleTime() : -1;
 
-            int[] videoMuxTracks = new int[videoTracks];
-            for (int i = 0; i < videoTracks; i++) {
-                videoMuxTracks[i] = muxer.addTrack(videoExtractor.getTrackFormat(i));
-                videoExtractor.selectTrack(i);
-            }
-            int[] audioMuxTracks = new int[audioTracks];
-            for (int i = 0; i < audioTracks; i++) {
-                audioMuxTracks[i] = muxer.addTrack(audioExtractor.getTrackFormat(i));
-                audioExtractor.selectTrack(i);
-            }
-            muxer.start();
+                while (videoTime != -1 || audioTime != -1) {
+                    boolean takeVideo = audioTime == -1 || (videoTime != -1 && videoTime <= audioTime);
+                    MediaExtractor extractor = takeVideo ? vEx : aEx;
+                    int muxTrack = takeVideo ? videoMuxTrack : audioMuxTrack;
 
-            ByteBuffer buffer = ByteBuffer.allocateDirect(maxInputSize);
-            MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
+                    buffer.clear();
+                    int size = extractor.readSampleData(buffer, 0);
+                    if (size < 0) {
+                        if (takeVideo) {
+                            videoTime = -1;
+                        } else {
+                            audioTime = -1;
+                        }
+                        continue;
+                    }
 
-            long videoTime = videoExtractor.getSampleTime();
-            long audioTime = audioExtractor != null ? audioExtractor.getSampleTime() : -1;
+                    int sampleFlags = extractor.getSampleFlags();
+                    bufferInfo.offset = 0;
+                    bufferInfo.size = size;
+                    bufferInfo.presentationTimeUs = extractor.getSampleTime();
+                    bufferInfo.flags = (sampleFlags & MediaExtractor.SAMPLE_FLAG_SYNC) != 0
+                            ? MediaCodec.BUFFER_FLAG_KEY_FRAME : 0;
+                    muxer.writeSampleData(muxTrack, buffer, bufferInfo);
+                    extractor.advance();
 
-            while (videoTime >= 0 || audioTime >= 0) {
-                boolean takeVideo = audioTime < 0 || (videoTime >= 0 && videoTime <= audioTime);
-                MediaExtractor extractor = takeVideo ? videoExtractor : audioExtractor;
-                int[] muxTracks = takeVideo ? videoMuxTracks : audioMuxTracks;
-
-                buffer.clear();
-                int size = extractor.readSampleData(buffer, 0);
-                if (size < 0) {
                     if (takeVideo) {
-                        videoTime = -1;
+                        videoSamples++;
+                        videoTime = vEx.getSampleTime();
                     } else {
-                        audioTime = -1;
+                        audioSamples++;
+                        audioTime = aEx.getSampleTime();
                     }
-                    continue;
                 }
 
-                int track = extractor.getSampleTrackIndex();
-                bufferInfo.presentationTimeUs = extractor.getSampleTime();
-                bufferInfo.flags = extractor.getSampleFlags();
-                bufferInfo.offset = 0;
-                bufferInfo.size = size;
-                if (track >= 0 && track < muxTracks.length) {
-                    muxer.writeSampleData(muxTracks[track], buffer, bufferInfo);
+                Log.d("Downloader", "REMUX done video_samples=" + videoSamples + " audio_samples=" + audioSamples);
+            } finally {
+                if (muxer != null) {
+                    try { muxer.stop(); } catch (Exception ignored) {}
+                    try { muxer.release(); } catch (Exception ignored) {}
                 }
-                extractor.advance();
-
-                if (takeVideo) {
-                    videoTime = videoExtractor.getSampleTime();
-                } else {
-                    audioTime = audioExtractor.getSampleTime();
+                if (vEx != null) {
+                    try { vEx.release(); } catch (Exception ignored) {}
+                }
+                if (aEx != null) {
+                    try { aEx.release(); } catch (Exception ignored) {}
                 }
             }
-
-            muxer.stop();
-            muxer.release();
-            muxer = null;
 
             MediaExtractor checkExtractor = new MediaExtractor();
             boolean hasAudioTrack = false;
@@ -376,54 +382,31 @@ public class Finalizer {
             Log.d("Downloader", "REMUX output tracks=" + outTracks + " mimes=" + outMimes);
             if (hasAudioFile && !hasAudioTrack) {
                 Log.d("Downloader", "REMUX audio missing after mux");
-                if (tmpFile.exists()) {
-                    tmpFile.delete();
-                }
                 throw new IllegalStateException("Audio missing after mux");
             }
 
-            if (outFile.exists()) {
-                outFile.delete();
+            if (outFile.exists() && !outFile.delete()) {
+                throw new IllegalStateException("Cannot replace existing output");
             }
             if (!tmpFile.renameTo(outFile)) {
                 throw new IllegalStateException("Failed to move remuxed output into place");
             }
         } catch (Exception e) {
             Log.d("Downloader", "remux error " + e.getClass().getSimpleName() + ": " + e.getMessage());
-            if (muxer != null) {
-                try { muxer.stop(); } catch (Exception ignored) {}
-                try { muxer.release(); } catch (Exception ignored) {}
-            }
             if (tmpFile.exists()) {
                 tmpFile.delete();
             }
-            throw e;
-        } finally {
-            videoExtractor.release();
-            if (audioExtractor != null) {
-                audioExtractor.release();
+            if (m != null) {
+                File dir = outFile.getParentFile();
+                m.status = "failed";
+                m.errorCode = "MUX_FAILED";
+                m.error = REMUX_FAIL_MESSAGE;
+                if (dir != null) {
+                    m.save(dir);
+                }
             }
+            throw new IllegalStateException(REMUX_FAIL_MESSAGE, e);
         }
-    }
-
-    private static String trackMimes(MediaExtractor extractor) {
-        StringBuilder mimes = new StringBuilder();
-        for (int i = 0; i < extractor.getTrackCount(); i++) {
-            if (i > 0) {
-                mimes.append(",");
-            }
-            mimes.append(extractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME));
-        }
-        return mimes.toString();
-    }
-
-    private static boolean isMuxerAudioMime(String mime) {
-        if (mime == null) {
-            return false;
-        }
-        return "audio/mp4a-latm".equalsIgnoreCase(mime)
-                || "audio/3gpp".equalsIgnoreCase(mime)
-                || "audio/amr-wb".equalsIgnoreCase(mime);
     }
 
     private static int maxInputSize(MediaFormat format) {

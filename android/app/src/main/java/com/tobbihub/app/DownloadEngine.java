@@ -157,6 +157,12 @@ public class DownloadEngine {
         return new File(getBaseDownloadsDir(), id);
     }
 
+    private static boolean hasRemuxInputs(File folder) {
+        File video = new File(folder, "video.mp4");
+        File audio = new File(folder, "audio.mp4");
+        return video.exists() && video.length() > 0 && audio.exists() && audio.length() > 0;
+    }
+
     private void runDownload(String id, JSONObject req) {
         File folder = getDownloadFolder(id);
         if (!folder.exists()) {
@@ -181,7 +187,9 @@ public class DownloadEngine {
             manifest.path = req.optString("url", "");
         }
 
-        if (!checkSpace(folder, manifest.estBytes)) {
+        boolean remuxDirect = isResume && "failed".equals(manifest.status) && hasRemuxInputs(folder);
+
+        if (!remuxDirect && !checkSpace(folder, manifest.estBytes)) {
             manifest.status = "failed";
             manifest.errorCode = "NO_SPACE";
             manifest.error = "Insufficient storage space";
@@ -191,7 +199,7 @@ public class DownloadEngine {
         }
 
         String qualityUrl = req.optString("url", "");
-        if (qualityUrl.isEmpty()) {
+        if (!remuxDirect && qualityUrl.isEmpty()) {
             manifest.status = "failed";
             manifest.errorCode = "INVALID";
             manifest.error = "Missing quality URL";
@@ -204,7 +212,7 @@ public class DownloadEngine {
         manifest.updatedAt = System.currentTimeMillis();
         manifest.save(folder);
 
-        DownloadTask task = new DownloadTask(id, folder, manifest, qualityUrl, req);
+        DownloadTask task = new DownloadTask(id, folder, manifest, qualityUrl, req, remuxDirect);
         activeTasks.put(id, task);
         notifyStarted(id);
         task.run();
@@ -286,6 +294,7 @@ public class DownloadEngine {
         private final DownloadManifest manifest;
         private final String qualityUrl;
         private final JSONObject originalReq;
+        private final boolean remuxDirect;
         private String audioUrl;
         private final AtomicBoolean paused = new AtomicBoolean(false);
         private final AtomicBoolean cancelled = new AtomicBoolean(false);
@@ -306,12 +315,13 @@ public class DownloadEngine {
         private long lastProgressTime = 0;
         private long lastProgressBytes = 0;
 
-        DownloadTask(String id, File folder, DownloadManifest manifest, String qualityUrl, JSONObject originalReq) {
+        DownloadTask(String id, File folder, DownloadManifest manifest, String qualityUrl, JSONObject originalReq, boolean remuxDirect) {
             this.id = id;
             this.folder = folder;
             this.manifest = manifest;
             this.qualityUrl = qualityUrl;
             this.originalReq = originalReq;
+            this.remuxDirect = remuxDirect;
             JSONObject q = originalReq.optJSONObject("quality");
             if (q != null) {
                 try {
@@ -355,6 +365,11 @@ public class DownloadEngine {
         }
 
         void run() {
+            if (remuxDirect) {
+                Log.d("Downloader", "Remux direct retry " + id + " (skipping download)");
+                complete();
+                return;
+            }
             String referer = originalReq.optString("referer", "");
             String ua = originalReq.optString("userAgent", "");
             String cookie = originalReq.optString("cookie", "");
