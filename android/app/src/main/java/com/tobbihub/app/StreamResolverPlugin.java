@@ -1833,11 +1833,25 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
             }
         }
 
+        if (result.mediaGroups.size() == 1) {
+            String onlyGroup = result.mediaGroups.keySet().iterator().next();
+            for (MasterVariant variant : result.variants) {
+                if (variant.audioGroup == null || variant.audioGroup.isEmpty()) {
+                    variant.audioGroup = onlyGroup;
+                }
+            }
+        }
+
         return result;
     }
 
     private AudioMedia parseAudioMedia(String line, String masterUrl) {
-        Map<String, String> attrs = parseAttributes(line);
+        String attrLine = line;
+        int tagEnd = attrLine.indexOf(':');
+        if (tagEnd >= 0 && attrLine.startsWith("#")) {
+            attrLine = attrLine.substring(tagEnd + 1);
+        }
+        Map<String, String> attrs = parseAttributes(attrLine);
 
         String type = attrs.get("TYPE");
         String groupId = attrs.get("GROUP-ID");
@@ -1864,38 +1878,51 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
             }
         }
 
+        Log.d(TAG, "AUDIO group=" + am.groupId + " name=" + am.name + " lang=" + am.language
+                + " default=" + am.isDefault + " uri=" + am.url);
+
         return am;
     }
 
     private Map<String, String> parseAttributes(String line) {
         Map<String, String> attrs = new LinkedHashMap<>();
+        if (line == null) {
+            return attrs;
+        }
+        String input = line.trim();
+        int tagEnd = input.indexOf(':');
+        if (input.startsWith("#") && tagEnd > 0) {
+            input = input.substring(tagEnd + 1).trim();
+        }
         int i = 0;
-        int n = line.length();
+        int n = input.length();
         while (i < n) {
-            while (i < n && Character.isWhitespace(line.charAt(i))) i++;
+            while (i < n && Character.isWhitespace(input.charAt(i))) i++;
             if (i >= n) break;
             int keyStart = i;
-            while (i < n && (Character.isLetterOrDigit(line.charAt(i)) || line.charAt(i) == '-')) i++;
-            String key = line.substring(keyStart, i).toUpperCase(Locale.US);
-            while (i < n && Character.isWhitespace(line.charAt(i))) i++;
-            if (i >= n || line.charAt(i) != '=') break;
+            while (i < n && (Character.isLetterOrDigit(input.charAt(i)) || input.charAt(i) == '-')) i++;
+            String key = input.substring(keyStart, i).toUpperCase(Locale.US);
+            while (i < n && Character.isWhitespace(input.charAt(i))) i++;
+            if (i >= n || input.charAt(i) != '=') break;
             i++;
-            while (i < n && Character.isWhitespace(line.charAt(i))) i++;
+            while (i < n && Character.isWhitespace(input.charAt(i))) i++;
             if (i >= n) break;
             String value;
-            if (line.charAt(i) == '"') {
+            if (input.charAt(i) == '"') {
                 i++;
                 int valueStart = i;
-                while (i < n && line.charAt(i) != '"') i++;
-                value = line.substring(valueStart, i);
-                if (i < n && line.charAt(i) == '"') i++;
+                while (i < n && input.charAt(i) != '"') i++;
+                value = input.substring(valueStart, i).trim();
+                if (i < n && input.charAt(i) == '"') i++;
             } else {
                 int valueStart = i;
-                while (i < n && line.charAt(i) != ',' && !Character.isWhitespace(line.charAt(i))) i++;
-                value = line.substring(valueStart, i);
+                while (i < n && input.charAt(i) != ',' && !Character.isWhitespace(input.charAt(i))) i++;
+                value = input.substring(valueStart, i).trim();
             }
-            attrs.put(key, value);
-            while (i < n && (Character.isWhitespace(line.charAt(i)) || line.charAt(i) == ',')) i++;
+            if (!key.isEmpty()) {
+                attrs.put(key, value);
+            }
+            while (i < n && (Character.isWhitespace(input.charAt(i)) || input.charAt(i) == ',')) i++;
         }
         return attrs;
     }
@@ -2002,7 +2029,7 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
             } else if (trimmed.startsWith("#EXT-X-KEY:")) {
                 Matcher methodMatch = Pattern.compile("METHOD=([^,]+)", Pattern.CASE_INSENSITIVE).matcher(trimmed);
                 if (methodMatch.find()) {
-                    keyMethod = methodMatch.group(1);
+                    keyMethod = methodMatch.group(1).replace("\"", "").trim();
                     if (!"NONE".equalsIgnoreCase(keyMethod)) {
                         hasKey = true;
                     }
@@ -2826,7 +2853,7 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
                 } else if (trimmed.startsWith("#EXT-X-KEY:")) {
                     Matcher methodMatch = Pattern.compile("METHOD=([^,]+)", Pattern.CASE_INSENSITIVE).matcher(trimmed);
                     if (methodMatch.find()) {
-                        keyMethod = methodMatch.group(1);
+                        keyMethod = methodMatch.group(1).replace("\"", "").trim();
                         if (!"NONE".equalsIgnoreCase(keyMethod)) {
                             hasKey = true;
                         }
