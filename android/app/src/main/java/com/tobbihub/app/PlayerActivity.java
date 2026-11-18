@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Color;
+import android.graphics.PorterDuff;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
@@ -23,6 +24,7 @@ import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -34,7 +36,6 @@ import androidx.media3.common.MimeTypes;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.common.TrackSelectionParameters;
-import androidx.media3.common.Tracks;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.AspectRatioFrameLayout;
@@ -144,24 +145,34 @@ public class PlayerActivity extends Activity {
         playerView.setUseController(true);
         playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
         playerView.setBackgroundColor(Color.BLACK);
-        playerView.setShowSubtitleButton(true);
+        playerView.setShowSubtitleButton(false);
         FrameLayout.LayoutParams playerParams = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT);
         playerParams.gravity = Gravity.CENTER;
         root.addView(playerView, playerParams);
 
-        View ccButton = playerView.findViewById(androidx.media3.ui.R.id.exo_subtitle);
-        if (ccButton != null) {
-            ccButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    showSubtitleSheet();
-                }
-            });
-        } else {
-            addFallbackCcButton(root);
-        }
+        final ImageButton ccButton = new ImageButton(this);
+        ccButton.setId(R.id.btn_cc);
+        ccButton.setImageResource(R.drawable.ic_cc);
+        ccButton.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN);
+        ccButton.setBackgroundColor(Color.TRANSPARENT);
+        ccButton.setPadding(dp(12), dp(12), dp(12), dp(12));
+        ccButton.setEnabled(true);
+        ccButton.setAlpha(1f);
+        ccButton.setContentDescription("Subtitles");
+        int ccSize = dp(48);
+        FrameLayout.LayoutParams ccParams = new FrameLayout.LayoutParams(ccSize, ccSize);
+        ccParams.gravity = Gravity.TOP | Gravity.END;
+        ccParams.setMargins(0, dp(12), dp(12), 0);
+        root.addView(ccButton, ccParams);
+        ccButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showSubtitleSheet();
+            }
+        });
+        playerView.setControllerVisibilityListener(visibility -> ccButton.setVisibility(visibility));
 
         Button backButton = new Button(this);
         backButton.setText("←");
@@ -190,37 +201,6 @@ public class PlayerActivity extends Activity {
         enterImmersiveMode();
     }
 
-    private void addFallbackCcButton(FrameLayout root) {
-        Button cc = new Button(this);
-        cc.setText("CC");
-        cc.setTextColor(Color.WHITE);
-        cc.setTextSize(16);
-        GradientDrawable circle = new GradientDrawable();
-        circle.setShape(GradientDrawable.OVAL);
-        circle.setColor(Color.argb(180, 0, 0, 0));
-        cc.setBackground(circle);
-        int size = dp(44);
-        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(size, size);
-        params.gravity = Gravity.BOTTOM | Gravity.END;
-        params.setMargins(0, 0, dp(12), dp(80));
-        root.addView(cc, params);
-        cc.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showSubtitleSheet();
-            }
-        });
-    }
-
-    private void keepCcEnabled() {
-        if (playerView == null) return;
-        View cc = playerView.findViewById(androidx.media3.ui.R.id.exo_subtitle);
-        if (cc != null) {
-            cc.setEnabled(true);
-            cc.setAlpha(1f);
-        }
-    }
-
     private void createPlayer() {
         if (player != null || videoFile == null) {
             return;
@@ -232,7 +212,6 @@ public class PlayerActivity extends Activity {
                 new DefaultRenderersFactory(this).setEnableDecoderFallback(true);
         player = new ExoPlayer.Builder(this, renderersFactory).build();
         playerView.setPlayer(player);
-        playerView.setShowSubtitleButton(true);
         applySubtitleStyle();
         player.addListener(new Player.Listener() {
             @Override
@@ -241,13 +220,7 @@ public class PlayerActivity extends Activity {
                 Log.d("PlayerActivity", error.getErrorCodeName() + " " + error.getMessage());
                 finish();
             }
-
-            @Override
-            public void onTracksChanged(Tracks tracks) {
-                keepCcEnabled();
-            }
         });
-        keepCcEnabled();
 
         MediaItem item = buildMediaItem();
         restoreLastSelection();
@@ -517,33 +490,35 @@ public class PlayerActivity extends Activity {
             });
         }
 
-        content.addView(sectionTitle("Sync"));
-        content.addView(buildSyncRow());
+        if (!subtitleEntries.isEmpty()) {
+            content.addView(sectionTitle("Sync"));
+            content.addView(buildSyncRow());
 
-        content.addView(sectionTitle("Text size"));
+            content.addView(sectionTitle("Text size"));
 
-        String size = currentTextSize();
-        addSheetRow(content, "Small", "", "small".equals(size), new Runnable() {
-            @Override
-            public void run() {
-                setTextSize("small");
-                dialog.dismiss();
-            }
-        });
-        addSheetRow(content, "Medium", "", "medium".equals(size), new Runnable() {
-            @Override
-            public void run() {
-                setTextSize("medium");
-                dialog.dismiss();
-            }
-        });
-        addSheetRow(content, "Large", "", "large".equals(size), new Runnable() {
-            @Override
-            public void run() {
-                setTextSize("large");
-                dialog.dismiss();
-            }
-        });
+            String size = currentTextSize();
+            addSheetRow(content, "Small", "", "small".equals(size), new Runnable() {
+                @Override
+                public void run() {
+                    setTextSize("small");
+                    dialog.dismiss();
+                }
+            });
+            addSheetRow(content, "Medium", "", "medium".equals(size), new Runnable() {
+                @Override
+                public void run() {
+                    setTextSize("medium");
+                    dialog.dismiss();
+                }
+            });
+            addSheetRow(content, "Large", "", "large".equals(size), new Runnable() {
+                @Override
+                public void run() {
+                    setTextSize("large");
+                    dialog.dismiss();
+                }
+            });
+        }
 
         content.addView(sectionTitle("Find subtitles"));
         addSheetRow(content, "Search online", "", false, new Runnable() {

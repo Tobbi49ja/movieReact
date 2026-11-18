@@ -377,23 +377,10 @@ public class Finalizer {
                 }
                 muxer.start();
 
-                long videoDuration = durationUs(vFormat);
-                if (videoDuration <= 0) {
-                    videoDuration = durationUs(videoFile);
-                }
-                long audioDuration = durationUs(aFormat);
-                if (audioDuration <= 0 && hasAudioFile) {
-                    audioDuration = durationUs(audioFile);
-                }
-                boolean progressOnVideo = audioDuration <= videoDuration;
-                MediaExtractor progressExtractor = progressOnVideo ? vEx : aEx;
-                long progressDuration = progressOnVideo ? videoDuration : audioDuration;
-                long lastProgressMs = 0;
-                int lastPercent = 0;
-                if (progressDuration > 0) {
-                    emitFinishing(l, m, 0);
-                    lastProgressMs = System.currentTimeMillis();
-                }
+                long totalBytes = videoFile.length() + (audioFile != null ? audioFile.length() : 0);
+                long processedBytes = 0;
+                long lastProgressMs = System.currentTimeMillis();
+                emitFinishing(l, m, 0);
 
                 int bufferSize = Math.max(Math.max(maxInputSize(vFormat), maxInputSize(aFormat)), 2 * 1024 * 1024);
                 ByteBuffer buffer = ByteBuffer.allocate(bufferSize);
@@ -427,6 +414,8 @@ public class Finalizer {
                     bufferInfo.flags = (sampleFlags & MediaExtractor.SAMPLE_FLAG_SYNC) != 0
                             ? MediaCodec.BUFFER_FLAG_KEY_FRAME : 0;
                     muxer.writeSampleData(muxTrack, buffer, bufferInfo);
+                    long s = extractor.getSampleSize();
+                    if (s > 0) processedBytes += s;
                     extractor.advance();
 
                     if (takeVideo) {
@@ -438,22 +427,15 @@ public class Finalizer {
                     }
 
                     long now = System.currentTimeMillis();
-                    if (progressDuration > 0 && now - lastProgressMs >= 1000) {
-                        long position = progressExtractor.getSampleTime();
-                        if (position < 0) {
-                            position = progressDuration;
-                        }
-                        int percent = (int) Math.min(100, Math.max(0, position * 100 / progressDuration));
+                    if (now - lastProgressMs >= 1000) {
+                        int percent = (int) Math.min(99, processedBytes * 100 / Math.max(1, totalBytes));
                         emitFinishing(l, m, percent);
-                        lastPercent = percent;
                         lastProgressMs = now;
                     }
                 }
 
-                if (progressDuration > 0 && lastPercent < 100
-                        && System.currentTimeMillis() - lastProgressMs >= 1000) {
-                    emitFinishing(l, m, 100);
-                }
+                muxer.stop();
+                emitFinishing(l, m, 100);
 
                 Log.d("Downloader", "REMUX done video_samples=" + videoSamples + " audio_samples=" + audioSamples);
             } finally {

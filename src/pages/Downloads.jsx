@@ -67,7 +67,6 @@ export default function DownloadsPage() {
   const [toast, setToast] = useState("");
 
   const handlePlay = async (download) => {
-    window.alert("PLAY tap: " + (download.path || "NO PATH")); // TEMP-DEBUG
     try {
       console.log("PLAY tap", download.id, download.status, JSON.stringify(download.path));
       setToast("Opening: " + (download.path ? download.path.split("/").slice(-2).join("/") : "NO PATH"));
@@ -116,7 +115,7 @@ export default function DownloadsPage() {
         <header className="downloads-header">
           <div className="downloads-heading-group">
             <p className="downloads-kicker">Library</p>
-            <h1 className="downloads-title">Downloads · dbg1</h1> {/* TEMP-DEBUG */}
+            <h1 className="downloads-title">Downloads</h1>
           </div>
           <div className="downloads-count">
             <FiDownload aria-hidden="true" />
