@@ -95,6 +95,8 @@ public class StreamResolverPlugin extends Plugin {
     private static final long MUTE_INTERVAL_MS = 400L;
 
     private volatile Runnable activeCleanup;
+    private volatile PluginCall pendingCall;
+    private volatile boolean[] pendingCompleted;
 
     private void runActiveCleanup() {
         Runnable cleanup = activeCleanup;
@@ -126,6 +128,10 @@ public class StreamResolverPlugin extends Plugin {
             return;
         }
 
+        if (activeCleanup != null) {
+            runActiveCleanup();
+        }
+
         int timeoutMs = call.getInt("timeoutMs", 25000);
         if (timeoutMs <= 0) {
             timeoutMs = 25000;
@@ -153,6 +159,8 @@ public class StreamResolverPlugin extends Plugin {
         final List<JSObject> playlistQualities = Collections.synchronizedList(new ArrayList<JSObject>());
         final List<JSObject> playlistSubtitles = Collections.synchronizedList(new ArrayList<JSObject>());
         final boolean[] completed = {false};
+        pendingCall = call;
+        pendingCompleted = completed;
         final boolean[] fetchStarted = {false};
         final boolean[] fetchInProgress = {false};
         final boolean[] captureTimerStarted = {false};
@@ -195,6 +203,10 @@ public class StreamResolverPlugin extends Plugin {
                 }
                 cleaned[0] = true;
                 activeCleanup = null;
+                if (pendingCompleted == completed) {
+                    pendingCall = null;
+                    pendingCompleted = null;
+                }
                 try {
                     activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                 } catch (Exception ignored) {}
@@ -225,7 +237,7 @@ public class StreamResolverPlugin extends Plugin {
                 } catch (Exception ignored) {}
                 try { webView.stopLoading(); } catch (Exception ignored) {}
                 try { webView.onPause(); } catch (Exception ignored) {}
-                try { webView.resumeTimers(); } catch (Exception ignored) {}
+                try { webView.pauseTimers(); } catch (Exception ignored) {}
                 try { webView.loadUrl("about:blank"); } catch (Exception ignored) {}
                 try {
                     ViewParent parent = webView.getParent();
@@ -820,6 +832,22 @@ public class StreamResolverPlugin extends Plugin {
                 hiddenWebView.loadUrl(finalEmbedUrl);
             }
         });
+    }
+
+    @PluginMethod
+    public void cancel(PluginCall call) {
+        PluginCall pending = pendingCall;
+        boolean[] completed = pendingCompleted;
+        if (pending != null && completed != null) {
+            completed[0] = true;
+        }
+        runActiveCleanup();
+        pendingCall = null;
+        pendingCompleted = null;
+        if (pending != null) {
+            pending.reject("Cancelled");
+        }
+        call.resolve();
     }
 
 

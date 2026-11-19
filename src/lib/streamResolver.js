@@ -17,4 +17,10 @@ export async function resolveNative(embedUrl) {
   });
 }
 
+export async function cancelResolve() {
+  try {
+    await StreamResolver.cancel();
+  } catch {}
+}
+
 export default resolveNative;

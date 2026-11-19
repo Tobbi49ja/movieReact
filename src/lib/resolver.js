@@ -19,11 +19,15 @@ const chunkDebugLog = (provider, debugArray) => {
   }
 };
 
-export async function resolveSources({ tmdbId, type, season, episode }) {
+export async function resolveSources({ tmdbId, type, season, episode, isCancelled }) {
   const normalizedType = type === "tv" || type === "series" || type === "episode" ? "tv" : "movie";
   const providerDebugs = [];
 
   for (const provider of PROVIDER_ORDER) {
+    if (typeof isCancelled === "function" && isCancelled()) {
+      throw new Error("Cancelled");
+    }
+
     const embedUrl = buildProviderEmbedUrl({
       provider,
       tmdbId,

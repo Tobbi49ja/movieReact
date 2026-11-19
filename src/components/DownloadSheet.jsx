@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { resolveSources } from "../lib/resolver";
+import { cancelResolve } from "../lib/streamResolver";
 import { start } from "../lib/downloader";
 import { addDownload } from "../lib/downloads";
 
@@ -63,6 +64,7 @@ export default function DownloadSheet({
           type: normalizedType,
           season,
           episode,
+          isCancelled: () => cancelledRef.current,
         });
 
         if (cancelled || cancelledRef.current) return;
@@ -81,7 +83,7 @@ export default function DownloadSheet({
 
         setStatus("ready");
       } catch (loadError) {
-        if (cancelled || cancelledRef.current) return;
+        if (cancelled || cancelledRef.current || loadError?.message === "Cancelled") return;
         console.error("Failed to resolve download sources:", loadError);
         setStatus("error");
         setError(loadError?.message || "Something went wrong while preparing download options.");
@@ -93,6 +95,7 @@ export default function DownloadSheet({
     return () => {
       cancelled = true;
       cancelledRef.current = true;
+      cancelResolve();
     };
   }, [tmdbId, normalizedType, season, episode, retryToken]);
 
@@ -108,6 +111,7 @@ export default function DownloadSheet({
 
   const handleAbort = () => {
     cancelledRef.current = true;
+    cancelResolve();
     onClose?.();
   };
 
