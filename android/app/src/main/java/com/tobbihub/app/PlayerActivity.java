@@ -755,6 +755,10 @@ public class PlayerActivity extends Activity {
                 String fileUrl = base + "/api/subtitles/file?url="
                         + URLEncoder.encode(result.url, "UTF-8");
                 String content = httpGet(fileUrl, "text/plain");
+                if (content == null || !content.contains("-->")) {
+                    throw new IOException("Subtitle file has no usable cues");
+                }
+                Log.d("TobbiSubs", "downloaded len=" + content.length() + " head=" + content.substring(0, Math.min(80, content.length())).replace("\n", " "));
                 JSONObject entry = addSubtitleFile(content, result.lang, result.label);
                 final String id = entry.optString("id");
                 runOnUiThread(() -> {
