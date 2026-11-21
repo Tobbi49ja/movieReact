@@ -2,7 +2,7 @@ import { registerPlugin } from "@capacitor/core";
 
 const StreamResolver = registerPlugin("StreamResolver");
 
-export async function resolveNative(embedUrl) {
+export async function resolveNative(embedUrl, { timeoutMs = 25000 } = {}) {
   if (!embedUrl || !String(embedUrl).trim()) {
     return Promise.reject(new Error("No embedUrl provided"));
   }
@@ -13,7 +13,7 @@ export async function resolveNative(embedUrl) {
 
   return StreamResolver.resolve({
     embedUrl: String(embedUrl).trim(),
-    timeoutMs: 25000,
+    timeoutMs,
   });
 }
 

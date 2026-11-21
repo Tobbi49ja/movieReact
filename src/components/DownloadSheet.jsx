@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { resolveSources } from "../lib/resolver";
+import { resolveForProvider, invalidateResolveCache } from "../lib/resolver";
 import { cancelResolve } from "../lib/streamResolver";
 import { start } from "../lib/downloader";
 import { addDownload } from "../lib/downloads";
+import { PROVIDER_SOURCES, getProviderById } from "../lib/providerUrls";
+import { checkConnection } from "../utils/netCheck";
 
 function makeId() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
@@ -34,9 +36,13 @@ export default function DownloadSheet({
   episode,
   title,
   poster,
+  providerId,
+  onProviderChange,
   onClose,
 }) {
   const [status, setStatus] = useState("preparing");
+  const [stage, setStage] = useState("checking");
+  const [note, setNote] = useState("");
   const [qualities, setQualities] = useState([]);
   const [subtitles, setSubtitles] = useState([]);
   const [selectedQuality, setSelectedQuality] = useState(null);
@@ -44,35 +50,70 @@ export default function DownloadSheet({
   const [error, setError] = useState("");
   const [retryToken, setRetryToken] = useState(0);
   const [resolverHeaders, setResolverHeaders] = useState({});
+  const [currentProvider, setCurrentProvider] = useState(providerId || "");
+  const [triedProviders, setTriedProviders] = useState([]);
   const cancelledRef = useRef(false);
+  const triedRef = useRef(new Set());
+  const controllerRef = useRef(null);
+  const lastResultRef = useRef(null);
 
   const normalizedType = String(type || "movie").trim() || "movie";
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
+    controllerRef.current = controller;
 
     const loadOptions = async () => {
       cancelledRef.current = false;
       setStatus("preparing");
+      setStage("checking");
+      setNote("");
       setError("");
       setSelectedQuality(null);
       setSelectedSubtitle("none");
+      setQualities([]);
+      setSubtitles([]);
+      setResolverHeaders({});
+      lastResultRef.current = null;
+
+      const connection = await checkConnection();
+      if (cancelled || cancelledRef.current || controller.signal.aborted) return;
+
+      if (!connection.ok) {
+        setStatus("error");
+        setError(
+          connection.reason === "offline"
+            ? "No internet connection. Connect and try again."
+            : "Can't reach the server. Check your connection."
+        );
+        return;
+      }
+
+      if (connection.slow) {
+        setNote("Weak connection, scanning may take longer");
+      }
+
+      setStage("finding");
 
       try {
-        const result = await resolveSources({
-          tmdbId,
-          type: normalizedType,
-          season,
-          episode,
-          isCancelled: () => cancelledRef.current,
-        });
+        const result = await resolveForProvider(
+          currentProvider,
+          { tmdbId, type: normalizedType, season, episode },
+          { signal: controller.signal }
+        );
 
-        if (cancelled || cancelledRef.current) return;
+        if (cancelled || cancelledRef.current || controller.signal.aborted) return;
+
+        setStage("qualities");
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        if (cancelled || cancelledRef.current || controller.signal.aborted) return;
 
         const nextQualities = Array.isArray(result?.qualities) ? result.qualities : [];
         const nextSubtitles = Array.isArray(result?.subtitles) ? result.subtitles : [];
         const sortedQualities = [...nextQualities].sort((a, b) => parseQualityRank(b) - parseQualityRank(a));
 
+        lastResultRef.current = result;
         setQualities(sortedQualities);
         setSubtitles(nextSubtitles);
         setResolverHeaders(result?.headers || {});
@@ -83,10 +124,14 @@ export default function DownloadSheet({
 
         setStatus("ready");
       } catch (loadError) {
-        if (cancelled || cancelledRef.current || loadError?.message === "Cancelled") return;
+        if (cancelled || cancelledRef.current || controller.signal.aborted || loadError?.message === "Cancelled") return;
         console.error("Failed to resolve download sources:", loadError);
-        setStatus("error");
+
+        triedRef.current.add(currentProvider);
+        setTriedProviders(Array.from(triedRef.current));
+        const hasRemaining = PROVIDER_SOURCES.some((source) => !triedRef.current.has(source.id));
         setError(loadError?.message || "Something went wrong while preparing download options.");
+        setStatus(hasRemaining ? "prompt" : "exhausted");
       }
     };
 
@@ -95,9 +140,10 @@ export default function DownloadSheet({
     return () => {
       cancelled = true;
       cancelledRef.current = true;
+      controller.abort();
       cancelResolve();
     };
-  }, [tmdbId, normalizedType, season, episode, retryToken]);
+  }, [tmdbId, normalizedType, season, episode, currentProvider, retryToken]);
 
   const subtitleOptions = useMemo(() => {
     const options = [{ id: "none", lang: "none", label: "None" }, ...subtitles];
@@ -109,10 +155,37 @@ export default function DownloadSheet({
     [qualities]
   );
 
+  const remainingProviders = useMemo(
+    () =>
+      PROVIDER_SOURCES.filter(
+        (source) => source.id !== currentProvider && !triedProviders.includes(source.id)
+      ),
+    [currentProvider, triedProviders]
+  );
+
+  const currentProviderLabel =
+    getProviderById(currentProvider)?.label || currentProvider || "This provider";
+
   const handleAbort = () => {
     cancelledRef.current = true;
+    controllerRef.current?.abort();
     cancelResolve();
     onClose?.();
+  };
+
+  const handleRetry = () => {
+    triedRef.current = new Set();
+    setTriedProviders([]);
+    setRetryToken((current) => current + 1);
+  };
+
+  const handlePickProvider = (nextProviderId) => {
+    if (!nextProviderId || nextProviderId === currentProvider) return;
+    cancelledRef.current = true;
+    controllerRef.current?.abort();
+    cancelResolve();
+    setCurrentProvider(nextProviderId);
+    onProviderChange?.(nextProviderId);
   };
 
   const handleDownload = async () => {
@@ -138,6 +211,8 @@ export default function DownloadSheet({
         estBytes: selectedQuality.estBytes,
         quality: selectedQuality,
         headers,
+        providerId: currentProvider,
+        embedUrl: lastResultRef.current?.embedUrl || "",
       });
       addDownload({
         id,
@@ -150,10 +225,16 @@ export default function DownloadSheet({
         quality: selectedQuality.label || selectedQuality.quality || "",
         status: "queued",
         progress: 0,
+        providerId: currentProvider,
+        embedUrl: lastResultRef.current?.embedUrl || "",
       });
       onClose?.();
       toast("Download started");
     } catch (e) {
+      const result = lastResultRef.current;
+      if (result?.providerId && result?.embedUrl) {
+        invalidateResolveCache(result.providerId, result.embedUrl);
+      }
       setError(e?.message || "Failed to start download.");
       setStatus("error");
     }
@@ -164,7 +245,7 @@ export default function DownloadSheet({
   return (
     <>
       <div
-        onClick={onClose}
+        onClick={handleAbort}
         style={{
           position: "fixed",
           inset: 0,
@@ -209,7 +290,7 @@ export default function DownloadSheet({
           <h3 style={{ margin: 0, fontSize: 20 }}>Download</h3>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleAbort}
             aria-label="Close download options"
             style={{
               border: "none",
@@ -237,7 +318,16 @@ export default function DownloadSheet({
                 animation: "download-sheet-spin 0.8s linear infinite",
               }}
             />
-            <div style={{ color: "#d1d5db", fontSize: 16 }}>Preparing download options...</div>
+            <div style={{ color: "#d1d5db", fontSize: 16 }}>
+              {stage === "checking"
+                ? "Checking connection"
+                : stage === "finding"
+                  ? "Finding stream"
+                  : "Reading qualities"}
+            </div>
+            {note && (
+              <div style={{ color: "#fbbf24", fontSize: 13, textAlign: "center" }}>{note}</div>
+            )}
             <button
               type="button"
               onClick={handleAbort}
@@ -251,6 +341,75 @@ export default function DownloadSheet({
               }}
             >
               Cancel
+            </button>
+          </div>
+        )}
+
+        {status === "prompt" && (
+          <div style={{ display: "grid", gap: 14, minHeight: 150, padding: "12px 0" }}>
+            <div style={{ color: "#fca5a5", lineHeight: 1.5 }}>
+              {currentProviderLabel} isn't responding or doesn't have this title. Try another provider?
+            </div>
+            <div style={{ display: "grid", gap: 8 }}>
+              {remainingProviders.map((source) => (
+                <button
+                  key={source.id}
+                  type="button"
+                  onClick={() => handlePickProvider(source.id)}
+                  style={{
+                    width: "100%",
+                    border: "none",
+                    borderRadius: 12,
+                    background: "#2563eb",
+                    color: "#fff",
+                    fontWeight: 700,
+                    fontSize: 15,
+                    padding: "12px 16px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Try {source.label}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={handleAbort}
+              style={{
+                border: "1px solid rgba(255,255,255,0.18)",
+                background: "rgba(255,255,255,0.06)",
+                color: "#f3f4f6",
+                borderRadius: 10,
+                padding: "10px 14px",
+                cursor: "pointer",
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
+        {status === "exhausted" && (
+          <div style={{ display: "grid", gap: 16, minHeight: 150, padding: "12px 0" }}>
+            <div style={{ color: "#fca5a5", lineHeight: 1.5 }}>
+              No provider has a downloadable stream for this title right now.
+            </div>
+            <button
+              type="button"
+              onClick={handleRetry}
+              style={{
+                width: "100%",
+                border: "none",
+                borderRadius: 12,
+                background: "#374151",
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: 16,
+                padding: "14px 18px",
+                cursor: "pointer",
+              }}
+            >
+              Retry
             </button>
           </div>
         )}
@@ -397,10 +556,7 @@ export default function DownloadSheet({
             <div style={{ color: "#fca5a5", lineHeight: 1.5 }}>{error || "Unable to prepare download options."}</div>
             <button
               type="button"
-              onClick={() => {
-                setRetryToken((current) => current + 1);
-                setStatus("preparing");
-              }}
+              onClick={handleRetry}
               style={{
                 width: "100%",
                 border: "none",

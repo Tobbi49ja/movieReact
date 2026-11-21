@@ -4,7 +4,7 @@ import SEOHelmet from "../components/seo/SEOHelmet";
 import useDownloads from "../hooks/useDownloads";
 import { pause, resume, cancel, play } from "../lib/downloader";
 import { removeDownload } from "../lib/downloads";
-import { resolveSources } from "../lib/resolver";
+import { resolveForProvider } from "../lib/resolver";
 import "../styles/downloads.css";
 
 function formatStatus(status) {
@@ -93,7 +93,7 @@ export default function DownloadsPage() {
 
   const handleRetryExpired = async (download) => {
     try {
-      const result = await resolveSources({
+      const result = await resolveForProvider(download.providerId || download.provider, {
         tmdbId: download.tmdbId,
         type: download.type || "movie",
         season: download.season,

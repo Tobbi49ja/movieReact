@@ -22,17 +22,10 @@ import { cachedAxiosGet, invalidate } from "../utils/cachedAxios";
 import { useDataSaver } from "../utils/dataSaver";
 import MovieCard from "../components/MovieCard";
 import DownloadSheet from "../components/DownloadSheet";
+import ProviderPlayer from "../components/ProviderPlayer";
 import useDownloads from "../hooks/useDownloads";
-import { isApp, NATIVE_POPUP_GUARD, getPlayerSandbox } from "../lib/platform";
+import { isApp, NATIVE_POPUP_GUARD } from "../lib/platform";
 import { PROVIDER_SOURCES } from "../lib/providerUrls";
-
-const forceSandbox = () => {
-  try {
-    return new URLSearchParams(window.location.search).get("sandbox") === "1";
-  } catch {
-    return false;
-  }
-};
 
 // -----------------------------
 // Dynamic backend URL
@@ -384,16 +377,6 @@ export default function TVShowWatchPage() {
     setIframeLoaded(false);
   }, [id, activeSource, selectedSeason, selectedEpisode?.episode_number]);
 
-  useEffect(() => {
-    return () => {
-      if (iframeRef.current) {
-        try {
-          iframeRef.current.src = "about:blank";
-        } catch { /* cross-origin */ }
-      }
-    };
-  }, []);
-
   const PROVIDER_STORAGE_KEY = "tobbihub_watch_provider_v2";
   const LEGACY_PROVIDER_STORAGE_KEY = "tobbihub_watch_provider";
 
@@ -597,31 +580,14 @@ export default function TVShowWatchPage() {
                 </span>
               </button>
             ) : (
-              <iframe
-                ref={iframeRef}
+              <ProviderPlayer
                 key={`${activeSource}-${selectedSeason}-${selectedEpisode?.episode_number}`}
+                iframeRef={iframeRef}
                 src={embedUrl}
                 title={selectedEpisode ? `S${selectedSeason} E${selectedEpisode.episode_number}` : "TV Player"}
-                allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-                allowFullScreen
-                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }}
-                {...(Capacitor.isNativePlatform() ? {} : (SOURCES[activeSource].sandbox || forceSandbox() ? { sandbox: getPlayerSandbox() } : {}))}
+                sandbox={SOURCES[activeSource].sandbox}
               />
             )}
-            <div
-              style={{
-                position: 'absolute',
-                top: 0, left: 0, right: 0, bottom: 0,
-                zIndex: 9999,
-                cursor: 'default',
-                background: 'transparent',
-                pointerEvents: iframeLoaded ? 'auto' : 'none'
-              }}
-              onDoubleClick={() => {
-                const iframe = iframeRef.current;
-                if (iframe?.requestFullscreen) iframe.requestFullscreen();
-              }}
-            />
           </div>
         </div>
         {currentSource && (
@@ -824,6 +790,11 @@ export default function TVShowWatchPage() {
           episode={selectedEpisode?.episode_number}
           title={show?.name || "TV show"}
           poster={show?.poster_path ? tmdbImg(show?.poster_path, "w342", "poster") : ""}
+          providerId={src?.id || ""}
+          onProviderChange={(nextProviderId) => {
+            const index = SOURCES.findIndex((source) => source.id === nextProviderId);
+            if (index >= 0) handleSourceSelect(index);
+          }}
           onClose={() => setIsDownloadModalOpen(false)}
         />
       )}

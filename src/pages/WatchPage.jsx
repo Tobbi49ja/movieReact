@@ -24,17 +24,10 @@ import { tmdbImg, tmdbImgSrcSet, tmdbImgForDataSaver, tmdbImgSrcSetForDataSaver 
 import { useDataSaver } from "../utils/dataSaver";
 import MovieCard from "../components/MovieCard";
 import DownloadSheet from "../components/DownloadSheet";
+import ProviderPlayer from "../components/ProviderPlayer";
 import useDownloads from "../hooks/useDownloads";
-import { isApp, NATIVE_POPUP_GUARD, getPlayerSandbox } from "../lib/platform";
+import { isApp, NATIVE_POPUP_GUARD } from "../lib/platform";
 import { PROVIDER_SOURCES } from "../lib/providerUrls";
-
-const forceSandbox = () => {
-  try {
-    return new URLSearchParams(window.location.search).get("sandbox") === "1";
-  } catch {
-    return false;
-  }
-};
 
 // -----------------------------
 // Dynamic backend URL
@@ -385,23 +378,6 @@ export default function WatchPage() {
     navigate("/");
   };
 
-  const handleIframeLoad = () => {
-    try {
-      const iframe = iframeRef.current;
-      if (!iframe) return;
-      iframe.contentDocument?.head?.insertAdjacentHTML('beforeend', `
-        <style>
-          .ad, .ads, [class*="ad-"], [class*="popup"], 
-          [id*="banner"], .overlay, [class*="overlay"]:not(video),
-          iframe[src*="ads"], iframe[src*="doubleclick"] {
-            display: none !important;
-            visibility: hidden !important;
-          }
-        </style>
-      `);
-    } catch { /* Cross-origin iframes will throw — ignore silently */ }
-  };
-
   if (loading && !movie) return <Loader />;
   if (error) {
     return (
@@ -547,15 +523,11 @@ export default function WatchPage() {
                 </span>
               </button>
             ) : (
-              <iframe
-                ref={iframeRef}
+              <ProviderPlayer
                 key={`${activeSource}-${reloadKey}`}
+                iframeRef={iframeRef}
                 src={embedUrl}
-                onLoad={handleIframeLoad}
-                allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-                allowFullScreen
-                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
-                {...(Capacitor.isNativePlatform() ? {} : (SOURCES[activeSource].sandbox || forceSandbox() ? { sandbox: getPlayerSandbox() } : {}))}
+                sandbox={SOURCES[activeSource].sandbox}
               />
             )}
           </div>
@@ -705,6 +677,11 @@ export default function WatchPage() {
           type="movie"
           title={movie?.title || movie?.original_title || "Movie"}
           poster={movie?.poster_path ? tmdbImg(movie?.poster_path, "w342", "poster") : ""}
+          providerId={src?.id || ""}
+          onProviderChange={(nextProviderId) => {
+            const index = SOURCES.findIndex((source) => source.id === nextProviderId);
+            if (index >= 0) handleSourceSelect(index);
+          }}
           onClose={() => setIsDownloadModalOpen(false)}
         />
       )}

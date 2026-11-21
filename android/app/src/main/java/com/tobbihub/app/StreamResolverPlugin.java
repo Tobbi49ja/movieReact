@@ -32,6 +32,7 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import org.json.JSONTokener;
 import org.json.JSONObject;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -94,6 +95,21 @@ public class StreamResolverPlugin extends Plugin {
     private static final long AUTOPLAY_DELAY_MS = 4000L;
     private static final long MUTE_INTERVAL_MS = 400L;
 
+    private static final boolean BLOCK_JUNK = true;
+    private static final String[] BLOCKED_HOST_TOKENS = {
+            "doubleclick",
+            "googlesyndication",
+            "google-analytics",
+            "googletagmanager",
+            "facebook",
+            "histats"
+    };
+    private static final String[] BLOCKED_PATH_SUFFIXES = {
+            ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".ico",
+            ".woff", ".woff2", ".ttf", ".otf", ".eot", ".css",
+            ".ts", ".mp4", ".m4s", ".aac"
+    };
+
     private volatile Runnable activeCleanup;
     private volatile PluginCall pendingCall;
     private volatile boolean[] pendingCompleted;
@@ -132,9 +148,9 @@ public class StreamResolverPlugin extends Plugin {
             runActiveCleanup();
         }
 
-        int timeoutMs = call.getInt("timeoutMs", 25000);
+        int timeoutMs = call.getInt("timeoutMs", 10000);
         if (timeoutMs <= 0) {
-            timeoutMs = 25000;
+            timeoutMs = 10000;
         }
         final int effectiveTimeoutMs = timeoutMs;
 
@@ -176,6 +192,10 @@ public class StreamResolverPlugin extends Plugin {
         final int[] autoplayTaps = {0};
         final int[] autoplayVideos = {0};
         final int[] autoplayIframes = {0};
+        final long[] captureMarkerMs = {-1};
+        final long[] masterMarkerMs = {-1};
+        final long[] variantsMarkerMs = {-1};
+        final AtomicInteger blockedRequests = new AtomicInteger(0);
         final List<String> reqLines = Collections.synchronizedList(new ArrayList<String>());
         final Set<String> reqLinesSeen = Collections.synchronizedSet(new LinkedHashSet<String>());
         final boolean[] captureReadyPosted = {false};
@@ -287,6 +307,7 @@ public class StreamResolverPlugin extends Plugin {
                 stopFetchLimitFn[0].run();
                 stopMuteLoopFn[0].run();
                 long elapsed = System.currentTimeMillis() - startTimeMs[0];
+                logResolveTimings(captureMarkerMs, masterMarkerMs, variantsMarkerMs, blockedRequests.get());
                 Log.d(TAG, "RESOLVE end host=" + embedHost + " result=ok elapsedMs=" + elapsed);
                 final JSObject payload = buildPayload(captured, debug, headersBag, playlistQualities, playlistSubtitles,
                         resolvedMasterUrl[0]);
@@ -301,6 +322,9 @@ public class StreamResolverPlugin extends Plugin {
             public void run() {
                 if (completed[0] || fetchInProgress[0]) {
                     return;
+                }
+                if (captureMarkerMs[0] < 0) {
+                    captureMarkerMs[0] = System.currentTimeMillis() - startTimeMs[0];
                 }
                 CapturedRequest playlistRequest = null;
                 final List<CapturedRequest> mp4Requests = new ArrayList<CapturedRequest>();
@@ -360,6 +384,7 @@ public class StreamResolverPlugin extends Plugin {
                                 webViewUserAgent[0],
                                 capturedReferer);
                         requestToFetch.fetchResult = result;
+                        masterMarkerMs[0] = System.currentTimeMillis() - startTimeMs[0];
                         String fetchEntry = buildFetchDebugEntry(requestToFetch, result, null);
                         String bodyEntry = buildBodyDebugEntry(result, null);
                         synchronized (debug) {
@@ -389,6 +414,7 @@ public class StreamResolverPlugin extends Plugin {
                                 public void run() {
                                     stopFetchLimitFn[0].run();
                                     long elapsed = System.currentTimeMillis() - startTimeMs[0];
+                                    logResolveTimings(captureMarkerMs, masterMarkerMs, variantsMarkerMs, blockedRequests.get());
                                     Log.d(TAG, "RESOLVE end host=" + embedHost + " result=nostream elapsedMs=" + elapsed);
                                     logTimeoutDiagnosticsFn[0].run();
                                     rejectPlaylistFetch(call, result, debug, completed);
@@ -399,6 +425,7 @@ public class StreamResolverPlugin extends Plugin {
                         resolvedMasterUrl[0] = requestToFetch.url;
                         processPlaylistBody(requestToFetch, result.body, playlistQualities, debug,
                                 webViewUserAgent[0], capturedReferer, captured);
+                        variantsMarkerMs[0] = System.currentTimeMillis() - startTimeMs[0];
                         handler.post(new Runnable() {
                             @Override
                             public void run() {
@@ -418,6 +445,9 @@ public class StreamResolverPlugin extends Plugin {
                 if (completed[0] || fetchInProgress[0]) {
                     return;
                 }
+                if (captureMarkerMs[0] < 0) {
+                    captureMarkerMs[0] = System.currentTimeMillis() - startTimeMs[0];
+                }
                 completed[0] = true;
                 stopMuteLoopFn[0].run();
                 captureAutoplayCounts.run();
@@ -430,6 +460,7 @@ public class StreamResolverPlugin extends Plugin {
                 }
                 errorData.put("debug", debugArray);
                 long elapsed = System.currentTimeMillis() - startTimeMs[0];
+                logResolveTimings(captureMarkerMs, masterMarkerMs, variantsMarkerMs, blockedRequests.get());
                 Log.d(TAG, "RESOLVE end host=" + embedHost + " result=timeout elapsedMs=" + elapsed);
                 logTimeoutDiagnosticsFn[0].run();
                 cleanupWebView.run();
@@ -455,6 +486,7 @@ public class StreamResolverPlugin extends Plugin {
                 }
                 errorData.put("debug", debugArray);
                 long elapsed = System.currentTimeMillis() - startTimeMs[0];
+                logResolveTimings(captureMarkerMs, masterMarkerMs, variantsMarkerMs, blockedRequests.get());
                 Log.d(TAG, "RESOLVE end host=" + embedHost + " result=timeout elapsedMs=" + elapsed);
                 logTimeoutDiagnosticsFn[0].run();
                 cleanupWebView.run();
@@ -471,6 +503,7 @@ public class StreamResolverPlugin extends Plugin {
                 }
                 completed[0] = true;
                 long elapsed = SystemClock.elapsedRealtime() - resolveStartElapsedMs;
+                logResolveTimings(captureMarkerMs, masterMarkerMs, variantsMarkerMs, blockedRequests.get());
                 Log.d(TAG, "RESOLVE end host=" + embedHost + " result=timeout reason=native elapsedMs=" + elapsed);
                 logTimeoutDiagnosticsFn[0].run();
                 cleanupWebView.run();
@@ -620,7 +653,7 @@ public class StreamResolverPlugin extends Plugin {
                 webViewUserAgent[0] = settings.getUserAgentString();
                 settings.setJavaScriptEnabled(true);
                 settings.setDomStorageEnabled(true);
-                settings.setMediaPlaybackRequiresUserGesture(false);
+                settings.setMediaPlaybackRequiresUserGesture(true);
                 settings.setSupportMultipleWindows(true);
                 settings.setJavaScriptCanOpenWindowsAutomatically(true);
                 settings.setAllowFileAccess(true);
@@ -700,6 +733,11 @@ public class StreamResolverPlugin extends Plugin {
                             return super.shouldInterceptRequest(view, request);
                         }
                         String url = request.getUrl().toString();
+                        if (BLOCK_JUNK && isBlockedJunk(request, url)) {
+                            blockedRequests.incrementAndGet();
+                            return new WebResourceResponse("text/plain", "utf-8",
+                                    new ByteArrayInputStream(new byte[0]));
+                        }
                         if (isRelevantRequest(url)) {
                             if (shouldIgnoreHost(url)) {
                                 return super.shouldInterceptRequest(view, request);
@@ -789,11 +827,13 @@ public class StreamResolverPlugin extends Plugin {
                                 if (validPlaylist) {
                                     CapturedRequest fetchedRequest = webViewFetchRequest[0];
                                     fetchedRequest.fetchResult = webViewNativeResult[0].withBody(body);
+                                    masterMarkerMs[0] = System.currentTimeMillis() - startTimeMs[0];
                                     logAndAddDebug(debug, buildBodyDebugEntry(fetchedRequest.fetchResult, "WEBVIEW-"));
                                     new Thread(() -> {
                                         resolvedMasterUrl[0] = fetchedRequest.url;
                                         processPlaylistBody(fetchedRequest, body, playlistQualities, debug,
                                                 webViewUserAgent[0], headersBag.get("Referer"), captured);
+                                        variantsMarkerMs[0] = System.currentTimeMillis() - startTimeMs[0];
                                         handler.post(() -> {
                                             stopFetchLimitFn[0].run();
                                             fetchInProgress[0] = false;
@@ -809,6 +849,7 @@ public class StreamResolverPlugin extends Plugin {
                                             + (visibleText.isEmpty() ? "no body" : visibleText));
                                     stopFetchLimitFn[0].run();
                                     long elapsed = System.currentTimeMillis() - startTimeMs[0];
+                                    logResolveTimings(captureMarkerMs, masterMarkerMs, variantsMarkerMs, blockedRequests.get());
                                     Log.d(TAG, "RESOLVE end host=" + embedHost + " result=nostream elapsedMs=" + elapsed);
                                     logTimeoutDiagnosticsFn[0].run();
                                     rejectPlaylistFetch(call, webViewNativeResult[0], debug, completed);
@@ -895,6 +936,81 @@ public class StreamResolverPlugin extends Plugin {
                 }
             }
         } catch (Exception ignored) { }
+        return false;
+    }
+
+    private void logResolveTimings(long[] captureMarker, long[] masterMarker, long[] variantsMarker, int blocked) {
+        Log.d(TAG, "T capture=" + Math.max(0L, captureMarker[0]) + "ms");
+        Log.d(TAG, "T master=" + Math.max(0L, masterMarker[0]) + "ms");
+        Log.d(TAG, "T variants=" + Math.max(0L, variantsMarker[0]) + "ms");
+        Log.d(TAG, "BLOCKED " + blocked + " requests");
+    }
+
+    private boolean isBlockedJunk(WebResourceRequest request, String url) {
+        if (request == null || url == null || url.trim().isEmpty()) {
+            return false;
+        }
+        if (request.isForMainFrame()) {
+            return false;
+        }
+        String lowerUrl = url.toLowerCase(Locale.US);
+        if (lowerUrl.contains(".m3u8") || lowerUrl.contains(".mpd") || lowerUrl.contains(".json")) {
+            return false;
+        }
+        Map<String, String> headers = request.getRequestHeaders();
+        if (headers != null) {
+            String requestedWith = getHeader(headers, "X-Requested-With");
+            if (requestedWith != null && requestedWith.toLowerCase(Locale.US).contains("xmlhttprequest")) {
+                return false;
+            }
+            String dest = getHeader(headers, "Sec-Fetch-Dest");
+            if (dest != null) {
+                String lowerDest = dest.toLowerCase(Locale.US);
+                if (lowerDest.contains("script") || lowerDest.contains("empty") || lowerDest.contains("document")) {
+                    return false;
+                }
+            }
+            String accept = getHeader(headers, "Accept");
+            if (accept != null) {
+                String lowerAccept = accept.toLowerCase(Locale.US);
+                if (lowerAccept.contains("javascript") || lowerAccept.contains("json")) {
+                    return false;
+                }
+            }
+        }
+        if (isBlockedHost(url)) {
+            return true;
+        }
+        String path = Uri.parse(url).getPath();
+        String lowerPath = path == null ? "" : path.toLowerCase(Locale.US);
+        if (endsWithAny(lowerPath, BLOCKED_PATH_SUFFIXES)) {
+            return true;
+        }
+        return false;
+    }
+
+    private boolean isBlockedHost(String url) {
+        try {
+            String host = Uri.parse(url).getHost();
+            if (host == null) {
+                return false;
+            }
+            String lower = host.toLowerCase(Locale.US);
+            for (String token : BLOCKED_HOST_TOKENS) {
+                if (lower.contains(token)) {
+                    return true;
+                }
+            }
+        } catch (Exception ignored) { }
+        return false;
+    }
+
+    private boolean endsWithAny(String value, String[] suffixes) {
+        for (String suffix : suffixes) {
+            if (value.endsWith(suffix)) {
+                return true;
+            }
+        }
         return false;
     }
 

@@ -1,74 +1,95 @@
-import { PROVIDER_ORDER, buildProviderEmbedUrl } from "./providerUrls";
-import { resolveNative } from "./streamResolver";
+import { buildProviderEmbedUrl, getProviderById } from "./providerUrls";
+import { resolveNative, cancelResolve } from "./streamResolver";
+
+const CACHE_TTL_MS = 10 * 60 * 1000;
+const RESOLVE_TIMEOUT_MS = 10000;
+
+const cache = new Map();
+
+const cacheKey = (providerId, embedUrl) => `${providerId}::${embedUrl}`;
+
+const normalizeType = (type) =>
+  type === "tv" || type === "series" || type === "episode" ? "tv" : "movie";
+
+export function invalidateResolveCache(providerId, embedUrl) {
+  if (!providerId || !embedUrl) return;
+  cache.delete(cacheKey(providerId, embedUrl));
+}
+
+export function clearResolveCache() {
+  cache.clear();
+}
 
 /**
- * Resolve download candidates for a movie or episode.
- * Return contract:
+ * Resolve download candidates for a movie or episode using one provider.
+ * Contract:
  * {
  *   qualities: [{ id, label, url, bandwidth, type: "hls" | "mp4" }],
  *   subtitles: [{ id, lang, label, url }],
- *   headers: {}
+ *   headers: {},
+ *   provider, providerId, embedUrl
  * }
  */
-const chunkDebugLog = (provider, debugArray) => {
-  const json = JSON.stringify(debugArray ?? []);
-  const chunkSize = 1500;
+export async function resolveForProvider(providerId, media = {}, { signal } = {}) {
+  const source = getProviderById(providerId);
+  const embedUrl = buildProviderEmbedUrl({
+    provider: source.id,
+    tmdbId: media.tmdbId,
+    type: normalizeType(media.type),
+    season: media.season,
+    episode: media.episode,
+  });
 
-  for (let i = 0; i < json.length; i += chunkSize) {
-    console.log("[resolver] debug", provider, json.slice(i, i + chunkSize));
+  const key = cacheKey(source.id, embedUrl);
+  const cached = cache.get(key);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.result;
   }
-};
+  if (cached) cache.delete(key);
 
-export async function resolveSources({ tmdbId, type, season, episode, isCancelled }) {
-  const normalizedType = type === "tv" || type === "series" || type === "episode" ? "tv" : "movie";
-  const providerDebugs = [];
+  if (signal?.aborted) {
+    throw new Error("Cancelled");
+  }
 
-  for (const provider of PROVIDER_ORDER) {
-    if (typeof isCancelled === "function" && isCancelled()) {
+  const handleAbort = () => {
+    cancelResolve();
+  };
+  signal?.addEventListener("abort", handleAbort, { once: true });
+
+  try {
+    const result = await resolveNative(embedUrl, { timeoutMs: RESOLVE_TIMEOUT_MS });
+    if (signal?.aborted) {
       throw new Error("Cancelled");
     }
 
-    const embedUrl = buildProviderEmbedUrl({
-      provider,
-      tmdbId,
-      type: normalizedType,
-      season,
-      episode,
+    const payload = result?.value ?? result ?? {};
+    const qualities = Array.isArray(payload.qualities) ? payload.qualities : [];
+    const subtitles = Array.isArray(payload.subtitles) ? payload.subtitles : [];
+
+    console.log("[resolver] result", {
+      provider: source.id,
+      qualityCount: qualities.length,
+      subtitleCount: subtitles.length,
     });
 
-    try {
-      const result = await resolveNative(embedUrl);
-      const payload = result?.value ?? result ?? {};
-      const qualities = Array.isArray(payload.qualities) ? payload.qualities : [];
-      const subtitles = Array.isArray(payload.subtitles) ? payload.subtitles : [];
-      const debug = Array.isArray(payload.debug) ? payload.debug : [];
-
-      console.log("[resolver] result", {
-        provider,
-        qualityCount: qualities.length,
-        subtitleCount: subtitles.length,
-      });
-      chunkDebugLog(provider, debug);
-
-      return { ...payload, provider };
-    } catch (error) {
-      const message = error?.message || String(error || "Unknown error");
-      console.log("[resolver]", provider, message);
-
-      const debugEntries = Array.isArray(error?.data?.debug)
-        ? error.data.debug
-        : Array.isArray(error?.debug)
-          ? error.debug
-          : [];
-
-      if (debugEntries.length > 0) {
-        providerDebugs.push({ provider, debug: debugEntries });
-      }
+    if (qualities.length === 0) {
+      throw new Error("No downloadable stream found");
     }
-  }
 
-  console.log("[resolver] debug", providerDebugs);
-  throw new Error("No downloadable stream found");
+    const finalResult = {
+      ...payload,
+      qualities,
+      subtitles,
+      provider: source.id,
+      providerId: source.id,
+      embedUrl,
+    };
+
+    cache.set(key, { result: finalResult, expiresAt: Date.now() + CACHE_TTL_MS });
+    return finalResult;
+  } finally {
+    signal?.removeEventListener("abort", handleAbort);
+  }
 }
 
-export default resolveSources;
+export default resolveForProvider;
