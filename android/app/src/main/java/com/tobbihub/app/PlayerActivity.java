@@ -31,11 +31,14 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.media3.common.C;
+import androidx.media3.common.Format;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MimeTypes;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
+import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.TrackSelectionParameters;
+import androidx.media3.common.Tracks;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.AspectRatioFrameLayout;
@@ -86,6 +89,7 @@ public class PlayerActivity extends Activity {
     private DownloadManifest manifest;
     private final List<SubtitleEntry> subtitleEntries = new ArrayList<>();
     private int selectedSubtitleIndex = -1;
+    private boolean textOverrideApplied = false;
     private Dialog subtitleSheet;
     private ProgressDialog progressDialog;
 
@@ -221,6 +225,35 @@ public class PlayerActivity extends Activity {
                 finish();
             }
         });
+        player.addListener(new Player.Listener() {
+            @Override
+            public void onTracksChanged(Tracks tracks) {
+                if (selectedSubtitleIndex < 0 || selectedSubtitleIndex >= subtitleEntries.size()) {
+                    return;
+                }
+                String wantedId = subtitleEntries.get(selectedSubtitleIndex).id;
+                for (Tracks.Group group : tracks.getGroups()) {
+                    if (group.getType() != C.TRACK_TYPE_TEXT) {
+                        continue;
+                    }
+                    for (int i = 0; i < group.length; i++) {
+                        Format f = group.getTrackFormat(i);
+                        Log.d("TobbiSubs", "text track id=" + f.id + " lang=" + f.language
+                                + " mime=" + f.sampleMimeType + " selected=" + group.isTrackSelected(i));
+                        if (f.id != null && (f.id.equals(wantedId) || f.id.endsWith(":" + wantedId))) {
+                            if (!group.isTrackSelected(i)) {
+                                player.setTrackSelectionParameters(player.getTrackSelectionParameters()
+                                        .buildUpon()
+                                        .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+                                        .setOverrideForType(new TrackSelectionOverride(group.getMediaTrackGroup(), i))
+                                        .build());
+                            }
+                            return;
+                        }
+                    }
+                }
+            }
+        });
 
         MediaItem item = buildMediaItem();
         restoreLastSelection();
@@ -271,6 +304,7 @@ public class PlayerActivity extends Activity {
 
                 subtitleEntries.add(new SubtitleEntry(id, lang, label, subtitleFile, mime, offsetMs));
                 configurations.add(new MediaItem.SubtitleConfiguration.Builder(Uri.fromFile(playableFile))
+                        .setId(id)
                         .setMimeType(mime)
                         .setLanguage(lang)
                         .setLabel(label)
@@ -343,8 +377,6 @@ public class PlayerActivity extends Activity {
         if (selectedSubtitleIndex >= 0 && selectedSubtitleIndex < subtitleEntries.size()) {
             SubtitleEntry entry = subtitleEntries.get(selectedSubtitleIndex);
             builder.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false);
-            builder.setPreferredTextLanguage(entry.lang);
-            builder.setSelectUndeterminedTextLanguage(true);
         } else {
             builder.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true);
         }
