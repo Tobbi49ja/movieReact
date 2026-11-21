@@ -585,6 +585,7 @@ export default function TVShowWatchPage() {
                 iframeRef={iframeRef}
                 src={embedUrl}
                 title={selectedEpisode ? `S${selectedSeason} E${selectedEpisode.episode_number}` : "TV Player"}
+                onLoad={() => setIframeLoaded(true)}
                 sandbox={SOURCES[activeSource].sandbox}
               />
             )}

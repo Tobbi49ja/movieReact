@@ -12,6 +12,8 @@ function makeId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+const nowMs = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+
 const parseQualityRank = (quality) => {
   const bandwidth = Number(quality?.avgBandwidth ?? quality?.bandwidth);
   if (Number.isFinite(bandwidth) && bandwidth > 0) return bandwidth;
@@ -59,6 +61,15 @@ export default function DownloadSheet({
 
   const normalizedType = String(type || "movie").trim() || "movie";
 
+  const sheetOpenAtRef = useRef(nowMs());
+  const stageLog = (event, data) => {
+    console.log(`[dl-stage] ${event} t=+${Math.round(nowMs() - sheetOpenAtRef.current)}ms`, data === undefined ? "" : data);
+  };
+
+  useEffect(() => {
+    stageLog("sheet open", { provider: providerId || "", type: normalizedType });
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     const controller = new AbortController();
@@ -67,6 +78,7 @@ export default function DownloadSheet({
     const loadOptions = async () => {
       cancelledRef.current = false;
       setStatus("preparing");
+      stageLog("stage", "checking");
       setStage("checking");
       setNote("");
       setError("");
@@ -77,7 +89,20 @@ export default function DownloadSheet({
       setResolverHeaders({});
       lastResultRef.current = null;
 
-      const connection = await checkConnection();
+      stageLog("checkConnection start");
+      let connection;
+      try {
+        connection = await checkConnection();
+      } catch (checkError) {
+        stageLog("checkConnection threw", { error: String(checkError?.message || checkError) });
+        connection = { ok: false, reason: "unreachable" };
+      }
+      stageLog("checkConnection result", {
+        ok: connection.ok,
+        slow: connection.slow,
+        reason: connection.reason,
+        rtt: connection.rtt,
+      });
       if (cancelled || cancelledRef.current || controller.signal.aborted) return;
 
       if (!connection.ok) {
@@ -90,11 +115,15 @@ export default function DownloadSheet({
         return;
       }
 
+      stageLog("stage", "finding");
+      setStage("finding");
+
       if (connection.slow) {
         setNote("Weak connection, scanning may take longer");
       }
 
-      setStage("finding");
+      const resolveStart = nowMs();
+      stageLog("resolveForProvider start", { provider: currentProvider });
 
       try {
         const result = await resolveForProvider(
@@ -105,6 +134,13 @@ export default function DownloadSheet({
 
         if (cancelled || cancelledRef.current || controller.signal.aborted) return;
 
+        stageLog("resolveForProvider result", {
+          status: "ok",
+          elapsedMs: Math.round(nowMs() - resolveStart),
+          qualities: Array.isArray(result?.qualities) ? result.qualities.length : 0,
+        });
+
+        stageLog("stage", "qualities");
         setStage("qualities");
         await new Promise((resolve) => setTimeout(resolve, 0));
         if (cancelled || cancelledRef.current || controller.signal.aborted) return;
@@ -125,6 +161,12 @@ export default function DownloadSheet({
         setStatus("ready");
       } catch (loadError) {
         if (cancelled || cancelledRef.current || controller.signal.aborted || loadError?.message === "Cancelled") return;
+        const isTimeout = loadError?.name === "AbortError" || /timeout/i.test(String(loadError?.message || ""));
+        stageLog("resolveForProvider result", {
+          status: isTimeout ? "timeout" : "error",
+          elapsedMs: Math.round(nowMs() - resolveStart),
+          error: String(loadError?.message || loadError),
+        });
         console.error("Failed to resolve download sources:", loadError);
 
         triedRef.current.add(currentProvider);

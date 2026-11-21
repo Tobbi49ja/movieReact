@@ -7,6 +7,7 @@ const BACKEND_URL =
 const API_BASE = `${BACKEND_URL}/api`;
 
 const TIMEOUT_MS = 4000;
+const RACE_TIMEOUT_MS = 4500;
 const SLOW_RTT_MS = 2500;
 
 export async function checkConnection() {
@@ -18,21 +19,35 @@ export async function checkConnection() {
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   const started = performance.now();
 
+  let raceTimer = null;
+  const raceTimeout = new Promise((resolve) => {
+    raceTimer = setTimeout(() => resolve({ ok: false, reason: "unreachable" }), RACE_TIMEOUT_MS);
+  });
+
+  const url = `${API_BASE}/ping?t=${Date.now()}`;
+  console.log("[dl-stage] netCheck fetch", url);
+
   try {
-    const res = await fetch(`${API_BASE}/ping?t=${Date.now()}`, {
-      signal: controller.signal,
-    });
-    if (!res.ok) {
-      return { ok: false, reason: "unreachable" };
-    }
-    const rtt = performance.now() - started;
-    if (rtt > SLOW_RTT_MS) {
-      return { ok: true, slow: true, rtt };
-    }
-    return { ok: true, slow: false, rtt };
+    const res = await Promise.race([
+      fetch(url, { signal: controller.signal })
+        .then((response) => {
+          if (!response.ok) {
+            return { ok: false, reason: "unreachable" };
+          }
+          const rtt = performance.now() - started;
+          if (rtt > SLOW_RTT_MS) {
+            return { ok: true, slow: true, rtt };
+          }
+          return { ok: true, slow: false, rtt };
+        })
+        .catch(() => ({ ok: false, reason: "unreachable" })),
+      raceTimeout,
+    ]);
+    return res;
   } catch {
     return { ok: false, reason: "unreachable" };
   } finally {
     clearTimeout(timer);
+    if (raceTimer) clearTimeout(raceTimer);
   }
 }
