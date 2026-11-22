@@ -170,10 +170,17 @@ export default function DownloadSheet({
         console.error("Failed to resolve download sources:", loadError);
 
         triedRef.current.add(currentProvider);
-        setTriedProviders(Array.from(triedRef.current));
+        const tried = Array.from(triedRef.current);
+        setTriedProviders(tried);
         const hasRemaining = PROVIDER_SOURCES.some((source) => !triedRef.current.has(source.id));
         setError(loadError?.message || "Something went wrong while preparing download options.");
-        setStatus(hasRemaining ? "prompt" : "exhausted");
+        if (hasRemaining) {
+          stageLog("fallback prompt shown", { providerId: currentProvider, tried });
+          setStatus("prompt");
+        } else {
+          stageLog("all providers failed", { providerId: currentProvider, tried });
+          setStatus("exhausted");
+        }
       }
     };
 

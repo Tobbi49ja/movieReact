@@ -152,6 +152,9 @@ public class StreamResolverPlugin extends Plugin {
         if (timeoutMs <= 0) {
             timeoutMs = 10000;
         }
+        if (timeoutMs > 25000) {
+            timeoutMs = 25000;
+        }
         final int effectiveTimeoutMs = timeoutMs;
 
         final Activity activity = getActivity();
