@@ -54,6 +54,7 @@ export default function DownloadSheet({
   const [resolverHeaders, setResolverHeaders] = useState({});
   const [currentProvider, setCurrentProvider] = useState(providerId || "");
   const [triedProviders, setTriedProviders] = useState([]);
+  const [softBudgetVisible, setSoftBudgetVisible] = useState(false);
   const cancelledRef = useRef(false);
   const triedRef = useRef(new Set());
   const controllerRef = useRef(null);
@@ -71,6 +72,15 @@ export default function DownloadSheet({
   }, []);
 
   useEffect(() => {
+    if (status !== "preparing" || stage !== "finding") return undefined;
+    const timer = setTimeout(() => {
+      stageLog("soft budget shown", { providerId: currentProvider });
+      setSoftBudgetVisible(true);
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [status, stage, currentProvider]);
+
+  useEffect(() => {
     let cancelled = false;
     const controller = new AbortController();
     controllerRef.current = controller;
@@ -80,6 +90,7 @@ export default function DownloadSheet({
       setStatus("preparing");
       stageLog("stage", "checking");
       setStage("checking");
+      setSoftBudgetVisible(false);
       setNote("");
       setError("");
       setSelectedQuality(null);
@@ -226,6 +237,19 @@ export default function DownloadSheet({
     triedRef.current = new Set();
     setTriedProviders([]);
     setRetryToken((current) => current + 1);
+  };
+
+  const handleSoftTryAnother = () => {
+    stageLog("soft budget: try another provider", { providerId: currentProvider });
+    cancelledRef.current = true;
+    controllerRef.current?.abort();
+    cancelResolve();
+    triedRef.current.add(currentProvider);
+    const tried = Array.from(triedRef.current);
+    setTriedProviders(tried);
+    const hasRemaining = PROVIDER_SOURCES.some((source) => !triedRef.current.has(source.id));
+    setSoftBudgetVisible(false);
+    setStatus(hasRemaining ? "prompt" : "exhausted");
   };
 
   const handlePickProvider = (nextProviderId) => {
@@ -376,6 +400,58 @@ export default function DownloadSheet({
             </div>
             {note && (
               <div style={{ color: "#fbbf24", fontSize: 13, textAlign: "center" }}>{note}</div>
+            )}
+            {softBudgetVisible && stage === "finding" && (
+              <div
+                style={{
+                  width: "100%",
+                  background: "rgba(251,191,36,0.12)",
+                  border: "1px solid rgba(251,191,36,0.35)",
+                  borderRadius: 12,
+                  padding: "12px 14px",
+                  display: "grid",
+                  gap: 10,
+                  boxSizing: "border-box",
+                }}
+              >
+                <div style={{ color: "#fbbf24", fontSize: 14, textAlign: "center" }}>
+                  Taking longer than usual...
+                </div>
+                <div style={{ display: "grid", gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={handleSoftTryAnother}
+                    style={{
+                      width: "100%",
+                      border: "none",
+                      borderRadius: 10,
+                      background: "#2563eb",
+                      color: "#fff",
+                      fontWeight: 700,
+                      fontSize: 14,
+                      padding: "10px 14px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Try another provider
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSoftBudgetVisible(false)}
+                    style={{
+                      width: "100%",
+                      border: "1px solid rgba(255,255,255,0.18)",
+                      background: "rgba(255,255,255,0.06)",
+                      color: "#f3f4f6",
+                      borderRadius: 10,
+                      padding: "10px 14px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Keep waiting
+                  </button>
+                </div>
+              </div>
             )}
             <button
               type="button"

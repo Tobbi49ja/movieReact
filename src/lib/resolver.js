@@ -2,7 +2,7 @@ import { buildProviderEmbedUrl, getProviderById } from "./providerUrls";
 import { resolveNative, cancelResolve } from "./streamResolver";
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
-const RESOLVE_TIMEOUT_MS = 20000;
+const RESOLVE_TIMEOUT_MS = 25000;
 
 const cache = new Map();
 
