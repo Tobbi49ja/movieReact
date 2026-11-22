@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { resolveForProvider, invalidateResolveCache } from "../lib/resolver";
-import { cancelResolve } from "../lib/streamResolver";
 import { start } from "../lib/downloader";
 import { addDownload } from "../lib/downloads";
 import { PROVIDER_SOURCES, getProviderById } from "../lib/providerUrls";
@@ -52,7 +51,7 @@ export default function DownloadSheet({
   const [error, setError] = useState("");
   const [retryToken, setRetryToken] = useState(0);
   const [resolverHeaders, setResolverHeaders] = useState({});
-  const [currentProvider, setCurrentProvider] = useState(providerId || "");
+  const [activeProviderId, setActiveProviderId] = useState(providerId || "");
   const [triedProviders, setTriedProviders] = useState([]);
   const [softBudgetVisible, setSoftBudgetVisible] = useState(false);
   const cancelledRef = useRef(false);
@@ -74,11 +73,11 @@ export default function DownloadSheet({
   useEffect(() => {
     if (status !== "preparing" || stage !== "finding") return undefined;
     const timer = setTimeout(() => {
-      stageLog("soft budget shown", { providerId: currentProvider });
+      stageLog("soft budget shown", { providerId: activeProviderId });
       setSoftBudgetVisible(true);
     }, 10000);
     return () => clearTimeout(timer);
-  }, [status, stage, currentProvider]);
+  }, [status, stage, activeProviderId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -134,11 +133,11 @@ export default function DownloadSheet({
       }
 
       const resolveStart = nowMs();
-      stageLog("resolveForProvider start", { provider: currentProvider });
+      stageLog("resolveForProvider start", { provider: activeProviderId });
 
       try {
         const result = await resolveForProvider(
-          currentProvider,
+          activeProviderId,
           { tmdbId, type: normalizedType, season, episode },
           { signal: controller.signal }
         );
@@ -170,6 +169,7 @@ export default function DownloadSheet({
         }
 
         setStatus("ready");
+        onProviderChange?.(activeProviderId);
       } catch (loadError) {
         if (cancelled || cancelledRef.current || controller.signal.aborted || loadError?.message === "Cancelled") return;
         const isTimeout = loadError?.name === "AbortError" || /timeout/i.test(String(loadError?.message || ""));
@@ -180,16 +180,16 @@ export default function DownloadSheet({
         });
         console.error("Failed to resolve download sources:", loadError);
 
-        triedRef.current.add(currentProvider);
+        triedRef.current.add(activeProviderId);
         const tried = Array.from(triedRef.current);
         setTriedProviders(tried);
         const hasRemaining = PROVIDER_SOURCES.some((source) => !triedRef.current.has(source.id));
         setError(loadError?.message || "Something went wrong while preparing download options.");
         if (hasRemaining) {
-          stageLog("fallback prompt shown", { providerId: currentProvider, tried });
+          stageLog("fallback prompt shown", { providerId: activeProviderId, tried });
           setStatus("prompt");
         } else {
-          stageLog("all providers failed", { providerId: currentProvider, tried });
+          stageLog("all providers failed", { providerId: activeProviderId, tried });
           setStatus("exhausted");
         }
       }
@@ -201,9 +201,8 @@ export default function DownloadSheet({
       cancelled = true;
       cancelledRef.current = true;
       controller.abort();
-      cancelResolve();
     };
-  }, [tmdbId, normalizedType, season, episode, currentProvider, retryToken]);
+  }, [tmdbId, normalizedType, season, episode, activeProviderId, retryToken]);
 
   const subtitleOptions = useMemo(() => {
     const options = [{ id: "none", lang: "none", label: "None" }, ...subtitles];
@@ -218,18 +217,17 @@ export default function DownloadSheet({
   const remainingProviders = useMemo(
     () =>
       PROVIDER_SOURCES.filter(
-        (source) => source.id !== currentProvider && !triedProviders.includes(source.id)
+        (source) => source.id !== activeProviderId && !triedProviders.includes(source.id)
       ),
-    [currentProvider, triedProviders]
+    [activeProviderId, triedProviders]
   );
 
   const currentProviderLabel =
-    getProviderById(currentProvider)?.label || currentProvider || "This provider";
+    getProviderById(activeProviderId)?.label || activeProviderId || "This provider";
 
   const handleAbort = () => {
     cancelledRef.current = true;
     controllerRef.current?.abort();
-    cancelResolve();
     onClose?.();
   };
 
@@ -240,11 +238,10 @@ export default function DownloadSheet({
   };
 
   const handleSoftTryAnother = () => {
-    stageLog("soft budget: try another provider", { providerId: currentProvider });
+    stageLog("soft budget: try another provider", { providerId: activeProviderId });
     cancelledRef.current = true;
     controllerRef.current?.abort();
-    cancelResolve();
-    triedRef.current.add(currentProvider);
+    triedRef.current.add(activeProviderId);
     const tried = Array.from(triedRef.current);
     setTriedProviders(tried);
     const hasRemaining = PROVIDER_SOURCES.some((source) => !triedRef.current.has(source.id));
@@ -253,12 +250,8 @@ export default function DownloadSheet({
   };
 
   const handlePickProvider = (nextProviderId) => {
-    if (!nextProviderId || nextProviderId === currentProvider) return;
-    cancelledRef.current = true;
-    controllerRef.current?.abort();
-    cancelResolve();
-    setCurrentProvider(nextProviderId);
-    onProviderChange?.(nextProviderId);
+    if (!nextProviderId || nextProviderId === activeProviderId) return;
+    setActiveProviderId(nextProviderId);
   };
 
   const handleDownload = async () => {
@@ -284,7 +277,7 @@ export default function DownloadSheet({
         estBytes: selectedQuality.estBytes,
         quality: selectedQuality,
         headers,
-        providerId: currentProvider,
+        providerId: activeProviderId,
         embedUrl: lastResultRef.current?.embedUrl || "",
       });
       addDownload({
@@ -298,7 +291,7 @@ export default function DownloadSheet({
         quality: selectedQuality.label || selectedQuality.quality || "",
         status: "queued",
         progress: 0,
-        providerId: currentProvider,
+        providerId: activeProviderId,
         embedUrl: lastResultRef.current?.embedUrl || "",
       });
       onClose?.();
