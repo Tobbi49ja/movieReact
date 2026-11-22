@@ -96,6 +96,7 @@ public class StreamResolverPlugin extends Plugin {
     private static final long MUTE_INTERVAL_MS = 400L;
 
     private static final boolean BLOCK_JUNK = true;
+    private static final boolean REQUIRE_GESTURE = false;
     private static final String[] BLOCKED_HOST_TOKENS = {
             "doubleclick",
             "googlesyndication",
@@ -656,7 +657,7 @@ public class StreamResolverPlugin extends Plugin {
                 webViewUserAgent[0] = settings.getUserAgentString();
                 settings.setJavaScriptEnabled(true);
                 settings.setDomStorageEnabled(true);
-                settings.setMediaPlaybackRequiresUserGesture(true);
+                settings.setMediaPlaybackRequiresUserGesture(REQUIRE_GESTURE);
                 settings.setSupportMultipleWindows(true);
                 settings.setJavaScriptCanOpenWindowsAutomatically(true);
                 settings.setAllowFileAccess(true);
