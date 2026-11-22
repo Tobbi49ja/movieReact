@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { resolveForProvider, invalidateResolveCache } from "../lib/resolver";
 import { start } from "../lib/downloader";
@@ -49,25 +49,153 @@ export default function DownloadSheet({
   const [selectedQuality, setSelectedQuality] = useState(null);
   const [selectedSubtitle, setSelectedSubtitle] = useState("none");
   const [error, setError] = useState("");
-  const [retryToken, setRetryToken] = useState(0);
   const [resolverHeaders, setResolverHeaders] = useState({});
   const [activeProviderId, setActiveProviderId] = useState(providerId || "");
   const [triedProviders, setTriedProviders] = useState([]);
   const [softBudgetVisible, setSoftBudgetVisible] = useState(false);
-  const cancelledRef = useRef(false);
   const triedRef = useRef(new Set());
   const controllerRef = useRef(null);
   const lastResultRef = useRef(null);
+  const scanIdRef = useRef(0);
+  const scanCtxRef = useRef({});
 
   const normalizedType = String(type || "movie").trim() || "movie";
 
   const sheetOpenAtRef = useRef(nowMs());
-  const stageLog = (event, data) => {
+  const stageLog = useCallback((event, data) => {
     console.log(`[dl-stage] ${event} t=+${Math.round(nowMs() - sheetOpenAtRef.current)}ms`, data === undefined ? "" : data);
-  };
+  }, []);
+
+  scanCtxRef.current = { tmdbId, type: normalizedType, season, episode, onProviderChange };
+
+  const startScan = useCallback(async (providerIdArg, reason) => {
+    const myScanId = scanIdRef.current + 1;
+    scanIdRef.current = myScanId;
+    const provider = providerIdArg || "";
+    stageLog(`scan #${myScanId} provider=${provider} reason=${reason}`);
+
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    const ctx = scanCtxRef.current;
+    const isStale = () => scanIdRef.current !== myScanId || controller.signal.aborted;
+
+    setStatus("preparing");
+    stageLog("stage", "checking");
+    setStage("checking");
+    setSoftBudgetVisible(false);
+    setNote("");
+    setError("");
+    setSelectedQuality(null);
+    setSelectedSubtitle("none");
+    setQualities([]);
+    setSubtitles([]);
+    setResolverHeaders({});
+    lastResultRef.current = null;
+
+    stageLog("checkConnection start");
+    let connection;
+    try {
+      connection = await checkConnection();
+    } catch (checkError) {
+      stageLog("checkConnection threw", { error: String(checkError?.message || checkError) });
+      connection = { ok: false, reason: "unreachable" };
+    }
+    if (isStale()) return;
+    stageLog("checkConnection result", {
+      ok: connection.ok,
+      slow: connection.slow,
+      reason: connection.reason,
+      rtt: connection.rtt,
+    });
+
+    if (!connection.ok) {
+      setStatus("error");
+      setError(
+        connection.reason === "offline"
+          ? "No internet connection. Connect and try again."
+          : "Can't reach the server. Check your connection."
+      );
+      return;
+    }
+
+    stageLog("stage", "finding");
+    setStage("finding");
+    if (connection.slow) {
+      setNote("Weak connection, scanning may take longer");
+    }
+
+    const resolveStart = nowMs();
+    stageLog("resolveForProvider start", { provider });
+
+    try {
+      const result = await resolveForProvider(
+        provider,
+        { tmdbId: ctx.tmdbId, type: ctx.type, season: ctx.season, episode: ctx.episode },
+        { signal: controller.signal }
+      );
+      if (isStale()) return;
+
+      stageLog("resolveForProvider result", {
+        status: "ok",
+        elapsedMs: Math.round(nowMs() - resolveStart),
+        qualities: Array.isArray(result?.qualities) ? result.qualities.length : 0,
+      });
+
+      stageLog("stage", "qualities");
+      setStage("qualities");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      if (isStale()) return;
+
+      const nextQualities = Array.isArray(result?.qualities) ? result.qualities : [];
+      const nextSubtitles = Array.isArray(result?.subtitles) ? result.subtitles : [];
+      const sortedQualities = [...nextQualities].sort((a, b) => parseQualityRank(b) - parseQualityRank(a));
+
+      lastResultRef.current = result;
+      setQualities(sortedQualities);
+      setSubtitles(nextSubtitles);
+      setResolverHeaders(result?.headers || {});
+      if (sortedQualities.length > 0) {
+        setSelectedQuality(sortedQualities[0]);
+      }
+      setStatus("ready");
+      ctx.onProviderChange?.(provider);
+    } catch (loadError) {
+      if (isStale() || loadError?.message === "Cancelled") return;
+      const isTimeout = loadError?.name === "AbortError" || /timeout/i.test(String(loadError?.message || ""));
+      stageLog("resolveForProvider result", {
+        status: isTimeout ? "timeout" : "error",
+        elapsedMs: Math.round(nowMs() - resolveStart),
+        error: String(loadError?.message || loadError),
+      });
+      console.error("Failed to resolve download sources:", loadError);
+
+      triedRef.current.add(provider);
+      const tried = Array.from(triedRef.current);
+      setTriedProviders(tried);
+      const hasRemaining = PROVIDER_SOURCES.some((source) => !triedRef.current.has(source.id));
+      setError(loadError?.message || "Something went wrong while preparing download options.");
+      if (hasRemaining) {
+        stageLog("fallback prompt shown", { providerId: provider, tried });
+        setStatus("prompt");
+      } else {
+        stageLog("all providers failed", { providerId: provider, tried });
+        setStatus("exhausted");
+      }
+    }
+    // Reads everything from refs; identity is stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     stageLog("sheet open", { provider: providerId || "", type: normalizedType });
+    startScan(providerId || "", "open");
+    return () => {
+      scanIdRef.current += 1;
+      controllerRef.current?.abort();
+    };
+    // Mount only: providerId is captured once at open time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -78,131 +206,6 @@ export default function DownloadSheet({
     }, 10000);
     return () => clearTimeout(timer);
   }, [status, stage, activeProviderId]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
-    controllerRef.current = controller;
-
-    const loadOptions = async () => {
-      cancelledRef.current = false;
-      setStatus("preparing");
-      stageLog("stage", "checking");
-      setStage("checking");
-      setSoftBudgetVisible(false);
-      setNote("");
-      setError("");
-      setSelectedQuality(null);
-      setSelectedSubtitle("none");
-      setQualities([]);
-      setSubtitles([]);
-      setResolverHeaders({});
-      lastResultRef.current = null;
-
-      stageLog("checkConnection start");
-      let connection;
-      try {
-        connection = await checkConnection();
-      } catch (checkError) {
-        stageLog("checkConnection threw", { error: String(checkError?.message || checkError) });
-        connection = { ok: false, reason: "unreachable" };
-      }
-      stageLog("checkConnection result", {
-        ok: connection.ok,
-        slow: connection.slow,
-        reason: connection.reason,
-        rtt: connection.rtt,
-      });
-      if (cancelled || cancelledRef.current || controller.signal.aborted) return;
-
-      if (!connection.ok) {
-        setStatus("error");
-        setError(
-          connection.reason === "offline"
-            ? "No internet connection. Connect and try again."
-            : "Can't reach the server. Check your connection."
-        );
-        return;
-      }
-
-      stageLog("stage", "finding");
-      setStage("finding");
-
-      if (connection.slow) {
-        setNote("Weak connection, scanning may take longer");
-      }
-
-      const resolveStart = nowMs();
-      stageLog("resolveForProvider start", { provider: activeProviderId });
-
-      try {
-        const result = await resolveForProvider(
-          activeProviderId,
-          { tmdbId, type: normalizedType, season, episode },
-          { signal: controller.signal }
-        );
-
-        if (cancelled || cancelledRef.current || controller.signal.aborted) return;
-
-        stageLog("resolveForProvider result", {
-          status: "ok",
-          elapsedMs: Math.round(nowMs() - resolveStart),
-          qualities: Array.isArray(result?.qualities) ? result.qualities.length : 0,
-        });
-
-        stageLog("stage", "qualities");
-        setStage("qualities");
-        await new Promise((resolve) => setTimeout(resolve, 0));
-        if (cancelled || cancelledRef.current || controller.signal.aborted) return;
-
-        const nextQualities = Array.isArray(result?.qualities) ? result.qualities : [];
-        const nextSubtitles = Array.isArray(result?.subtitles) ? result.subtitles : [];
-        const sortedQualities = [...nextQualities].sort((a, b) => parseQualityRank(b) - parseQualityRank(a));
-
-        lastResultRef.current = result;
-        setQualities(sortedQualities);
-        setSubtitles(nextSubtitles);
-        setResolverHeaders(result?.headers || {});
-
-        if (sortedQualities.length > 0) {
-          setSelectedQuality(sortedQualities[0]);
-        }
-
-        setStatus("ready");
-        onProviderChange?.(activeProviderId);
-      } catch (loadError) {
-        if (cancelled || cancelledRef.current || controller.signal.aborted || loadError?.message === "Cancelled") return;
-        const isTimeout = loadError?.name === "AbortError" || /timeout/i.test(String(loadError?.message || ""));
-        stageLog("resolveForProvider result", {
-          status: isTimeout ? "timeout" : "error",
-          elapsedMs: Math.round(nowMs() - resolveStart),
-          error: String(loadError?.message || loadError),
-        });
-        console.error("Failed to resolve download sources:", loadError);
-
-        triedRef.current.add(activeProviderId);
-        const tried = Array.from(triedRef.current);
-        setTriedProviders(tried);
-        const hasRemaining = PROVIDER_SOURCES.some((source) => !triedRef.current.has(source.id));
-        setError(loadError?.message || "Something went wrong while preparing download options.");
-        if (hasRemaining) {
-          stageLog("fallback prompt shown", { providerId: activeProviderId, tried });
-          setStatus("prompt");
-        } else {
-          stageLog("all providers failed", { providerId: activeProviderId, tried });
-          setStatus("exhausted");
-        }
-      }
-    };
-
-    loadOptions();
-
-    return () => {
-      cancelled = true;
-      cancelledRef.current = true;
-      controller.abort();
-    };
-  }, [tmdbId, normalizedType, season, episode, activeProviderId, retryToken]);
 
   const subtitleOptions = useMemo(() => {
     const options = [{ id: "none", lang: "none", label: "None" }, ...subtitles];
@@ -226,7 +229,6 @@ export default function DownloadSheet({
     getProviderById(activeProviderId)?.label || activeProviderId || "This provider";
 
   const handleAbort = () => {
-    cancelledRef.current = true;
     controllerRef.current?.abort();
     onClose?.();
   };
@@ -234,12 +236,11 @@ export default function DownloadSheet({
   const handleRetry = () => {
     triedRef.current = new Set();
     setTriedProviders([]);
-    setRetryToken((current) => current + 1);
+    startScan(activeProviderId, "retry");
   };
 
   const handleSoftTryAnother = () => {
     stageLog("soft budget: try another provider", { providerId: activeProviderId });
-    cancelledRef.current = true;
     controllerRef.current?.abort();
     triedRef.current.add(activeProviderId);
     const tried = Array.from(triedRef.current);
@@ -252,6 +253,7 @@ export default function DownloadSheet({
   const handlePickProvider = (nextProviderId) => {
     if (!nextProviderId || nextProviderId === activeProviderId) return;
     setActiveProviderId(nextProviderId);
+    startScan(nextProviderId, "pick");
   };
 
   const handleDownload = async () => {
