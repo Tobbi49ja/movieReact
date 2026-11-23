@@ -95,7 +95,7 @@ public class StreamResolverPlugin extends Plugin {
     private static final long AUTOPLAY_DELAY_MS = 4000L;
     private static final long MUTE_INTERVAL_MS = 400L;
 
-    private static final boolean BLOCK_JUNK = true;
+    private static final boolean BLOCK_JUNK = false;
     private static final boolean REQUIRE_GESTURE = false;
     private static final String[] BLOCKED_HOST_TOKENS = {
             "doubleclick",
@@ -149,12 +149,12 @@ public class StreamResolverPlugin extends Plugin {
             runActiveCleanup();
         }
 
-        int timeoutMs = call.getInt("timeoutMs", 10000);
+        int timeoutMs = call.getInt("timeoutMs", 25000);
         if (timeoutMs <= 0) {
-            timeoutMs = 10000;
-        }
-        if (timeoutMs > 25000) {
             timeoutMs = 25000;
+        }
+        if (timeoutMs > 30000) {
+            timeoutMs = 30000;
         }
         final int effectiveTimeoutMs = timeoutMs;
 
@@ -202,6 +202,7 @@ public class StreamResolverPlugin extends Plugin {
         final AtomicInteger blockedRequests = new AtomicInteger(0);
         final List<String> reqLines = Collections.synchronizedList(new ArrayList<String>());
         final Set<String> reqLinesSeen = Collections.synchronizedSet(new LinkedHashSet<String>());
+        final Set<String> seenHosts = Collections.synchronizedSet(new LinkedHashSet<String>());
         final boolean[] captureReadyPosted = {false};
         final Runnable[] captureLimitTask = {null};
         final Runnable[] fetchLimitTask = {null};
@@ -627,6 +628,17 @@ public class StreamResolverPlugin extends Plugin {
                         Log.d(TAG, "  CAPTURED " + req.type + " " + req.url);
                     }
                 }
+                Log.d(TAG, "RESOLVE timeout SEEN hosts:");
+                synchronized (seenHosts) {
+                    int seenCount = 0;
+                    for (String host : seenHosts) {
+                        Log.d(TAG, "  SEEN " + host);
+                        seenCount++;
+                        if (seenCount >= 20) {
+                            break;
+                        }
+                    }
+                }
             }
         };
 
@@ -737,6 +749,10 @@ public class StreamResolverPlugin extends Plugin {
                             return super.shouldInterceptRequest(view, request);
                         }
                         String url = request.getUrl().toString();
+                        String requestedHost = request.getUrl().getHost();
+                        if (requestedHost != null && !requestedHost.isEmpty()) {
+                            seenHosts.add(requestedHost);
+                        }
                         if (BLOCK_JUNK && isBlockedJunk(request, url)) {
                             blockedRequests.incrementAndGet();
                             return new WebResourceResponse("text/plain", "utf-8",
@@ -800,6 +816,10 @@ public class StreamResolverPlugin extends Plugin {
                                                         wv.loadUrl("about:blank");
                                                     }
                                                     stopCaptureLimitFn[0].run();
+                                                    if (resolveTimeoutTask[0] != null) {
+                                                        handler.removeCallbacks(resolveTimeoutTask[0]);
+                                                        resolveTimeoutTask[0] = null;
+                                                    }
                                                     startFetchLimitFn[0].run();
                                                     finish.run();
                                                 }
