@@ -1,11 +1,71 @@
 import { useEffect, useRef, useState } from "react";
 import { TMDB_API_KEY, TMDB_BASE } from "../config/api";
+import { cleanQuery } from "../utils/searchQuery";
 
 const IMAGE_BASE = "https://image.tmdb.org/t/p/w92";
+const MAX_RESULTS = 7;
+const MAX_RETRIES = 3;
+
+async function fetchMulti(term, signal) {
+  const res = await fetch(
+    `${TMDB_BASE}/search/multi?api_key=${TMDB_API_KEY}&language=en-US&query=${encodeURIComponent(term)}&include_adult=false`,
+    { signal }
+  );
+  if (!res.ok) throw new Error("Search failed");
+  const data = await res.json();
+  return (data.results || [])
+    .filter((item) => item.media_type === "movie" || item.media_type === "tv")
+    .map((item) => ({
+      id: item.id,
+      mediaType: item.media_type,
+      title: item.title || item.name || "",
+      year: (item.release_date || item.first_air_date || "").slice(0, 4),
+      rating: Math.round((item.vote_average || 0) * 10) / 10,
+      poster: item.poster_path ? `${IMAGE_BASE}${item.poster_path}` : null,
+    }));
+}
+
+async function searchWithFallback(term, signal) {
+  let items = await fetchMulti(term, signal);
+  if (items.length > 0) return items;
+
+  let words = term.split(" ");
+  if (words.length <= 2) return items;
+
+  for (let attempt = 0; attempt < MAX_RETRIES && items.length === 0 && words.length > 1; attempt++) {
+    words = words.slice(0, -1);
+    items = await fetchMulti(words.join(" "), signal);
+  }
+  return items;
+}
+
+function rankAndDedupe(items, clean) {
+  const seen = new Set();
+  const deduped = [];
+  for (const item of items) {
+    const key = `${item.title.toLowerCase()}|${item.year || ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(item);
+  }
+
+  const q = clean.toLowerCase();
+  const score = (item) => {
+    const title = item.title.toLowerCase();
+    if (title === q) return 0;
+    if (title.startsWith(q)) return 1;
+    return 2;
+  };
+
+  deduped.sort((a, b) => score(a) - score(b));
+  return deduped.slice(0, MAX_RESULTS);
+}
 
 export function useMovieSuggest(query) {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [clean, setClean] = useState("");
+  const [year, setYear] = useState("");
   const abortRef = useRef(null);
   const timerRef = useRef(null);
 
@@ -13,12 +73,17 @@ export function useMovieSuggest(query) {
     if (timerRef.current) clearTimeout(timerRef.current);
     if (abortRef.current) abortRef.current.abort();
 
-    const q = String(query || "").trim();
-    if (q.length < 2) {
+    const raw = String(query || "").trim();
+    if (raw.length < 2) {
       setResults([]);
+      setClean("");
+      setYear("");
       setLoading(false);
       return;
     }
+
+    const parsed = cleanQuery(raw);
+    const term = parsed.clean || raw;
 
     setLoading(true);
     const controller = new AbortController();
@@ -27,27 +92,11 @@ export function useMovieSuggest(query) {
     timerRef.current = setTimeout(async () => {
       if (controller.signal.aborted) return;
       try {
-        const res = await fetch(
-          `${TMDB_BASE}/search/multi?api_key=${TMDB_API_KEY}&language=en-US&query=${encodeURIComponent(q)}&include_adult=false`,
-          { signal: controller.signal }
-        );
+        const items = await searchWithFallback(term, controller.signal);
         if (controller.signal.aborted) return;
-        if (!res.ok) throw new Error("Search failed");
-        const data = await res.json();
-        if (controller.signal.aborted) return;
-
-        const items = (data.results || [])
-          .filter((item) => item.media_type === "movie" || item.media_type === "tv")
-          .slice(0, 6)
-          .map((item) => ({
-            id: item.id,
-            mediaType: item.media_type,
-            title: item.title || item.name || "",
-            year: (item.release_date || item.first_air_date || "").slice(0, 4),
-            rating: Math.round((item.vote_average || 0) * 10) / 10,
-            poster: item.poster_path ? `${IMAGE_BASE}${item.poster_path}` : null,
-          }));
-        setResults(items);
+        setResults(rankAndDedupe(items, term));
+        setClean(term);
+        setYear(parsed.year);
       } catch (e) {
         if (e.name === "AbortError") return;
         setResults([]);
@@ -62,5 +111,7 @@ export function useMovieSuggest(query) {
     };
   }, [query]);
 
-  return { results, loading };
+  return { results, loading, clean, year };
 }
+
+export default useMovieSuggest;

@@ -16,7 +16,7 @@ export default function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false);
 
   const { items: recents, add: addRecent, remove: removeRecent, clear: clearRecents } = useSearchHistory("tobbihub_movie_recent");
-  const { results, loading } = useMovieSuggest(searchTerm);
+  const { results, loading, clean, year } = useMovieSuggest(searchTerm);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -109,6 +109,17 @@ export default function Navbar() {
     setSearchTerm(text);
     setSearchOpen(false);
     navigate("/search", { state: { query: text } });
+    closeMenu();
+  };
+
+  // Run the normal full search on the raw typed text
+  const handleSearchQuery = (text) => {
+    const q = (text || "").trim();
+    if (!q) return;
+    addRecent(q);
+    setSearchTerm("");
+    setSearchOpen(false);
+    navigate("/search", { state: { query: q } });
     closeMenu();
   };
 
@@ -356,8 +367,11 @@ export default function Navbar() {
                 recents={recents}
                 results={results}
                 loading={loading}
+                clean={clean}
+                year={year}
                 onPick={handlePick}
                 onPickRecent={handlePickRecent}
+                onSearchQuery={handleSearchQuery}
                 onRemoveRecent={removeRecent}
                 onClearRecents={clearRecents}
               />
@@ -383,8 +397,11 @@ export default function Navbar() {
                 recents={recents}
                 results={results}
                 loading={loading}
+                clean={clean}
+                year={year}
                 onPick={handlePick}
                 onPickRecent={handlePickRecent}
+                onSearchQuery={handleSearchQuery}
                 onRemoveRecent={removeRecent}
                 onClearRecents={clearRecents}
               />
@@ -416,8 +433,11 @@ export default function Navbar() {
                 recents={recents}
                 results={results}
                 loading={loading}
+                clean={clean}
+                year={year}
                 onPick={handlePick}
                 onPickRecent={handlePickRecent}
+                onSearchQuery={handleSearchQuery}
                 onRemoveRecent={removeRecent}
                 onClearRecents={clearRecents}
               />
