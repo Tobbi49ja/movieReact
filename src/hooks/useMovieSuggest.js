@@ -71,10 +71,13 @@ export function useMovieSuggest(query) {
 
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (abortRef.current) abortRef.current.abort();
+
+    const previous = abortRef.current;
+    if (previous) previous.abort();
 
     const raw = String(query || "").trim();
     if (raw.length < 2) {
+      abortRef.current = null;
       setResults([]);
       setClean("");
       setYear("");
@@ -107,7 +110,7 @@ export function useMovieSuggest(query) {
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
-      abortRef.current.abort();
+      controller.abort();
     };
   }, [query]);
 
