@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import SEOHelmet from "../components/seo/SEOHelmet";
 import { useContentMode } from "../context/ContentModeContext";
 import { tmdbImg, tmdbImgSrcSet } from "../utils/tmdb";
+import SearchSuggestions from "../components/SearchSuggestions";
+import useMovieSuggest from "../hooks/useMovieSuggest";
 
 const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
@@ -20,14 +22,18 @@ export default function SearchResults() {
   const navigate = useNavigate();
   const { mode } = useContentMode();
 
-  const [query, setQuery] = useState(location.state?.query || "");
-  const [inputValue, setInputValue] = useState(location.state?.query || "");
+  const initialQuery = (location.state?.query || "").trim();
+  const [query, setQuery] = useState(initialQuery.length >= 2 ? initialQuery : "");
+  const [inputValue, setInputValue] = useState(initialQuery);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState("All");
   const [modeSwitching, setModeSwitching] = useState(false);
+  const [suggestOpen, setSuggestOpen] = useState(false);
   const inputRef = useRef(null);
   const firstMount = useRef(true);
+
+  const { results: suggestions, loading: suggestLoading, clean } = useMovieSuggest(inputValue);
 
   // Trigger fade animation only when mode actually changes (not on first mount)
   useEffect(() => {
@@ -40,13 +46,25 @@ export default function SearchResults() {
     return () => clearTimeout(timer);
   }, [mode]);
 
-  // Re-run search when query changes
+  // Seed the input from navigation state (initial value / new navigations only)
   useEffect(() => {
-    if (location.state?.query) {
-      setQuery(location.state.query);
-      setInputValue(location.state.query);
+    const stateQuery = location.state?.query;
+    if (stateQuery == null) return;
+    const next = stateQuery.trim();
+    setInputValue(stateQuery);
+    setQuery(next.length >= 2 ? next : "");
+  }, [location.key]);
+
+  // Debounce the typed input into the committed query that drives results
+  useEffect(() => {
+    const trimmed = inputValue.trim();
+    if (trimmed.length < 2) {
+      setQuery("");
+      return;
     }
-  }, [location.state]);
+    const timer = setTimeout(() => setQuery(trimmed), 350);
+    return () => clearTimeout(timer);
+  }, [inputValue]);
 
   useEffect(() => {
     if (!query.trim()) {
@@ -114,9 +132,22 @@ export default function SearchResults() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!inputValue.trim()) return;
-    navigate("/search", { state: { query: inputValue.trim() } });
-    setQuery(inputValue.trim());
+    const trimmed = inputValue.trim();
+    if (trimmed.length < 2) {
+      setQuery("");
+      return;
+    }
+    setQuery(trimmed);
+    navigate("/search", { state: { query: trimmed } });
+  };
+
+  const handlePickRow = (text) => {
+    const trimmed = (text || "").trim();
+    if (!trimmed) return;
+    setInputValue(trimmed);
+    setQuery(trimmed);
+    setSuggestOpen(false);
+    navigate("/search", { state: { query: trimmed } });
   };
 
   const filtered = (Array.isArray(results) ? results : []).filter((r) => {
@@ -124,6 +155,10 @@ export default function SearchResults() {
     if (filter === "TV Shows") return r.media_type === "tv";
     return true;
   });
+
+  const trimmedInput = inputValue.trim();
+  const hasInput = trimmedInput.length > 0;
+  const showSkeleton = loading || (hasInput && trimmedInput !== query);
 
   return (
     <main id="main-content" className="search-page pulldown2">
@@ -136,19 +171,35 @@ export default function SearchResults() {
       {/* Search bar */}
       <div className="search-hero">
         <h1 className="search-heading">Find something to watch</h1>
-        <form className="search-form" onSubmit={handleSubmit} role="search">
-          <input
-            ref={inputRef}
-            type="search"
-            className="search-bar-input"
-            placeholder="Search movies, TV shows…"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            aria-label="Search movies and TV shows"
-            autoFocus
-          />
-          <button type="submit" className="search-bar-btn">Search</button>
-        </form>
+        <div style={{ position: "relative", maxWidth: "620px", margin: "0 auto" }}>
+          <form className="search-form" onSubmit={handleSubmit} role="search">
+            <input
+              ref={inputRef}
+              type="search"
+              className="search-bar-input"
+              placeholder="Search movies, TV shows…"
+              value={inputValue}
+              onChange={(e) => {
+                setInputValue(e.target.value);
+                setSuggestOpen(true);
+              }}
+              onFocus={() => setSuggestOpen(true)}
+              aria-label="Search movies and TV shows"
+              autoFocus
+            />
+            <button type="submit" className="search-bar-btn">Search</button>
+          </form>
+          {suggestOpen && (
+            <SearchSuggestions
+              query={inputValue}
+              results={suggestions}
+              loading={suggestLoading}
+              clean={clean}
+              onPickRow={handlePickRow}
+              onClose={() => setSuggestOpen(false)}
+            />
+          )}
+        </div>
       </div>
 
       {/* Filter tabs + count */}
@@ -186,7 +237,7 @@ export default function SearchResults() {
       )}
 
       {/* Loading skeletons */}
-      {loading && (
+      {showSkeleton && (
         <div className="search-grid">
           {Array.from({ length: 10 }).map((_, i) => (
             <div key={i} className="search-card search-skeleton" aria-hidden="true">
@@ -202,7 +253,7 @@ export default function SearchResults() {
       )}
 
       {/* Results grid */}
-      {!loading && filtered.length > 0 && (
+      {!showSkeleton && filtered.length > 0 && (
         <div className={`search-grid${modeSwitching ? " mode-switching" : ""}`} key={`results-${mode}`}>
           {filtered.map((item) => {
             const title = item.title || item.name;
@@ -259,7 +310,7 @@ export default function SearchResults() {
       )}
 
       {/* Empty state */}
-      {!loading && query && filtered.length === 0 && (
+      {!showSkeleton && hasInput && filtered.length === 0 && (
         <div className="search-empty">
 {mode === "nollywood" ? (
               <>
@@ -276,7 +327,7 @@ export default function SearchResults() {
       )}
 
       {/* Initial state */}
-      {!query && !loading && (
+      {!hasInput && (
         <div className="search-empty">
           <p className="search-empty-title">Start typing to search</p>
           <p className="search-empty-sub">Movies, TV shows, anime — all in one place.</p>

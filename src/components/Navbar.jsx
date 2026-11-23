@@ -15,8 +15,8 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
-  const { items: recents, add: addRecent, remove: removeRecent, clear: clearRecents } = useSearchHistory("tobbihub_movie_recent");
-  const { results, loading, clean, year } = useMovieSuggest(searchTerm);
+  const { add: addRecent } = useSearchHistory("tobbihub_movie_recent");
+  const { results, loading, clean } = useMovieSuggest(searchTerm);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -92,28 +92,8 @@ export default function Navbar() {
     closeMenu();
   };
 
-  const handlePick = (item) => {
-    addRecent(item.title);
-    setSearchTerm("");
-    setSearchOpen(false);
-    if (item.mediaType === "tv") {
-      navigate(`/tv/${item.id}`);
-    } else {
-      navigate(`/watch/${item.id}`);
-    }
-    closeMenu();
-  };
-
-  const handlePickRecent = (text) => {
-    addRecent(text);
-    setSearchTerm(text);
-    setSearchOpen(false);
-    navigate("/search", { state: { query: text } });
-    closeMenu();
-  };
-
-  // Run the normal full search on the raw typed text
-  const handleSearchQuery = (text) => {
+  // Any suggestion row (the query or a full title) runs a search for that text
+  const handlePickRow = (text) => {
     const q = (text || "").trim();
     if (!q) return;
     addRecent(q);
@@ -364,16 +344,11 @@ export default function Navbar() {
             {searchOpen && (
               <SearchSuggestions
                 query={searchTerm}
-                recents={recents}
                 results={results}
                 loading={loading}
                 clean={clean}
-                year={year}
-                onPick={handlePick}
-                onPickRecent={handlePickRecent}
-                onSearchQuery={handleSearchQuery}
-                onRemoveRecent={removeRecent}
-                onClearRecents={clearRecents}
+                onPickRow={handlePickRow}
+                onClose={() => setSearchOpen(false)}
               />
             )}
           </div>
@@ -394,16 +369,11 @@ export default function Navbar() {
             {searchOpen && (
               <SearchSuggestions
                 query={searchTerm}
-                recents={recents}
                 results={results}
                 loading={loading}
                 clean={clean}
-                year={year}
-                onPick={handlePick}
-                onPickRecent={handlePickRecent}
-                onSearchQuery={handleSearchQuery}
-                onRemoveRecent={removeRecent}
-                onClearRecents={clearRecents}
+                onPickRow={handlePickRow}
+                onClose={() => setSearchOpen(false)}
               />
             )}
           </div>
@@ -430,16 +400,11 @@ export default function Navbar() {
             {searchOpen && (
               <SearchSuggestions
                 query={searchTerm}
-                recents={recents}
                 results={results}
                 loading={loading}
                 clean={clean}
-                year={year}
-                onPick={handlePick}
-                onPickRecent={handlePickRecent}
-                onSearchQuery={handleSearchQuery}
-                onRemoveRecent={removeRecent}
-                onClearRecents={clearRecents}
+                onPickRow={handlePickRow}
+                onClose={() => setSearchOpen(false)}
               />
             )}
           </div>

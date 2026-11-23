@@ -4,7 +4,7 @@
   left: 0;
   right: 0;
   z-index: 60;
-  max-height: 50vh;
+  max-height: 60vh;
   overflow: auto;
   overscroll-behavior: contain;
   background: rgba(15, 23, 42, 0.85);

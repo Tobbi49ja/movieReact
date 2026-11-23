@@ -3,8 +3,10 @@ import { TMDB_API_KEY, TMDB_BASE } from "../config/api";
 import { cleanQuery } from "../utils/searchQuery";
 
 const IMAGE_BASE = "https://image.tmdb.org/t/p/w92";
-const MAX_RESULTS = 7;
+const MAX_RESULTS = 8;
 const MAX_RETRIES = 3;
+const DEBOUNCE_MS = 350;
+const CACHE_LIMIT = 20;
 
 async function fetchMulti(term, signal) {
   const res = await fetch(
@@ -43,7 +45,7 @@ function rankAndDedupe(items, clean) {
   const seen = new Set();
   const deduped = [];
   for (const item of items) {
-    const key = `${item.title.toLowerCase()}|${item.year || ""}`;
+    const key = item.title.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
     deduped.push(item);
@@ -68,6 +70,7 @@ export function useMovieSuggest(query) {
   const [year, setYear] = useState("");
   const abortRef = useRef(null);
   const timerRef = useRef(null);
+  const cacheRef = useRef(new Map());
 
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -88,6 +91,16 @@ export function useMovieSuggest(query) {
     const parsed = cleanQuery(raw);
     const term = parsed.clean || raw;
 
+    const cached = cacheRef.current.get(term);
+    if (cached) {
+      abortRef.current = null;
+      setResults(cached);
+      setClean(term);
+      setYear(parsed.year);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     const controller = new AbortController();
     abortRef.current = controller;
@@ -97,7 +110,12 @@ export function useMovieSuggest(query) {
       try {
         const items = await searchWithFallback(term, controller.signal);
         if (controller.signal.aborted) return;
-        setResults(rankAndDedupe(items, term));
+        const ranked = rankAndDedupe(items, term);
+        cacheRef.current.set(term, ranked);
+        if (cacheRef.current.size > CACHE_LIMIT) {
+          cacheRef.current.delete(cacheRef.current.keys().next().value);
+        }
+        setResults(ranked);
         setClean(term);
         setYear(parsed.year);
       } catch (e) {
@@ -106,7 +124,7 @@ export function useMovieSuggest(query) {
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
-    }, 250);
+    }, DEBOUNCE_MS);
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);

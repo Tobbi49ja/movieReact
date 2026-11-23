@@ -1,54 +1,30 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "../styles/search-suggestions.css";
 
+const MAX_SUGGESTIONS = 8;
+
 export default function SearchSuggestions({
-  query,
-  recents = [],
+  query = "",
   results = [],
-  loading,
+  loading = false,
   clean = "",
-  year = "",
-  onPick,
-  onPickRecent,
-  onSearchQuery,
-  onRemoveRecent,
-  onClearRecents,
+  onPickRow,
+  onClose,
 }) {
-  const [hoverIndex, setHoverIndex] = useState(-1);
-  const [queryValue, setQueryValue] = useState(query || "");
+  const rootRef = useRef(null);
+  const [activeIndex, setActiveIndex] = useState(-1);
+
+  const trimmed = String(query || "").trim();
+  const items = Array.isArray(results) ? results.slice(0, MAX_SUGGESTIONS) : [];
+  const optionCount = 1 + items.length;
 
   useEffect(() => {
-    setQueryValue(query || "");
-    setHoverIndex(-1);
-  }, [query]);
-
-  const trimmed = queryValue.trim();
-  const isEmptyQuery = trimmed.length === 0;
-  const optionCount = isEmptyQuery ? recents.length : results.length + 1;
-
-  const handlePickRecent = (e, text) => {
-    e.preventDefault();
-    onPickRecent(text);
-  };
-
-  const handleRemoveRecent = (e, text) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onRemoveRecent(text);
-  };
-
-  const handleClearRecents = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onClearRecents();
-  };
-
-  const runRawSearch = (e) => {
-    if (e) e.preventDefault();
-    onSearchQuery(queryValue);
-  };
+    setActiveIndex(-1);
+  }, [trimmed]);
 
   useEffect(() => {
+    if (!trimmed) return;
+
     const handleKeyDown = (e) => {
       const el = document.activeElement;
       const isSearchInput = el && el.tagName === "INPUT" && el.type === "search";
@@ -56,108 +32,95 @@ export default function SearchSuggestions({
 
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        setHoverIndex((i) => (i + 1 >= optionCount ? 0 : i + 1));
+        setActiveIndex((i) => (i + 1 >= optionCount ? 0 : i + 1));
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
-        setHoverIndex((i) => (i - 1 < 0 ? optionCount - 1 : i - 1));
+        setActiveIndex((i) => (i - 1 < 0 ? optionCount - 1 : i - 1));
       } else if (e.key === "Enter") {
-        if (!isEmptyQuery && hoverIndex >= 1) {
-          const item = results[hoverIndex - 1];
-          if (item) {
-            e.preventDefault();
-            onPick(item);
-          }
-        } else if (isEmptyQuery && hoverIndex >= 0) {
-          const text = recents[hoverIndex];
-          if (text) {
-            e.preventDefault();
-            onPickRecent(text);
-          }
+        if (activeIndex < 0) return;
+        e.preventDefault();
+        if (activeIndex === 0) {
+          if (onPickRow) onPickRow(trimmed);
+        } else {
+          const item = items[activeIndex - 1];
+          if (item && onPickRow) onPickRow(item.title);
         }
+      } else if (e.key === "Escape") {
+        if (onClose) onClose();
       }
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [optionCount, hoverIndex, isEmptyQuery, results, recents, onPick, onPickRecent]);
+  }, [trimmed, optionCount, activeIndex, items, onPickRow, onClose]);
+
+  useEffect(() => {
+    if (!trimmed) return;
+
+    const handleOutside = (e) => {
+      const target = e.target;
+      const isInput = target.tagName === "INPUT" && target.type === "search";
+      if (rootRef.current && rootRef.current.contains(target)) return;
+      if (isInput) return;
+      if (onClose) onClose();
+    };
+
+    document.addEventListener("mousedown", handleOutside);
+    document.addEventListener("touchstart", handleOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+      document.removeEventListener("touchstart", handleOutside);
+    };
+  }, [trimmed, onClose]);
+
+  if (!trimmed) return null;
+
+  const pickRow = (e, text) => {
+    e.preventDefault();
+    if (onPickRow) onPickRow(text);
+  };
 
   return (
-    <div className="search-suggestions" role="listbox" aria-label="Search suggestions">
-      {isEmptyQuery ? (
-        <>
-          <div className="sugg-header">
-            <h3 className="sugg-title">Recent searches</h3>
-            {recents.length > 0 && (
-              <button className="sugg-link" type="button" onClick={handleClearRecents} aria-label="Clear all recent searches">
-                Clear all
-              </button>
-            )}
+    <div ref={rootRef} className="search-suggestions" role="listbox" aria-label="Search suggestions">
+      <div
+        className={`sugg-row sugg-raw${activeIndex === 0 ? " active" : ""}`}
+        role="option"
+        aria-selected={activeIndex === 0}
+        onMouseDown={(e) => pickRow(e, trimmed)}
+        onMouseEnter={() => setActiveIndex(0)}
+      >
+        <span className="sugg-ico">🔍</span>
+        <span className="sugg-title-text">{trimmed}</span>
+      </div>
+
+      {loading && items.length === 0 ? (
+        [0, 1, 2, 3].map((i) => (
+          <div key={`skeleton-${i}`} className="skeleton-row">
+            <div className="skeleton-line long" />
+            <div className="skeleton-line meta" />
           </div>
-          {recents.length === 0 ? (
-            <div className="sugg-empty">No recent searches</div>
-          ) : (
-            recents.map((text, index) => (
-              <div
-                key={`${index}-${text}`}
-                className={`sugg-row${hoverIndex === index ? " active" : ""}`}
-                role="option"
-                aria-selected={hoverIndex === index}
-                onMouseDown={(e) => handlePickRecent(e, text)}
-                onMouseEnter={() => setHoverIndex(index)}
-              >
-                <span className="sugg-ico">⟳</span>
-                <span className="sugg-title-text">{text}</span>
-                <button className="sugg-remove" type="button" aria-label={`Remove "${text}"`} onClick={(e) => handleRemoveRecent(e, text)}>
-                  ×
-                </button>
-              </div>
-            ))
-          )}
-        </>
+        ))
       ) : (
-        <>
+        items.map((item, index) => (
           <div
-            className={`sugg-row sugg-raw${hoverIndex === 0 ? " active" : ""}`}
+            key={item.id || `${item.title}-${index}`}
+            className={`sugg-row${activeIndex === index + 1 ? " active" : ""}`}
             role="option"
-            aria-selected={hoverIndex === 0}
-            onMouseDown={runRawSearch}
-            onMouseEnter={() => setHoverIndex(0)}
+            aria-selected={activeIndex === index + 1}
+            onMouseDown={(e) => pickRow(e, item.title)}
+            onMouseEnter={() => setActiveIndex(index + 1)}
           >
-            <span className="sugg-ico">🔍</span>
-            <span className="sugg-title-text">{queryValue}</span>
-            {year && <span className="sugg-year">{year}</span>}
+            <span className="sugg-title-text" title={item.title}>{item.title}</span>
+            <span className="sugg-right">
+              <span className="sugg-badge">{item.mediaType === "tv" ? "TV" : "Movie"}</span>
+              {item.year && <span className="sugg-year">{item.year}</span>}
+            </span>
           </div>
+        ))
+      )}
 
-          {loading && results.length === 0 ? (
-            [0, 1, 2, 3].map((i) => (
-              <div key={`skeleton-${i}`} className="skeleton-row">
-                <div className="skeleton-line long" />
-                <div className="skeleton-line meta" />
-              </div>
-            ))
-          ) : (
-            results.map((item, index) => (
-              <div
-                key={item.id || index}
-                className={`sugg-row${hoverIndex === index + 1 ? " active" : ""}`}
-                role="option"
-                aria-selected={hoverIndex === index + 1}
-                onMouseDown={(e) => { e.preventDefault(); onPick(item); }}
-                onMouseEnter={() => setHoverIndex(index + 1)}
-              >
-                <span className="sugg-title-text" title={item.title}>{item.title}</span>
-                <span className="sugg-right">
-                  <span className="sugg-badge">{item.mediaType === "tv" ? "TV" : "Movie"}</span>
-                  {item.year && <span className="sugg-year">{item.year}</span>}
-                </span>
-              </div>
-            ))
-          )}
-
-          {!loading && results.length === 0 && (
-            <div className="sugg-empty">No results for “{clean || queryValue}”</div>
-          )}
-        </>
+      {!loading && items.length === 0 && (
+        <div className="sugg-empty">No results for “{clean || trimmed}”</div>
       )}
     </div>
   );
