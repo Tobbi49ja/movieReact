@@ -2403,17 +2403,21 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
         if (variant.label != null && !variant.label.isEmpty()) {
             return variant.label;
         }
-        if (variant.width > 0 && variant.height > 0) {
+        if (variant.height > 0) {
+            if (variant.height >= 2160) return "4K";
+            if (variant.height >= 1400) return "1440p";
+            if (variant.height >= 1000) return "1080p";
+            if (variant.height >= 700) return "720p";
+            if (variant.height >= 450) return "480p";
+            if (variant.height >= 300) return "360p";
+            return variant.height + "p";
+        }
+        if (variant.width > 0) {
             if (variant.width >= 1800) return "1080p";
             if (variant.width >= 1200) return "720p";
             if (variant.width >= 800) return "480p";
             if (variant.width >= 600) return "360p";
             return variant.height + "p";
-        } else if (variant.height > 0) {
-            if (variant.height >= 1000) return "1080p";
-            if (variant.height >= 700) return "720p";
-            if (variant.height >= 450) return "480p";
-            return "360p";
         }
         return "Auto";
     }

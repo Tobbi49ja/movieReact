@@ -5,6 +5,7 @@ export const PROVIDER_SOURCES = [
     movieUrl: (id) => `https://embed.vidrift.net/embed/movie/${id}?title=true&hide=next,episodes,cast`,
     tvUrl: (id, season, episode) => `https://embed.vidrift.net/embed/tv/${id}/${season}/${episode}?title=true&hide=next,episodes,cast`,
     sandbox: false,
+    downloadable: false,
   },
   {
     id: "vidfast",
@@ -12,6 +13,7 @@ export const PROVIDER_SOURCES = [
     movieUrl: (id) => `https://vidfast.vc/movie/${id}?autoPlay=true&pip=hide`,
     tvUrl: (id, season, episode) => `https://vidfast.vc/tv/${id}/${season}/${episode}?autoPlay=true&pip=hide`,
     sandbox: true,
+    downloadable: true,
   },
   {
     id: "vidnest",
@@ -19,6 +21,7 @@ export const PROVIDER_SOURCES = [
     movieUrl: (id) => `https://vidnest.fun/movie/${id}`,
     tvUrl: (id, season, episode) => `https://vidnest.fun/tv/${id}/${season}/${episode}`,
     sandbox: false,
+    downloadable: true,
   },
   {
     id: "vsembed",
@@ -26,13 +29,20 @@ export const PROVIDER_SOURCES = [
     movieUrl: (id) => `https://vsembed.su/embed/movie/${id}?autoplay=1`,
     tvUrl: (id, season, episode) => `https://vsembed.su/embed/tv/${id}/${season}/${episode}?autoplay=1`,
     sandbox: true,
+    downloadable: false,
   },
 ];
 
-export const PROVIDER_ORDER = ["vidnest", "vidrift", "vidfast", "vsembed"];
+export const PROVIDER_ORDER = ["vidfast", "vidnest"];
 
 export function getProviderById(providerId) {
   return PROVIDER_SOURCES.find((source) => source.id === providerId) || PROVIDER_SOURCES[0];
+}
+
+export function getDownloadableProviders() {
+  return PROVIDER_ORDER
+    .map((orderId) => PROVIDER_SOURCES.find((source) => source.id === orderId))
+    .filter((source) => source && source.downloadable === true);
 }
 
 export function buildProviderEmbedUrl({ provider, tmdbId, type = "movie", season, episode }) {

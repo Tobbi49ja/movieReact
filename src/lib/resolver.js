@@ -5,6 +5,7 @@ const CACHE_TTL_MS = 10 * 60 * 1000;
 const RESOLVE_TIMEOUT_MS = 25000;
 
 const cache = new Map();
+const inflight = new Map();
 
 const cacheKey = (providerId, embedUrl) => `${providerId}::${embedUrl}`;
 
@@ -18,6 +19,11 @@ export function invalidateResolveCache(providerId, embedUrl) {
 
 export function clearResolveCache() {
   cache.clear();
+}
+
+export function isResolveInFlight(providerId, embedUrl) {
+  if (!providerId || !embedUrl) return false;
+  return inflight.has(cacheKey(providerId, embedUrl));
 }
 
 /**
@@ -51,44 +57,62 @@ export async function resolveForProvider(providerId, media = {}, { signal } = {}
     throw new Error("Cancelled");
   }
 
-  const handleAbort = () => {
-    cancelResolve();
-  };
-  signal?.addEventListener("abort", handleAbort, { once: true });
+  // Join an in-flight scan (e.g. a background prefetch) instead of starting a second one.
+  // Joiners never wire cancellation, so they can't preempt the running scan.
+  const existing = inflight.get(key);
+  if (existing) {
+    return existing;
+  }
 
-  try {
-    const result = await resolveNative(embedUrl, { timeoutMs: RESOLVE_TIMEOUT_MS });
-    if (signal?.aborted) {
-      throw new Error("Cancelled");
-    }
-
-    const payload = result?.value ?? result ?? {};
-    const qualities = Array.isArray(payload.qualities) ? payload.qualities : [];
-    const subtitles = Array.isArray(payload.subtitles) ? payload.subtitles : [];
-
-    console.log("[resolver] result", {
-      provider: source.id,
-      qualityCount: qualities.length,
-      subtitleCount: subtitles.length,
-    });
-
-    if (qualities.length === 0) {
-      throw new Error("No downloadable stream found");
-    }
-
-    const finalResult = {
-      ...payload,
-      qualities,
-      subtitles,
-      provider: source.id,
-      providerId: source.id,
-      embedUrl,
+  let handleAbort = null;
+  const run = async () => {
+    handleAbort = () => {
+      cancelResolve();
     };
+    signal?.addEventListener("abort", handleAbort, { once: true });
 
-    cache.set(key, { result: finalResult, expiresAt: Date.now() + CACHE_TTL_MS });
-    return finalResult;
+    try {
+      const result = await resolveNative(embedUrl, { timeoutMs: RESOLVE_TIMEOUT_MS });
+      if (signal?.aborted) {
+        throw new Error("Cancelled");
+      }
+
+      const payload = result?.value ?? result ?? {};
+      const qualities = Array.isArray(payload.qualities) ? payload.qualities : [];
+      const subtitles = Array.isArray(payload.subtitles) ? payload.subtitles : [];
+
+      console.log("[resolver] result", {
+        provider: source.id,
+        qualityCount: qualities.length,
+        subtitleCount: subtitles.length,
+      });
+
+      if (qualities.length === 0) {
+        throw new Error("No downloadable stream found");
+      }
+
+      const finalResult = {
+        ...payload,
+        qualities,
+        subtitles,
+        provider: source.id,
+        providerId: source.id,
+        embedUrl,
+      };
+
+      cache.set(key, { result: finalResult, expiresAt: Date.now() + CACHE_TTL_MS });
+      return finalResult;
+    } finally {
+      if (handleAbort) signal?.removeEventListener("abort", handleAbort);
+    }
+  };
+
+  const promise = run();
+  inflight.set(key, promise);
+  try {
+    return await promise;
   } finally {
-    signal?.removeEventListener("abort", handleAbort);
+    inflight.delete(key);
   }
 }
 

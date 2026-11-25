@@ -25,7 +25,9 @@ import DownloadSheet from "../components/DownloadSheet";
 import ProviderPlayer from "../components/ProviderPlayer";
 import useDownloads from "../hooks/useDownloads";
 import { isApp, NATIVE_POPUP_GUARD } from "../lib/platform";
-import { PROVIDER_SOURCES } from "../lib/providerUrls";
+import { PROVIDER_SOURCES, getDownloadableProviders } from "../lib/providerUrls";
+import { resolveForProvider } from "../lib/resolver";
+import { checkConnection } from "../utils/netCheck";
 
 // -----------------------------
 // Dynamic backend URL
@@ -177,6 +179,42 @@ export default function TVShowWatchPage() {
     if (selectedSeason) fetchEpisodes();
     return () => controller.abort();
   }, [selectedSeason, id, API_KEY]);
+
+  // Prefetch the download scan ~8s after the page opens or the episode changes
+  // (native app only), so the Download sheet can join the in-flight scan. Only the
+  // pending timer is cancelled on change; a running prefetch is allowed to finish.
+  useEffect(() => {
+    if (!isApp) return undefined;
+    if (!show?.id) return undefined;
+    if (!selectedEpisode?.episode_number) return undefined;
+    if (isDownloadModalOpen) return undefined;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      if (cancelled) return;
+      try {
+        const connection = await checkConnection();
+        if (cancelled || !connection.ok) return;
+        const provider = getDownloadableProviders()[0];
+        if (!provider) return;
+        await resolveForProvider(
+          provider.id,
+          {
+            tmdbId: show.id,
+            type: "tv",
+            season: selectedSeason,
+            episode: selectedEpisode.episode_number,
+          },
+          {}
+        );
+      } catch {
+        /* silent — prefetch must never disrupt playback */
+      }
+    }, 8000);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [isApp, show?.id, selectedSeason, selectedEpisode?.episode_number, isDownloadModalOpen]);
 
   // -----------------------------
   // Fetch comments

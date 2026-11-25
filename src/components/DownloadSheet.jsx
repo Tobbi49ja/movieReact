@@ -3,7 +3,7 @@ import toast from "react-hot-toast";
 import { resolveForProvider, invalidateResolveCache } from "../lib/resolver";
 import { start } from "../lib/downloader";
 import { addDownload } from "../lib/downloads";
-import { PROVIDER_SOURCES, getProviderById } from "../lib/providerUrls";
+import { getProviderById, getDownloadableProviders } from "../lib/providerUrls";
 import { checkConnection } from "../utils/netCheck";
 
 function makeId() {
@@ -41,6 +41,12 @@ export default function DownloadSheet({
   onProviderChange,
   onClose,
 }) {
+  const downloadProviders = getDownloadableProviders();
+  const initialProviderId =
+    providerId && downloadProviders.some((source) => source.id === providerId)
+      ? providerId
+      : downloadProviders[0]?.id || "";
+
   const [status, setStatus] = useState("preparing");
   const [stage, setStage] = useState("checking");
   const [note, setNote] = useState("");
@@ -50,7 +56,7 @@ export default function DownloadSheet({
   const [selectedSubtitle, setSelectedSubtitle] = useState("none");
   const [error, setError] = useState("");
   const [resolverHeaders, setResolverHeaders] = useState({});
-  const [activeProviderId, setActiveProviderId] = useState(providerId || "");
+  const [activeProviderId, setActiveProviderId] = useState(initialProviderId);
   const [triedProviders, setTriedProviders] = useState([]);
   const [softBudgetVisible, setSoftBudgetVisible] = useState(false);
   const triedRef = useRef(new Set());
@@ -79,6 +85,9 @@ export default function DownloadSheet({
     controllerRef.current = controller;
     const ctx = scanCtxRef.current;
     const isStale = () => scanIdRef.current !== myScanId || controller.signal.aborted;
+    const isSuperseded = () => scanIdRef.current !== myScanId;
+    let scanSettled = false;
+    let offlineReason = "";
 
     setStatus("preparing");
     stageLog("stage", "checking");
@@ -94,47 +103,55 @@ export default function DownloadSheet({
     lastResultRef.current = null;
 
     stageLog("checkConnection start");
-    let connection;
-    try {
-      connection = await checkConnection();
-    } catch (checkError) {
+    const checkStart = nowMs();
+    const pingPromise = checkConnection().catch((checkError) => {
       stageLog("checkConnection threw", { error: String(checkError?.message || checkError) });
-      connection = { ok: false, reason: "unreachable" };
-    }
-    if (isStale()) return;
-    stageLog("checkConnection result", {
-      ok: connection.ok,
-      slow: connection.slow,
-      reason: connection.reason,
-      rtt: connection.rtt,
+      return { ok: false, reason: "unreachable" };
     });
 
-    if (!connection.ok) {
-      setStatus("error");
-      setError(
-        connection.reason === "offline"
-          ? "No internet connection. Connect and try again."
-          : "Can't reach the server. Check your connection."
-      );
-      return;
-    }
-
-    stageLog("stage", "finding");
-    setStage("finding");
-    if (connection.slow) {
-      setNote("Weak connection, scanning may take longer");
-    }
-
+    // Start the scan concurrently with the ping. If a matching scan is already in
+    // flight (e.g. a background prefetch), resolver.resolveForProvider joins it and we
+    // never preempt it — we only abort this component's own controller.
     const resolveStart = nowMs();
     stageLog("resolveForProvider start", { provider });
+    const scanPromise = resolveForProvider(
+      provider,
+      { tmdbId: ctx.tmdbId, type: ctx.type, season: ctx.season, episode: ctx.episode },
+      { signal: controller.signal }
+    );
+
+    const pingDone = pingPromise.then((connection) => {
+      stageLog("checkConnection result", {
+        ok: connection.ok,
+        slow: connection.slow,
+        reason: connection.reason,
+        rtt: connection.rtt,
+        elapsedMs: Math.round(nowMs() - checkStart),
+      });
+      if (!connection.ok) {
+        offlineReason = connection.reason || "unreachable";
+        return { offline: true };
+      }
+      if (!isStale() && !scanSettled) {
+        stageLog("stage", "finding");
+        setStage("finding");
+        if (connection.slow) {
+          setNote("Weak connection, scanning may take longer");
+        }
+      }
+      return { offline: false };
+    });
+
+    pingDone.then((ping) => {
+      if (ping.offline && !isSuperseded()) {
+        controller.abort();
+      }
+    });
 
     try {
-      const result = await resolveForProvider(
-        provider,
-        { tmdbId: ctx.tmdbId, type: ctx.type, season: ctx.season, episode: ctx.episode },
-        { signal: controller.signal }
-      );
+      const result = await scanPromise;
       if (isStale()) return;
+      scanSettled = true;
 
       stageLog("resolveForProvider result", {
         status: "ok",
@@ -161,7 +178,19 @@ export default function DownloadSheet({
       setStatus("ready");
       ctx.onProviderChange?.(provider);
     } catch (loadError) {
-      if (isStale() || loadError?.message === "Cancelled") return;
+      scanSettled = true;
+      if (loadError?.message === "Cancelled") {
+        if (offlineReason && !isSuperseded()) {
+          setStatus("error");
+          setError(
+            offlineReason === "offline"
+              ? "No internet connection. Connect and try again."
+              : "Can't reach the server. Check your connection."
+          );
+        }
+        return;
+      }
+      if (isStale()) return;
       const isTimeout = loadError?.name === "AbortError" || /timeout/i.test(String(loadError?.message || ""));
       stageLog("resolveForProvider result", {
         status: isTimeout ? "timeout" : "error",
@@ -173,7 +202,7 @@ export default function DownloadSheet({
       triedRef.current.add(provider);
       const tried = Array.from(triedRef.current);
       setTriedProviders(tried);
-      const hasRemaining = PROVIDER_SOURCES.some((source) => !triedRef.current.has(source.id));
+      const hasRemaining = getDownloadableProviders().some((source) => !triedRef.current.has(source.id));
       setError(loadError?.message || "Something went wrong while preparing download options.");
       if (hasRemaining) {
         stageLog("fallback prompt shown", { providerId: provider, tried });
@@ -189,7 +218,7 @@ export default function DownloadSheet({
 
   useEffect(() => {
     stageLog("sheet open", { provider: providerId || "", type: normalizedType });
-    startScan(providerId || "", "open");
+    startScan(initialProviderId, "open");
     return () => {
       scanIdRef.current += 1;
       controllerRef.current?.abort();
@@ -219,7 +248,7 @@ export default function DownloadSheet({
 
   const remainingProviders = useMemo(
     () =>
-      PROVIDER_SOURCES.filter(
+      getDownloadableProviders().filter(
         (source) => source.id !== activeProviderId && !triedProviders.includes(source.id)
       ),
     [activeProviderId, triedProviders]
@@ -245,7 +274,7 @@ export default function DownloadSheet({
     triedRef.current.add(activeProviderId);
     const tried = Array.from(triedRef.current);
     setTriedProviders(tried);
-    const hasRemaining = PROVIDER_SOURCES.some((source) => !triedRef.current.has(source.id));
+    const hasRemaining = getDownloadableProviders().some((source) => !triedRef.current.has(source.id));
     setSoftBudgetVisible(false);
     setStatus(hasRemaining ? "prompt" : "exhausted");
   };

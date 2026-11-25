@@ -27,7 +27,9 @@ import DownloadSheet from "../components/DownloadSheet";
 import ProviderPlayer from "../components/ProviderPlayer";
 import useDownloads from "../hooks/useDownloads";
 import { isApp, NATIVE_POPUP_GUARD } from "../lib/platform";
-import { PROVIDER_SOURCES } from "../lib/providerUrls";
+import { PROVIDER_SOURCES, getDownloadableProviders } from "../lib/providerUrls";
+import { resolveForProvider } from "../lib/resolver";
+import { checkConnection } from "../utils/netCheck";
 
 // -----------------------------
 // Dynamic backend URL
@@ -139,6 +141,33 @@ export default function WatchPage() {
     fetchMovie();
     return () => controller.abort();
   }, [id, TMDB_KEY]);
+
+  // Prefetch the download scan ~8s after the page opens (native app only), so the
+  // Download sheet can join the in-flight scan instead of starting a new one.
+  // Skipped while the sheet is open; if the title changes the old prefetch is allowed
+  // to finish and a new one starts for the new title.
+  useEffect(() => {
+    if (!isApp) return undefined;
+    if (!movie?.id) return undefined;
+    if (isDownloadModalOpen) return undefined;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      if (cancelled) return;
+      try {
+        const connection = await checkConnection();
+        if (cancelled || !connection.ok) return;
+        const provider = getDownloadableProviders()[0];
+        if (!provider) return;
+        await resolveForProvider(provider.id, { tmdbId: movie.id, type: "movie" }, {});
+      } catch {
+        /* silent — prefetch must never disrupt playback */
+      }
+    }, 8000);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [isApp, movie?.id, isDownloadModalOpen]);
 
   useEffect(() => {
     setIframeLoaded(false);
