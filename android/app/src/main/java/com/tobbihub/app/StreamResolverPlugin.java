@@ -150,6 +150,18 @@ public class StreamResolverPlugin extends Plugin {
         pendingCompleted = null;
     }
 
+    private void resumeMainTimers() {
+        try {
+            if (getBridge() == null) {
+                return;
+            }
+            WebView mainWebView = getBridge().getWebView();
+            if (mainWebView != null) {
+                mainWebView.resumeTimers();
+            }
+        } catch (Exception ignored) {}
+    }
+
     private boolean isPreservedHost(String host) {
         if (host == null || host.trim().isEmpty()) {
             return true;
@@ -326,21 +338,14 @@ public class StreamResolverPlugin extends Plugin {
                 }
                 try { handler.removeCallbacksAndMessages(null); } catch (Exception ignored) {}
                 expireSeenHostCookies(seenHosts);
-                if (webViewRef[0] == null) {
-                    return;
-                }
-                WebView webView = webViewRef[0].get();
-                webViewRef[0] = null;
-                if (webView == null) {
-                    return;
-                }
+                WebView webView = webViewRef[0] == null ? null : webViewRef[0].get();
+                if (webView != null) {
                 try {
                     String script = "(function(){var m=document.querySelectorAll('video,audio');for(var i=0;i<m.length;i++){try{m[i].pause();m[i].muted=true;m[i].volume=0;}catch(e){}}var f=document.querySelectorAll('iframe');for(var j=0;j<f.length;j++){try{var d=f[j].contentWindow.document.querySelectorAll('video,audio');for(var k=0;k<d.length;k++){try{d[k].pause();d[k].muted=true;d[k].volume=0;}catch(e){}}}}catch(e){}}})();";
                     webView.evaluateJavascript(script, null);
                 } catch (Exception ignored) {}
                 try { webView.stopLoading(); } catch (Exception ignored) {}
                 try { webView.onPause(); } catch (Exception ignored) {}
-                try { webView.pauseTimers(); } catch (Exception ignored) {}
                 try { webView.loadUrl("about:blank"); } catch (Exception ignored) {}
                 try { webView.clearHistory(); } catch (Exception ignored) {}
                 try { webView.removeAllViews(); } catch (Exception ignored) {}
@@ -351,7 +356,10 @@ public class StreamResolverPlugin extends Plugin {
                     }
                 } catch (Exception ignored) {}
                 try { webView.destroy(); } catch (Exception ignored) {}
-                try { webView.resumeTimers(); } catch (Exception ignored) {}
+                }
+                webViewRef[0] = null;
+                resumeMainTimers();
+                Log.d(TAG, "scan#" + myScan + " cleanup done");
             }
         };
 
@@ -1025,6 +1033,7 @@ public class StreamResolverPlugin extends Plugin {
 
                 try { hiddenWebView.resumeTimers(); } catch (Exception ignored) {}
                 try { hiddenWebView.onResume(); } catch (Exception ignored) {}
+                resumeMainTimers();
                 Log.d(TAG, "scan#" + myScan + " timers resumed");
                 hiddenWebView.loadUrl(finalEmbedUrl);
             }
