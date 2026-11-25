@@ -110,10 +110,20 @@ public class StreamResolverPlugin extends Plugin {
             ".woff", ".woff2", ".ttf", ".otf", ".eot", ".css",
             ".ts", ".mp4", ".m4s", ".aac"
     };
+    private static final String[] PRESERVED_HOSTS = {
+            "moviereact-zzye.onrender.com",
+            "mamateetastykitchen.co.uk"
+    };
 
     private volatile Runnable activeCleanup;
     private volatile PluginCall pendingCall;
     private volatile boolean[] pendingCompleted;
+    private final AtomicInteger scanCounter = new AtomicInteger(0);
+    private volatile Handler activeScanHandler;
+
+    private boolean isStaleScan(int myScan) {
+        return myScan != scanCounter.get();
+    }
 
     private void runActiveCleanup() {
         Runnable cleanup = activeCleanup;
@@ -133,6 +143,60 @@ public class StreamResolverPlugin extends Plugin {
         super.handleOnDestroy();
     }
 
+    private void resetPerScanState() {
+        activeScanHandler = null;
+        activeCleanup = null;
+        pendingCall = null;
+        pendingCompleted = null;
+    }
+
+    private boolean isPreservedHost(String host) {
+        if (host == null || host.trim().isEmpty()) {
+            return true;
+        }
+        String lower = host.toLowerCase(Locale.US);
+        for (String preserved : PRESERVED_HOSTS) {
+            if (lower.equals(preserved) || lower.endsWith("." + preserved)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void expireSeenHostCookies(Set<String> hosts) {
+        if (hosts == null || hosts.isEmpty()) {
+            return;
+        }
+        List<String> snapshot;
+        synchronized (hosts) {
+            snapshot = new ArrayList<String>(hosts);
+        }
+        CookieManager cookieManager = CookieManager.getInstance();
+        for (String host : snapshot) {
+            if (host == null || host.trim().isEmpty() || isPreservedHost(host)) {
+                continue;
+            }
+            try {
+                String url = "https://" + host;
+                String cookieHeader = cookieManager.getCookie(url);
+                if (cookieHeader == null || cookieHeader.trim().isEmpty()) {
+                    continue;
+                }
+                for (String pair : cookieHeader.split(";")) {
+                    int eq = pair.indexOf('=');
+                    if (eq <= 0) {
+                        continue;
+                    }
+                    String name = pair.substring(0, eq).trim();
+                    if (!name.isEmpty()) {
+                        cookieManager.setCookie(url, name + "=; Max-Age=0; Path=/");
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+        try { cookieManager.flush(); } catch (Exception ignored) {}
+    }
+
     @PluginMethod
     public void resolve(PluginCall call) {
         if (call == null) {
@@ -145,9 +209,16 @@ public class StreamResolverPlugin extends Plugin {
             return;
         }
 
+        final int myScan = scanCounter.incrementAndGet();
+        Log.d(TAG, "scan#" + myScan + " start");
+        if (activeScanHandler != null) {
+            activeScanHandler.removeCallbacksAndMessages(null);
+            activeScanHandler = null;
+        }
         if (activeCleanup != null) {
             runActiveCleanup();
         }
+        resetPerScanState();
 
         int timeoutMs = call.getInt("timeoutMs", 25000);
         if (timeoutMs <= 0) {
@@ -172,6 +243,7 @@ public class StreamResolverPlugin extends Plugin {
         final String embedHost = embedUri.getHost() != null ? embedUri.getHost() : "";
         Log.d(TAG, "RESOLVE start host=" + embedHost);
         final Handler handler = new Handler(Looper.getMainLooper());
+        activeScanHandler = handler;
         final List<CapturedRequest> captured = Collections.synchronizedList(new ArrayList<CapturedRequest>());
         final Set<String> seenUrls = Collections.synchronizedSet(new LinkedHashSet<String>());
         final Map<String, String> headersBag = new LinkedHashMap<String, String>();
@@ -228,6 +300,10 @@ public class StreamResolverPlugin extends Plugin {
                 }
                 cleaned[0] = true;
                 activeCleanup = null;
+                Log.d(TAG, "scan#" + myScan + " end");
+                if (activeScanHandler == handler) {
+                    activeScanHandler = null;
+                }
                 if (pendingCompleted == completed) {
                     pendingCall = null;
                     pendingCompleted = null;
@@ -248,6 +324,8 @@ public class StreamResolverPlugin extends Plugin {
                 if (stopMuteLoopFn[0] != null) {
                     stopMuteLoopFn[0].run();
                 }
+                try { handler.removeCallbacksAndMessages(null); } catch (Exception ignored) {}
+                expireSeenHostCookies(seenHosts);
                 if (webViewRef[0] == null) {
                     return;
                 }
@@ -264,6 +342,8 @@ public class StreamResolverPlugin extends Plugin {
                 try { webView.onPause(); } catch (Exception ignored) {}
                 try { webView.pauseTimers(); } catch (Exception ignored) {}
                 try { webView.loadUrl("about:blank"); } catch (Exception ignored) {}
+                try { webView.clearHistory(); } catch (Exception ignored) {}
+                try { webView.removeAllViews(); } catch (Exception ignored) {}
                 try {
                     ViewParent parent = webView.getParent();
                     if (parent instanceof ViewGroup) {
@@ -271,13 +351,14 @@ public class StreamResolverPlugin extends Plugin {
                     }
                 } catch (Exception ignored) {}
                 try { webView.destroy(); } catch (Exception ignored) {}
+                try { webView.resumeTimers(); } catch (Exception ignored) {}
             }
         };
 
         final Runnable captureAutoplayCounts = new Runnable() {
             @Override
             public void run() {
-                if (webViewRef[0] == null) {
+                if (isStaleScan(myScan) || webViewRef[0] == null) {
                     return;
                 }
                 final WebView wv = webViewRef[0].get();
@@ -304,6 +385,9 @@ public class StreamResolverPlugin extends Plugin {
         final Runnable completeResolve = new Runnable() {
             @Override
             public void run() {
+                if (isStaleScan(myScan)) {
+                    return;
+                }
                 if (completed[0]) {
                     return;
                 }
@@ -317,15 +401,18 @@ public class StreamResolverPlugin extends Plugin {
                 final JSObject payload = buildPayload(captured, debug, headersBag, playlistQualities, playlistSubtitles,
                         resolvedMasterUrl[0]);
                 Log.d(TAG, "final result built");
-                cleanupWebView.run();
-                call.resolve(payload);
+                try {
+                    call.resolve(payload);
+                } finally {
+                    cleanupWebView.run();
+                }
             }
         };
 
         final Runnable finish = new Runnable() {
             @Override
             public void run() {
-                if (completed[0] || fetchInProgress[0]) {
+                if (isStaleScan(myScan) || completed[0] || fetchInProgress[0]) {
                     return;
                 }
                 if (captureMarkerMs[0] < 0) {
@@ -374,6 +461,9 @@ public class StreamResolverPlugin extends Plugin {
                             handler.post(new Runnable() {
                                 @Override
                                 public void run() {
+                                    if (isStaleScan(myScan)) {
+                                        return;
+                                    }
                                     stopFetchLimitFn[0].run();
                                     if (checkedMp4 != null) {
                                         addMp4Quality(checkedMp4, playlistQualities);
@@ -405,10 +495,13 @@ public class StreamResolverPlugin extends Plugin {
                             handler.post(new Runnable() {
                                 @Override
                                 public void run() {
+                                    if (isStaleScan(myScan)) {
+                                        return;
+                                    }
                                     startWebViewPlaylistRetry(requestToFetch, result, capturedReferer,
                                             webViewRef, webViewFetchPending, webViewFetchRequest,
                                             webViewNativeResult, webViewFetchTimeout, handler, debug,
-                                            completed, call);
+                                            completed, call, myScan);
                                 }
                             });
                             return;
@@ -417,6 +510,9 @@ public class StreamResolverPlugin extends Plugin {
                             handler.post(new Runnable() {
                                 @Override
                                 public void run() {
+                                    if (isStaleScan(myScan)) {
+                                        return;
+                                    }
                                     stopFetchLimitFn[0].run();
                                     long elapsed = System.currentTimeMillis() - startTimeMs[0];
                                     logResolveTimings(captureMarkerMs, masterMarkerMs, variantsMarkerMs, blockedRequests.get());
@@ -434,6 +530,9 @@ public class StreamResolverPlugin extends Plugin {
                         handler.post(new Runnable() {
                             @Override
                             public void run() {
+                                if (isStaleScan(myScan)) {
+                                    return;
+                                }
                                 stopFetchLimitFn[0].run();
                                 fetchInProgress[0] = false;
                                 completeResolve.run();
@@ -447,7 +546,7 @@ public class StreamResolverPlugin extends Plugin {
         final Runnable captureLimit = new Runnable() {
             @Override
             public void run() {
-                if (completed[0] || fetchInProgress[0]) {
+                if (isStaleScan(myScan) || completed[0] || fetchInProgress[0]) {
                     return;
                 }
                 if (captureMarkerMs[0] < 0) {
@@ -468,15 +567,18 @@ public class StreamResolverPlugin extends Plugin {
                 logResolveTimings(captureMarkerMs, masterMarkerMs, variantsMarkerMs, blockedRequests.get());
                 Log.d(TAG, "RESOLVE end host=" + embedHost + " result=timeout elapsedMs=" + elapsed);
                 logTimeoutDiagnosticsFn[0].run();
-                cleanupWebView.run();
-                call.reject("No stream found", (String) null, errorData);
+                try {
+                    call.reject("No stream found", (String) null, errorData);
+                } finally {
+                    cleanupWebView.run();
+                }
             }
         };
 
         final Runnable fetchLimit = new Runnable() {
             @Override
             public void run() {
-                if (completed[0] || !fetchInProgress[0]) {
+                if (isStaleScan(myScan) || completed[0] || !fetchInProgress[0]) {
                     return;
                 }
                 completed[0] = true;
@@ -494,8 +596,11 @@ public class StreamResolverPlugin extends Plugin {
                 logResolveTimings(captureMarkerMs, masterMarkerMs, variantsMarkerMs, blockedRequests.get());
                 Log.d(TAG, "RESOLVE end host=" + embedHost + " result=timeout elapsedMs=" + elapsed);
                 logTimeoutDiagnosticsFn[0].run();
-                cleanupWebView.run();
-                call.reject("No stream found", (String) null, errorData);
+                try {
+                    call.reject("No stream found", (String) null, errorData);
+                } finally {
+                    cleanupWebView.run();
+                }
             }
         };
 
@@ -503,6 +608,9 @@ public class StreamResolverPlugin extends Plugin {
         final Runnable resolveTimeout = new Runnable() {
             @Override
             public void run() {
+                if (isStaleScan(myScan)) {
+                    return;
+                }
                 if (completed[0]) {
                     return;
                 }
@@ -511,16 +619,19 @@ public class StreamResolverPlugin extends Plugin {
                 logResolveTimings(captureMarkerMs, masterMarkerMs, variantsMarkerMs, blockedRequests.get());
                 Log.d(TAG, "RESOLVE end host=" + embedHost + " result=timeout reason=native elapsedMs=" + elapsed);
                 logTimeoutDiagnosticsFn[0].run();
-                cleanupWebView.run();
-                JSObject errorData = new JSObject();
-                JSArray debugArray = new JSArray();
-                synchronized (debug) {
-                    for (String item : debug) {
-                        debugArray.put(item);
+                try {
+                    JSObject errorData = new JSObject();
+                    JSArray debugArray = new JSArray();
+                    synchronized (debug) {
+                        for (String item : debug) {
+                            debugArray.put(item);
+                        }
                     }
+                    errorData.put("debug", debugArray);
+                    call.reject("No stream found", (String) null, errorData);
+                } finally {
+                    cleanupWebView.run();
                 }
-                errorData.put("debug", debugArray);
-                call.reject("No stream found", (String) null, errorData);
             }
         };
         resolveTimeoutTask[0] = resolveTimeout;
@@ -531,7 +642,7 @@ public class StreamResolverPlugin extends Plugin {
 
             @Override
             public void run() {
-                if (completed[0] || attempts >= 8) {
+                if (isStaleScan(myScan) || completed[0] || attempts >= 8) {
                     return;
                 }
                 if (attempts == 0 && !captured.isEmpty()) {
@@ -556,7 +667,7 @@ public class StreamResolverPlugin extends Plugin {
         final Runnable muteLoop = new Runnable() {
             @Override
             public void run() {
-                if (completed[0] || webViewRef[0] == null) {
+                if (isStaleScan(myScan) || completed[0] || webViewRef[0] == null) {
                     return;
                 }
                 final WebView wv = webViewRef[0].get();
@@ -617,6 +728,9 @@ public class StreamResolverPlugin extends Plugin {
         logTimeoutDiagnosticsFn[0] = new Runnable() {
             @Override
             public void run() {
+                if (isStaleScan(myScan)) {
+                    return;
+                }
                 Log.d(TAG, "RESOLVE timeout diagnostics host=" + embedHost);
                 synchronized (debug) {
                     for (String line : debug) {
@@ -645,7 +759,7 @@ public class StreamResolverPlugin extends Plugin {
         handler.post(new Runnable() {
             @Override
             public void run() {
-                if (completed[0] || cleaned[0]) {
+                if (isStaleScan(myScan) || completed[0] || cleaned[0]) {
                     return;
                 }
                 final WebView hiddenWebView = new WebView(activity);
@@ -682,6 +796,9 @@ public class StreamResolverPlugin extends Plugin {
                 hiddenWebView.setWebChromeClient(new WebChromeClient() {
                     @Override
                     public boolean onCreateWindow(WebView view, boolean isDialog, boolean isUserGesture, android.os.Message resultMsg) {
+                        if (isStaleScan(myScan)) {
+                            return true;
+                        }
                         if (resultMsg == null) {
                             return true;
                         }
@@ -718,6 +835,9 @@ public class StreamResolverPlugin extends Plugin {
                 hiddenWebView.setWebViewClient(new WebViewClient() {
                     @Override
                     public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                        if (isStaleScan(myScan)) {
+                            return true;
+                        }
                         if (request == null || request.getUrl() == null) {
                             return true;
                         }
@@ -745,6 +865,9 @@ public class StreamResolverPlugin extends Plugin {
 
                     @Override
                     public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                        if (isStaleScan(myScan)) {
+                            return super.shouldInterceptRequest(view, request);
+                        }
                         if (request == null || request.getUrl() == null) {
                             return super.shouldInterceptRequest(view, request);
                         }
@@ -808,7 +931,7 @@ public class StreamResolverPlugin extends Plugin {
                                             handler.post(new Runnable() {
                                                 @Override
                                                 public void run() {
-                                                    if (completed[0]) {
+                                                    if (isStaleScan(myScan) || completed[0]) {
                                                         return;
                                                     }
                                                     WebView wv = webViewRef[0] == null ? null : webViewRef[0].get();
@@ -835,6 +958,9 @@ public class StreamResolverPlugin extends Plugin {
                     @Override
                     public void onPageFinished(WebView view, String url) {
                         super.onPageFinished(view, url);
+                        if (isStaleScan(myScan)) {
+                            return;
+                        }
                         if (webViewFetchPending[0] && webViewFetchRequest[0] != null) {
                             view.evaluateJavascript("(function(){return document.body?document.body.innerText:''})()", value -> {
                                 if (!webViewFetchPending[0]) {
@@ -859,6 +985,9 @@ public class StreamResolverPlugin extends Plugin {
                                                 webViewUserAgent[0], headersBag.get("Referer"), captured);
                                         variantsMarkerMs[0] = System.currentTimeMillis() - startTimeMs[0];
                                         handler.post(() -> {
+                                            if (isStaleScan(myScan)) {
+                                                return;
+                                            }
                                             stopFetchLimitFn[0].run();
                                             fetchInProgress[0] = false;
                                             completeResolve.run();
@@ -894,6 +1023,9 @@ public class StreamResolverPlugin extends Plugin {
                     }
                 });
 
+                try { hiddenWebView.resumeTimers(); } catch (Exception ignored) {}
+                try { hiddenWebView.onResume(); } catch (Exception ignored) {}
+                Log.d(TAG, "scan#" + myScan + " timers resumed");
                 hiddenWebView.loadUrl(finalEmbedUrl);
             }
         });
@@ -907,6 +1039,11 @@ public class StreamResolverPlugin extends Plugin {
             completed[0] = true;
         }
         runActiveCleanup();
+        Handler handler = activeScanHandler;
+        if (handler != null) {
+            handler.removeCallbacksAndMessages(null);
+        }
+        activeScanHandler = null;
         pendingCall = null;
         pendingCompleted = null;
         if (pending != null) {
@@ -1633,17 +1770,20 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
             }
         }
         errorData.put("debug", debugArray);
-        runActiveCleanup();
-        call.reject("Playlist fetch failed: " + reason, (String) null, errorData);
+        try {
+            call.reject("Playlist fetch failed: " + reason, (String) null, errorData);
+        } finally {
+            runActiveCleanup();
+        }
     }
 
     private void startWebViewPlaylistRetry(CapturedRequest request, FetchResult result, String referer,
                                            WeakReference<WebView>[] webViewRef, boolean[] pending,
                                            CapturedRequest[] pendingRequest, FetchResult[] nativeResult,
                                            Runnable[] timeoutTask, Handler handler, List<String> debug,
-                                           boolean[] completed, PluginCall call) {
+                                           boolean[] completed, PluginCall call, int myScan) {
         WebView webView = webViewRef[0] == null ? null : webViewRef[0].get();
-        if (webView == null || completed[0]) {
+        if (isStaleScan(myScan) || webView == null || completed[0]) {
             logAndAddDebug(debug, "WEBVIEW-FETCH failed | bytes=0");
             rejectPlaylistFetch(call, result, debug, completed);
             return;
@@ -1654,7 +1794,7 @@ private void rejectPlaylistFetch(PluginCall call, FetchResult result, List<Strin
         timeoutTask[0] = new Runnable() {
             @Override
             public void run() {
-                if (!pending[0]) {
+                if (isStaleScan(myScan) || !pending[0]) {
                     return;
                 }
                 pending[0] = false;
