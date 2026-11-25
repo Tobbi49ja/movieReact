@@ -45,6 +45,14 @@ export function getDownloadableProviders() {
     .filter((source) => source && source.downloadable === true);
 }
 
+export function getDownloadProviderId(playbackProviderId) {
+  const source = PROVIDER_SOURCES.find((s) => s.id === playbackProviderId);
+  if (source && source.downloadable === true) {
+    return source.id;
+  }
+  return PROVIDER_ORDER[0];
+}
+
 export function buildProviderEmbedUrl({ provider, tmdbId, type = "movie", season, episode }) {
   const source = getProviderById(provider);
   const normalizedType = type === "tv" || type === "series" || type === "episode" ? "tv" : "movie";

@@ -27,7 +27,7 @@ import DownloadSheet from "../components/DownloadSheet";
 import ProviderPlayer from "../components/ProviderPlayer";
 import useDownloads from "../hooks/useDownloads";
 import { isApp, NATIVE_POPUP_GUARD } from "../lib/platform";
-import { PROVIDER_SOURCES, getDownloadableProviders } from "../lib/providerUrls";
+import { PROVIDER_SOURCES, getDownloadProviderId, buildProviderEmbedUrl } from "../lib/providerUrls";
 import { resolveForProvider } from "../lib/resolver";
 import { checkConnection } from "../utils/netCheck";
 
@@ -156,9 +156,11 @@ export default function WatchPage() {
       try {
         const connection = await checkConnection();
         if (cancelled || !connection.ok) return;
-        const provider = getDownloadableProviders()[0];
-        if (!provider) return;
-        await resolveForProvider(provider.id, { tmdbId: movie.id, type: "movie" }, {});
+        const playbackProviderId = PROVIDER_SOURCES[activeSource]?.id;
+        const providerId = getDownloadProviderId(playbackProviderId);
+        const media = { tmdbId: movie?.id ?? id, type: "movie" };
+        console.log("[dl-stage] key", `${providerId}::${buildProviderEmbedUrl({ provider: providerId, ...media })}`);
+        await resolveForProvider(providerId, media, {});
       } catch {
         /* silent — prefetch must never disrupt playback */
       }
@@ -167,7 +169,7 @@ export default function WatchPage() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [isApp, movie?.id, isDownloadModalOpen]);
+  }, [isApp, movie?.id, activeSource, isDownloadModalOpen]);
 
   useEffect(() => {
     setIframeLoaded(false);

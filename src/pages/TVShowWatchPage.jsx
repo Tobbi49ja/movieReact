@@ -25,7 +25,7 @@ import DownloadSheet from "../components/DownloadSheet";
 import ProviderPlayer from "../components/ProviderPlayer";
 import useDownloads from "../hooks/useDownloads";
 import { isApp, NATIVE_POPUP_GUARD } from "../lib/platform";
-import { PROVIDER_SOURCES, getDownloadableProviders } from "../lib/providerUrls";
+import { PROVIDER_SOURCES, getDownloadProviderId, buildProviderEmbedUrl } from "../lib/providerUrls";
 import { resolveForProvider } from "../lib/resolver";
 import { checkConnection } from "../utils/netCheck";
 
@@ -194,18 +194,16 @@ export default function TVShowWatchPage() {
       try {
         const connection = await checkConnection();
         if (cancelled || !connection.ok) return;
-        const provider = getDownloadableProviders()[0];
-        if (!provider) return;
-        await resolveForProvider(
-          provider.id,
-          {
-            tmdbId: show.id,
-            type: "tv",
-            season: selectedSeason,
-            episode: selectedEpisode.episode_number,
-          },
-          {}
-        );
+        const playbackProviderId = PROVIDER_SOURCES[activeSource]?.id;
+        const providerId = getDownloadProviderId(playbackProviderId);
+        const media = {
+          tmdbId: show?.id ?? id,
+          type: "tv",
+          season: selectedSeason,
+          episode: selectedEpisode.episode_number,
+        };
+        console.log("[dl-stage] key", `${providerId}::${buildProviderEmbedUrl({ provider: providerId, ...media })}`);
+        await resolveForProvider(providerId, media, {});
       } catch {
         /* silent — prefetch must never disrupt playback */
       }
@@ -214,7 +212,7 @@ export default function TVShowWatchPage() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [isApp, show?.id, selectedSeason, selectedEpisode?.episode_number, isDownloadModalOpen]);
+  }, [isApp, show?.id, selectedSeason, selectedEpisode?.episode_number, activeSource, isDownloadModalOpen]);
 
   // -----------------------------
   // Fetch comments

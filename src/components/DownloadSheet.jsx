@@ -3,7 +3,7 @@ import toast from "react-hot-toast";
 import { resolveForProvider, invalidateResolveCache } from "../lib/resolver";
 import { start } from "../lib/downloader";
 import { addDownload } from "../lib/downloads";
-import { getProviderById, getDownloadableProviders } from "../lib/providerUrls";
+import { getProviderById, getDownloadableProviders, getDownloadProviderId, buildProviderEmbedUrl } from "../lib/providerUrls";
 import { checkConnection } from "../utils/netCheck";
 
 function makeId() {
@@ -41,11 +41,7 @@ export default function DownloadSheet({
   onProviderChange,
   onClose,
 }) {
-  const downloadProviders = getDownloadableProviders();
-  const initialProviderId =
-    providerId && downloadProviders.some((source) => source.id === providerId)
-      ? providerId
-      : downloadProviders[0]?.id || "";
+  const initialProviderId = getDownloadProviderId(providerId);
 
   const [status, setStatus] = useState("preparing");
   const [stage, setStage] = useState("checking");
@@ -114,6 +110,13 @@ export default function DownloadSheet({
     // never preempt it — we only abort this component's own controller.
     const resolveStart = nowMs();
     stageLog("resolveForProvider start", { provider });
+    console.log("[dl-stage] key", `${provider}::${buildProviderEmbedUrl({
+      provider,
+      tmdbId: ctx.tmdbId,
+      type: ctx.type,
+      season: ctx.season,
+      episode: ctx.episode,
+    })}`);
     const scanPromise = resolveForProvider(
       provider,
       { tmdbId: ctx.tmdbId, type: ctx.type, season: ctx.season, episode: ctx.episode },
