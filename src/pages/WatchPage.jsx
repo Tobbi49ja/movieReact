@@ -147,27 +147,54 @@ export default function WatchPage() {
   // Skipped while the sheet is open; if the title changes the old prefetch is allowed
   // to finish and a new one starts for the new title.
   useEffect(() => {
-    if (!isApp) return undefined;
-    if (!movie?.id) return undefined;
-    if (isDownloadModalOpen) return undefined;
+    console.log("[dl-stage] prefetch effect", {
+      isApp,
+      tmdbId: movie?.id ?? id,
+      season: undefined,
+      episode: undefined,
+      activeSource,
+      isDownloadModalOpen,
+    });
+    if (!isApp) {
+      console.log("[dl-stage] prefetch skip: not app");
+      return undefined;
+    }
+    if (!movie?.id) {
+      console.log("[dl-stage] prefetch skip: no id");
+      return undefined;
+    }
+    if (isDownloadModalOpen) {
+      console.log("[dl-stage] prefetch skip: modal open");
+      return undefined;
+    }
     let cancelled = false;
     const timer = setTimeout(async () => {
       if (cancelled) return;
       try {
         const connection = await checkConnection();
-        if (cancelled || !connection.ok) return;
+        if (cancelled || !connection.ok) {
+          console.log("[dl-stage] prefetch skip: offline");
+          return;
+        }
         const playbackProviderId = PROVIDER_SOURCES[activeSource]?.id;
         const providerId = getDownloadProviderId(playbackProviderId);
+        if (!providerId) {
+          console.log("[dl-stage] prefetch skip: no provider");
+          return;
+        }
         const media = { tmdbId: movie?.id ?? id, type: "movie" };
+        console.log("[dl-stage] prefetch start");
         console.log("[dl-stage] key", `${providerId}::${buildProviderEmbedUrl({ provider: providerId, ...media })}`);
         await resolveForProvider(providerId, media, {});
       } catch {
         /* silent — prefetch must never disrupt playback */
       }
     }, 8000);
+    console.log("[dl-stage] prefetch scheduled");
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      console.log("[dl-stage] prefetch timer cleared");
     };
   }, [isApp, movie?.id, activeSource, isDownloadModalOpen]);
 

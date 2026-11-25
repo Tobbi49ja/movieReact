@@ -184,33 +184,63 @@ export default function TVShowWatchPage() {
   // (native app only), so the Download sheet can join the in-flight scan. Only the
   // pending timer is cancelled on change; a running prefetch is allowed to finish.
   useEffect(() => {
-    if (!isApp) return undefined;
-    if (!show?.id) return undefined;
-    if (!selectedEpisode?.episode_number) return undefined;
-    if (isDownloadModalOpen) return undefined;
+    console.log("[dl-stage] prefetch effect", {
+      isApp,
+      tmdbId: show?.id ?? id,
+      season: selectedSeason,
+      episode: selectedEpisode?.episode_number,
+      activeSource,
+      isDownloadModalOpen,
+    });
+    if (!isApp) {
+      console.log("[dl-stage] prefetch skip: not app");
+      return undefined;
+    }
+    if (!show?.id) {
+      console.log("[dl-stage] prefetch skip: no id");
+      return undefined;
+    }
+    if (!selectedEpisode?.episode_number) {
+      console.log("[dl-stage] prefetch skip: no episode");
+      return undefined;
+    }
+    if (isDownloadModalOpen) {
+      console.log("[dl-stage] prefetch skip: modal open");
+      return undefined;
+    }
     let cancelled = false;
     const timer = setTimeout(async () => {
       if (cancelled) return;
       try {
         const connection = await checkConnection();
-        if (cancelled || !connection.ok) return;
+        if (cancelled || !connection.ok) {
+          console.log("[dl-stage] prefetch skip: offline");
+          return;
+        }
         const playbackProviderId = PROVIDER_SOURCES[activeSource]?.id;
         const providerId = getDownloadProviderId(playbackProviderId);
+        if (!providerId) {
+          console.log("[dl-stage] prefetch skip: no provider");
+          return;
+        }
         const media = {
           tmdbId: show?.id ?? id,
           type: "tv",
           season: selectedSeason,
           episode: selectedEpisode.episode_number,
         };
+        console.log("[dl-stage] prefetch start");
         console.log("[dl-stage] key", `${providerId}::${buildProviderEmbedUrl({ provider: providerId, ...media })}`);
         await resolveForProvider(providerId, media, {});
       } catch {
         /* silent — prefetch must never disrupt playback */
       }
     }, 8000);
+    console.log("[dl-stage] prefetch scheduled");
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      console.log("[dl-stage] prefetch timer cleared");
     };
   }, [isApp, show?.id, selectedSeason, selectedEpisode?.episode_number, activeSource, isDownloadModalOpen]);
 
