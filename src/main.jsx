@@ -34,7 +34,10 @@ if (localStorage.getItem("tb_debug") === "1") {
   } catch {}
 }
 
+import '@fontsource-variable/inter';
+
 // your styles
+import "./styles/tailwind.css";
 import "./styles/base.css";
 import "./styles/components.css";
 import "./styles/footer.css";

@@ -1,10 +1,57 @@
-@import url("https://fonts.googleapis.com/css2?family=Bungee+Spice&family=New+Rocker&family=Poppins:wght@400;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Bungee+Spice&family=New+Rocker&display=swap");
+
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/Satoshi-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/Satoshi-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/Satoshi-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root {
   --sidebar-w: 220px;
+  --app-font-heading: 'Satoshi', 'Inter Variable', system-ui, sans-serif;
+  --app-font-body: 'Inter Variable', system-ui, sans-serif;
+  --app-bg: #0a0a0c;
+  --app-surface: #141418;
+  --app-surface-2: #1c1c22;
+  --app-text: #f4f4f5;
+  --app-muted: #9a9aa3;
+  --app-border: rgba(255,255,255,.08);
+  --app-accent: #ff2d55;
+  --app-accent-grad: linear-gradient(135deg,#ff2d55,#ff6b2d);
+  --app-radius-card: 16px;
+  --app-nav-bg: rgba(20,20,24,.72);
+  --app-nav-blur: 16px;
 }
 :root[data-sidebar="collapsed"] {
   --sidebar-w: 64px;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --app-font-heading: 'New Rocker', serif;
+    --app-font-body: Georgia, serif;
+    --app-accent: #e50000;
+    --app-accent-grad: #e50000;
+    --app-radius-card: 4px;
+    --app-nav-bg: #0a0a0c;
+    --app-nav-blur: 0px;
+  }
 }
 
 @media (min-width: 768px) {
@@ -27,8 +74,9 @@
 body {
   max-width: 1440px;
   margin: 0 auto;
-  background-color:black;
+  background-color: var(--app-bg);
   color: white;
+  font-family: var(--app-font-body);
   overflow-x: hidden;
 }
 

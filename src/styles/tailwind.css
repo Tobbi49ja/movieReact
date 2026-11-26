@@ -1,0 +1,15 @@
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@theme inline {
+  --color-app-bg: var(--app-bg);
+  --color-app-surface: var(--app-surface);
+  --color-app-surface-2: var(--app-surface-2);
+  --color-app-text: var(--app-text);
+  --color-app-muted: var(--app-muted);
+  --color-app-border: var(--app-border);
+  --color-app-accent: var(--app-accent);
+  --font-app-heading: var(--app-font-heading);
+  --font-app-body: var(--app-font-body);
+  --radius-app-card: var(--app-radius-card);
+}
+.btn-primary { background: var(--app-accent-grad); color:#fff; }
