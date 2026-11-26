@@ -6,6 +6,9 @@ import { HelmetProvider } from "react-helmet-async";
 import App from "./App.jsx";
 import { AuthProvider } from "./context/AuthContext";
 import { isNativeApp } from "./utils/platform";
+import { isApp } from "./lib/platform";
+
+if (isApp) document.documentElement.setAttribute("data-app", "true");
 
 if (isNativeApp()) {
   try {
@@ -51,6 +54,7 @@ import "./styles/tvshow.css";
 import "./styles/watchpage.css";
 import "./styles/auth.css";
 import "./styles/admin.css";
+import "./styles/app-theme.css";
 
 // Microsoft Clarity (opt-in via env)
 const clarityId = import.meta.env.VITE_CLARITY_ID;

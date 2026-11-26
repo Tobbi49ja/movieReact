@@ -1,0 +1,11 @@
+html[data-app="true"] h1,
+html[data-app="true"] .search-heading,
+html[data-app="true"] .page-container h1,
+html[data-app="true"] .terms-page h1,
+html[data-app="true"] .about-page h1,
+html[data-app="true"] .downloads-title,
+html[data-app="true"] .preview-section {
+  font-family: var(--app-font-heading);
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}

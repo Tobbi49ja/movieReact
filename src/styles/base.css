@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Bungee+Spice&family=New+Rocker&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Bungee+Spice&family=New+Rocker&family=Poppins:wght@400;600;700&display=swap");
 
 @font-face {
   font-family: "Satoshi";
@@ -24,6 +24,12 @@
 
 :root {
   --sidebar-w: 220px;
+}
+:root[data-sidebar="collapsed"] {
+  --sidebar-w: 64px;
+}
+
+html[data-app="true"] {
   --app-font-heading: 'Satoshi', 'Inter Variable', system-ui, sans-serif;
   --app-font-body: 'Inter Variable', system-ui, sans-serif;
   --app-bg: #0a0a0c;
@@ -37,21 +43,6 @@
   --app-radius-card: 16px;
   --app-nav-bg: rgba(20,20,24,.72);
   --app-nav-blur: 16px;
-}
-:root[data-sidebar="collapsed"] {
-  --sidebar-w: 64px;
-}
-
-@media (min-width: 1024px) {
-  :root {
-    --app-font-heading: 'New Rocker', serif;
-    --app-font-body: Georgia, serif;
-    --app-accent: #e50000;
-    --app-accent-grad: #e50000;
-    --app-radius-card: 4px;
-    --app-nav-bg: #0a0a0c;
-    --app-nav-blur: 0px;
-  }
 }
 
 @media (min-width: 768px) {
@@ -74,10 +65,13 @@
 body {
   max-width: 1440px;
   margin: 0 auto;
-  background-color: var(--app-bg);
+  background-color:black;
   color: white;
-  font-family: var(--app-font-body);
   overflow-x: hidden;
+}
+html[data-app="true"] body {
+  font-family: var(--app-font-body);
+  background-color: var(--app-bg);
 }
 
 /* Scrollbar styling */
@@ -142,15 +136,7 @@ body {
 h1 {
   background-color: black;
   color: aliceblue;
-  font-family: var(--app-font-heading);
-  letter-spacing: -0.02em;
-  font-weight: 700;
+  font-family: "New Rocker";
   padding: 18px 0 18px 12px;
   text-transform: capitalize;
-}
-@media (min-width: 1024px) {
-  h1 {
-    letter-spacing: normal;
-    font-weight: 400;
-  }
 }

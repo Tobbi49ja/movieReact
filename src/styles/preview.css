@@ -4,7 +4,7 @@
   height: 100vh;
   align-content: center;
   color: rgb(240 248 255 / 20%);
-  font-family: var(--app-font-heading);
+  font-family: "Bungee Spice";
   padding-left: 60px;
   font-size: 1.5rem;
   text-transform: capitalize;
@@ -24,10 +24,4 @@ video {
   z-index: -1;
   filter: brightness(0.5);
   object-fit: cover;
-}
-
-@media (min-width: 1024px) {
-  .preview-section {
-    font-family: "Bungee Spice", cursive;
-  }
 }
