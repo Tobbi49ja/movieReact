@@ -18,11 +18,19 @@
 
 .search-heading {
   font-size: 1.8rem;
-  font-family: "New Rocker", cursive;
+  font-family: var(--app-font-heading);
+  letter-spacing: -0.02em;
+  font-weight: 700;
   color: #fff;
   margin-bottom: 1.2rem;
   background: none;
   padding: 0;
+}
+@media (min-width: 1024px) {
+  .search-heading {
+    letter-spacing: normal;
+    font-weight: 400;
+  }
 }
 
 .search-form {
@@ -305,10 +313,20 @@
 .terms-page h1,
 .about-page h1 {
   color: red;
-  font-family: "New Rocker", cursive;
+  font-family: var(--app-font-heading);
+  letter-spacing: -0.02em;
+  font-weight: 700;
   text-transform: uppercase;
   font-size: 2rem;
   margin-bottom: 1rem;
+}
+@media (min-width: 1024px) {
+  .page-container h1,
+  .terms-page h1,
+  .about-page h1 {
+    letter-spacing: normal;
+    font-weight: 400;
+  }
 }
 
 .intro-text {

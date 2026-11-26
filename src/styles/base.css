@@ -142,7 +142,15 @@ body {
 h1 {
   background-color: black;
   color: aliceblue;
-  font-family: "New Rocker";
+  font-family: var(--app-font-heading);
+  letter-spacing: -0.02em;
+  font-weight: 700;
   padding: 18px 0 18px 12px;
   text-transform: capitalize;
+}
+@media (min-width: 1024px) {
+  h1 {
+    letter-spacing: normal;
+    font-weight: 400;
+  }
 }

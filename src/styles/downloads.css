@@ -60,10 +60,16 @@ body:has(.downloads-page) footer {
   line-height: 1.1;
   font-weight: 700;
   color: var(--downloads-text);
-  font-family: "New Rocker", "Poppins", sans-serif;
-  letter-spacing: 0.02em;
+  font-family: var(--app-font-heading);
+  letter-spacing: -0.02em;
   background: transparent;
   padding: 0;
+}
+@media (min-width: 1024px) {
+  .downloads-title {
+    letter-spacing: 0.02em;
+    font-weight: 700;
+  }
 }
 
 .downloads-count {
