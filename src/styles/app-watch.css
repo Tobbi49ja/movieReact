@@ -238,3 +238,7 @@ html[data-app="true"] .comment-btn {
     height: auto;
   }
 }
+
+html[data-app="true"] footer {
+  display: none !important;
+}

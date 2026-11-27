@@ -61,6 +61,8 @@ import "./styles/app-pill.css";
 import "./styles/app-cards.css";
 import "./styles/app-hero.css";
 import "./styles/app-watch.css";
+import "./styles/app-pages.css";
+import "./styles/app-admin.css";
 
 // Microsoft Clarity (opt-in via env)
 const clarityId = import.meta.env.VITE_CLARITY_ID;

@@ -1,0 +1,222 @@
+html[data-app="true"] .admin-page {
+  padding: 12px 16px calc(96px + env(safe-area-inset-bottom));
+  max-width: none;
+  min-height: 0;
+}
+
+html[data-app="true"] .admin-page .section-title {
+  padding: 0;
+  margin: 0 0 12px;
+}
+
+html[data-app="true"] .admin-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 0 0 12px;
+  margin: 0 -16px;
+  padding-inline: 16px;
+}
+
+html[data-app="true"] .admin-tab {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  background: var(--app-surface);
+  color: var(--app-muted);
+  border: 0;
+}
+
+html[data-app="true"] .admin-tab.active {
+  background: color-mix(in srgb, var(--app-accent) 18%, transparent);
+  color: var(--app-accent);
+}
+
+html[data-app="true"] .admin-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (min-width: 768px) {
+  html[data-app="true"] .admin-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+html[data-app="true"] .stat-card {
+  border-radius: 16px;
+  background: var(--app-surface);
+  padding: 14px;
+  min-width: 0;
+  border: 0;
+}
+
+html[data-app="true"] .stat-value {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+html[data-app="true"] .stat-label {
+  font-size: 12px;
+  color: var(--app-muted);
+  margin-top: 4px;
+}
+
+html[data-app="true"] .admin-section {
+  margin: 0 0 20px;
+  padding: 0;
+}
+
+html[data-app="true"] .admin-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 0;
+}
+
+html[data-app="true"] .admin-pagination button,
+html[data-app="true"] .admin-btn {
+  min-height: 44px;
+  border-radius: 22px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+html[data-app="true"] .admin-table-wrap {
+  overflow: visible;
+}
+
+html[data-app="true"] .admin-table {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+}
+
+html[data-app="true"] .admin-table thead {
+  display: none;
+}
+
+html[data-app="true"] .admin-table,
+html[data-app="true"] .admin-table tbody,
+html[data-app="true"] .admin-table tr,
+html[data-app="true"] .admin-table td {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+html[data-app="true"] .admin-table tr {
+  background: var(--app-surface);
+  border-radius: 16px;
+  padding: 12px 14px;
+  margin: 0 0 12px;
+}
+
+html[data-app="true"] .admin-table td {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border: 0;
+  white-space: normal;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+html[data-app="true"] .admin-table td::before {
+  content: attr(data-label);
+  flex: 0 0 76px;
+  text-align: left;
+  font-size: 12px;
+  color: var(--app-muted);
+}
+
+html[data-app="true"] .admin-table td[data-label="Actions"] {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  padding-top: 10px;
+}
+
+html[data-app="true"] .admin-table td[data-label="Actions"]::before {
+  display: none;
+}
+
+html[data-app="true"] .comment-cell {
+  max-width: none;
+}
+
+html[data-app="true"] .role-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+html[data-app="true"] .admin-nollywood-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: none;
+  padding: 0;
+}
+
+html[data-app="true"] .admin-nollywood-form label {
+  font-size: 12px;
+  color: var(--app-muted);
+}
+
+html[data-app="true"] .admin-nollywood-form input,
+html[data-app="true"] .admin-nollywood-form select,
+html[data-app="true"] .admin-nollywood-form textarea {
+  width: 100%;
+  min-height: 48px;
+  border-radius: 14px;
+  font-size: 16px;
+  padding: 0 14px;
+  background: var(--app-surface);
+  border: 0;
+  color: var(--app-text);
+  box-sizing: border-box;
+}
+
+html[data-app="true"] .admin-nollywood-form textarea {
+  min-height: 110px;
+  padding: 12px 14px;
+}
+
+html[data-app="true"] .admin-link-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+html[data-app="true"] .admin-link-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+html[data-app="true"] .admin-nollywood-form .admin-btn {
+  min-height: 48px;
+  width: 100%;
+  background: var(--app-accent);
+  color: #fff;
+  border: 0;
+}
+
+html[data-app="true"] .admin-msg-ok,
+html[data-app="true"] .admin-msg-err {
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 13px;
+}

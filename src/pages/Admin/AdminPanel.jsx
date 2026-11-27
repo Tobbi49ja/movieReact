@@ -281,13 +281,13 @@ export default function AdminPanel() {
               <tbody>
                 {users.map((u) => (
                   <tr key={u._id}>
-                    <td>{u.name}</td>
-                    <td>{u.email}</td>
-                    <td>
+                    <td data-label="Name">{u.name}</td>
+                    <td data-label="Email">{u.email}</td>
+                    <td data-label="Role">
                       <span className={`role-badge role-${u.role}`}>{u.role}</span>
                     </td>
-                    <td>{formatDate(u.createdAt)}</td>
-                    <td className="admin-actions">
+                    <td data-label="Joined">{formatDate(u.createdAt)}</td>
+                    <td data-label="Actions" className="admin-actions">
                       {u._id !== user._id ? (
                         <>
                           {u.role !== "admin" ? (
@@ -406,15 +406,15 @@ export default function AdminPanel() {
               <tbody>
                 {comments.map((c) => (
                   <tr key={c._id}>
-                    <td>{c.username}</td>
-                    <td className="comment-cell">
+                    <td data-label="User">{c.username}</td>
+                    <td data-label="Comment" className="comment-cell">
                       {c.comment?.length > 80 ? c.comment.substring(0, 80) + "…" : c.comment}
                     </td>
-                    <td>
+                    <td data-label="Type">
                       <span className="role-badge role-comment">{c.contentType}</span>
                     </td>
-                    <td>{formatDate(c.createdAt)}</td>
-                    <td className="admin-actions">
+                    <td data-label="Date">{formatDate(c.createdAt)}</td>
+                    <td data-label="Actions" className="admin-actions">
                       <button className="admin-btn admin-btn-danger" onClick={() => handleDeleteComment(c._id)}>
                         Delete
                       </button>
