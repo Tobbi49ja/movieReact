@@ -38,6 +38,7 @@ import SEOHelmet from "./components/seo/SEOHelmet";
 
 import UpdateMarquee from "./components/UpdateMarquee";
 import BottomNav from './components/BottomNav';
+import AppPageTransition from "./components/AppPageTransition";
 import './styles/sidebar.css';
 
 function App() {
@@ -64,6 +65,7 @@ function App() {
           <UpdateMarquee />
           <Suspense fallback={<div style={{minHeight:'60vh',display:'flex',alignItems:'center',justifyContent:'center',color:'#aaa'}}>Loading...</div>}>
 <ErrorBoundary>
+          <AppPageTransition>
           <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/movies" element={<Movies />} />
@@ -95,6 +97,7 @@ function App() {
           {/* 404 */}
           <Route path="*" element={<ErrorPage />} />
           </Routes>
+          </AppPageTransition>
           </ErrorBoundary>
           </Suspense>
         <Footer />

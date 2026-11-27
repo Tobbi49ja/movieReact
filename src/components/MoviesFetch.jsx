@@ -42,7 +42,13 @@ export default function MoviesFetch({ title, apiUrl, source, modeSwitching, mode
       }
 
       // append new results
-      setMovies((prev) => [...prev, ...filtered]);
+      setMovies((prev) => {
+        const seen = new Map(prev.map((item) => [item.id, item]));
+        filtered.forEach((item) => {
+          if (!seen.has(item.id)) seen.set(item.id, item);
+        });
+        return Array.from(seen.values());
+      });
     } catch (err) {
       console.error("Error fetching movies:", err);
     } finally {
@@ -93,7 +99,7 @@ export default function MoviesFetch({ title, apiUrl, source, modeSwitching, mode
           <div className={`movies-grid${modeSwitching ? " mode-switching" : ""}`}>
             {(Array.isArray(movies) ? movies : []).map((movie) => (
               <MovieCard
-                key={movie.id}
+                key={`${movie.media_type ?? "m"}-${movie.id}`}
                 id={movie.id}
                 title={movie.title || movie.name}
                 year={

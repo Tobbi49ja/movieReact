@@ -1,0 +1,243 @@
+html[data-app="true"] .app-pill {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  width: min(calc(100% - 24px), 440px);
+  z-index: 50;
+  border-radius: 28px;
+  padding: 6px;
+  background: color-mix(in srgb, var(--app-surface, #14141a) 72%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+html[data-app="true"] .app-pill ul {
+  display: flex;
+  justify-content: space-between;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+html[data-app="true"] .app-pill__tab,
+html[data-app="true"] .app-pill__more {
+  flex: 1;
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 22px;
+  color: var(--app-muted, #8b8b99);
+  font-size: 10px;
+  font-weight: 500;
+  background: none;
+  border: 0;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.2s, background 0.2s, transform 0.15s;
+}
+
+html[data-app="true"] .app-pill svg {
+  width: 20px;
+  height: 20px;
+}
+
+html[data-app="true"] .app-pill__tab:active,
+html[data-app="true"] .app-pill__more:active {
+  transform: scale(0.94);
+}
+
+html[data-app="true"] .app-pill__tab.is-active {
+  color: var(--app-accent, #e50914);
+  background: color-mix(in srgb, var(--app-accent, #e50914) 14%, transparent);
+}
+
+html[data-app="true"] .sidebar {
+  display: none !important;
+}
+
+html[data-app="true"] .bottom-nav {
+  display: none !important;
+}
+
+html[data-app="true"] .app-with-sidebar {
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom)) !important;
+  width: 100% !important;
+}
+
+html[data-app="true"] .app-sheet__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 60;
+}
+
+html[data-app="true"] .app-sheet__overlay[data-state="open"] {
+  animation: app-fade-in 0.2s;
+}
+
+html[data-app="true"] .app-sheet__overlay[data-state="closed"] {
+  animation: app-fade-out 0.2s;
+}
+
+html[data-app="true"] .app-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 61;
+  max-height: 80dvh;
+  overflow: auto;
+  border-radius: 24px 24px 0 0;
+  padding: 12px 16px calc(20px + env(safe-area-inset-bottom));
+  background: var(--app-surface);
+  color: var(--app-text, #fff);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+html[data-app="true"] .app-sheet[data-state="open"] {
+  animation: app-sheet-slide-up 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+html[data-app="true"] .app-sheet[data-state="closed"] {
+  animation: app-sheet-slide-down 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+html[data-app="true"] .app-sheet__grabber {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  margin: 0 auto 12px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+html[data-app="true"] .app-sheet__row {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 0 12px;
+  border-radius: 14px;
+  background: none;
+  border: 0;
+  color: inherit;
+  text-decoration: none;
+  font-size: 15px;
+  font-family: inherit;
+}
+
+html[data-app="true"] .app-sheet__row:active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+html[data-app="true"] .app-sheet__modes {
+  display: flex;
+  gap: 8px;
+}
+
+html[data-app="true"] .app-sheet__modes button {
+  flex: 1;
+  min-height: 44px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 0;
+  color: inherit;
+}
+
+html[data-app="true"] .app-sheet__modes button.is-active {
+  background: color-mix(in srgb, var(--app-accent, #e50914) 20%, transparent);
+  color: var(--app-accent, #e50914);
+}
+
+html[data-app="true"] .app-switch {
+  margin-left: auto;
+  width: 44px;
+  height: 26px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.18);
+  position: relative;
+  transition: background 0.2s;
+}
+
+html[data-app="true"] .app-switch::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 0.2s;
+}
+
+html[data-app="true"] .app-switch.is-on {
+  background: var(--app-accent, #e50914);
+}
+
+html[data-app="true"] .app-switch.is-on::after {
+  transform: translateX(18px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-app="true"] .app-pill__tab,
+  html[data-app="true"] .app-pill__more {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-app="true"] .app-sheet__overlay,
+  html[data-app="true"] .app-sheet,
+  html[data-app="true"] .app-sheet__row,
+  html[data-app="true"] .app-sheet__modes button,
+  html[data-app="true"] .app-switch {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@keyframes app-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes app-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes app-sheet-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes app-sheet-slide-down {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}

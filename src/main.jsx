@@ -8,7 +8,9 @@ import { AuthProvider } from "./context/AuthContext";
 import { isNativeApp } from "./utils/platform";
 import { isApp } from "./lib/platform";
 
-if (isApp) document.documentElement.setAttribute("data-app", "true");
+const devForce = import.meta.env.DEV && (new URLSearchParams(location.search).get("app") === "1" || sessionStorage.getItem("forceApp") === "1");
+if (devForce) sessionStorage.setItem("forceApp", "1");
+if (isApp || devForce) document.documentElement.setAttribute("data-app", "true");
 
 if (isNativeApp()) {
   try {
@@ -55,6 +57,10 @@ import "./styles/watchpage.css";
 import "./styles/auth.css";
 import "./styles/admin.css";
 import "./styles/app-theme.css";
+import "./styles/app-pill.css";
+import "./styles/app-cards.css";
+import "./styles/app-hero.css";
+import "./styles/app-watch.css";
 
 // Microsoft Clarity (opt-in via env)
 const clarityId = import.meta.env.VITE_CLARITY_ID;

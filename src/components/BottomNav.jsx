@@ -14,9 +14,10 @@ import {
   FiWifiOff,
   FiWifi,
 } from "react-icons/fi";
-import { isApp } from "../lib/platform";
+import { isApp as isPlatformApp } from "../lib/platform";
+import AppPillNav from "./AppPillNav";
 
-export default function BottomNav() {
+function LegacyBottomNav() {
   const location = useLocation();
   const { user } = useAuth();
   const { mode, setMode } = useContentMode();
@@ -30,7 +31,7 @@ export default function BottomNav() {
     { to: "/tvshows", label: "TV Shows", icon: FiTv },
     { to: "/livetv", label: "Live TV", icon: FiRadio },
     { to: "/watchlist", label: "Watchlist", icon: FiBookmark, auth: true },
-    ...(isApp ? [{ to: "/downloads", label: "Downloads", icon: FiDownload }] : []),
+    ...(isPlatformApp ? [{ to: "/downloads", label: "Downloads", icon: FiDownload }] : []),
     { to: "/search", label: "Search", icon: FiSearch },
     { to: user ? "/watchlist" : "/login", label: user ? "Profile" : "Login", icon: FiUser },
   ];
@@ -43,7 +44,7 @@ export default function BottomNav() {
         const active = isActive(tab.to);
         return (
           <Link
-            key={tab.to}
+            key={tab.label}
             to={tab.to}
             className={active ? "bottom-tab active" : "bottom-tab"}
             aria-current={active ? "page" : undefined}
@@ -98,4 +99,9 @@ export default function BottomNav() {
       </div>
     </nav>
   );
+}
+
+export default function BottomNav() {
+  const isAppUI = typeof document !== "undefined" && document.documentElement.dataset.app === "true";
+  return isAppUI ? <AppPillNav /> : <LegacyBottomNav />;
 }

@@ -100,7 +100,7 @@ export default function Sidebar() {
             const Icon = link.icon;
             const active = location.pathname === link.to;
   return (
-              <li key={link.to}>
+              <li key={link.label}>
                 <Link
                   to={link.to}
                   className={`sidebar-link ${active ? "active" : ""}`}

@@ -1,0 +1,240 @@
+html[data-app="true"] .watch-page {
+  display: flex;
+  flex-direction: column;
+  padding: 0 0 24px;
+  max-width: none;
+}
+
+html[data-app="true"] .watch-page > * {
+  order: 5;
+}
+
+html[data-app="true"] .watch-player {
+  order: 1;
+}
+
+html[data-app="true"] .player-actions {
+  order: 2;
+}
+
+html[data-app="true"] .watch-sticky-info {
+  order: 3;
+}
+
+html[data-app="true"] .watch-hero {
+  order: 4;
+}
+
+html[data-app="true"] .watch-player {
+  width: 100%;
+  margin: 0;
+  border-radius: 0;
+}
+
+html[data-app="true"] .watch-sticky-info {
+  position: static;
+  padding: 14px 16px 0;
+  background: none;
+}
+
+html[data-app="true"] .watch-sticky-info h1 {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
+  text-transform: none;
+}
+
+html[data-app="true"] .watch-hero {
+  padding: 0 16px;
+  margin: 0;
+}
+
+html[data-app="true"] .watch-hero p {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--app-muted);
+}
+
+html[data-app="true"] .player-actions {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+html[data-app="true"] .player-actions button,
+html[data-app="true"] .fullscreen-btn,
+html[data-app="true"] .download-btn,
+html[data-app="true"] .watch-page .btn {
+  min-height: 44px;
+  border-radius: 22px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+html[data-app="true"] .download-btn {
+  background: var(--app-accent);
+  color: #fff;
+  border: 0;
+}
+
+html[data-app="true"] .episode-panel {
+  margin: 12px 16px;
+  border-radius: 16px;
+  background: var(--app-surface);
+  padding: 12px;
+}
+
+html[data-app="true"] .season-selector {
+  min-height: 44px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+html[data-app="true"] .episode-row {
+  min-height: 56px;
+  border-radius: 12px;
+  padding: 8px 10px;
+  gap: 10px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html[data-app="true"] .episode-row:active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+html[data-app="true"] .ep-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+html[data-app="true"] .ep-runtime {
+  font-size: 12px;
+  color: var(--app-muted);
+}
+
+html[data-app="true"] .watch-trailer,
+html[data-app="true"] .comment-section,
+html[data-app="true"] .similar-section {
+  margin: 16px;
+}
+
+html[data-app="true"] .trailer-toggle {
+  min-height: 44px;
+  border-radius: 22px;
+}
+
+html[data-app="true"] .trailer-container {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+html[data-app="true"] .comment-input {
+  min-height: 44px;
+  border-radius: 14px;
+  font-size: 16px;
+}
+
+html[data-app="true"] .comment-btn {
+  min-height: 44px;
+  border-radius: 22px;
+  background: var(--app-accent);
+  color: #fff;
+  border: 0;
+}
+
+html[data-app="true"] .comment-item {
+  border-radius: 14px;
+  background: var(--app-surface);
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+html[data-app="true"] .similar-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 12px;
+  text-transform: none;
+}
+
+html[data-app="true"] .similar-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  row-gap: 16px;
+}
+
+html[data-app="true"] .similar-grid .movie-card {
+  width: 100%;
+  margin: 0;
+}
+
+html[data-app="true"] .watch-page {
+  align-items: stretch;
+}
+
+html[data-app="true"] .watch-player,
+html[data-app="true"] .episode-panel,
+html[data-app="true"] .watch-trailer,
+html[data-app="true"] .comment-section,
+html[data-app="true"] .similar-section,
+html[data-app="true"] .watch-sticky-info,
+html[data-app="true"] .watch-hero {
+  width: auto;
+  max-width: none;
+  box-sizing: border-box;
+  align-self: stretch;
+}
+
+html[data-app="true"] .watch-hero {
+  height: auto;
+  min-height: 0;
+}
+
+html[data-app="true"] .episode-panel {
+  border: 0;
+}
+
+html[data-app="true"] .episode-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+html[data-app="true"] .comment-section {
+  background: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+html[data-app="true"] .season-selector select {
+  min-height: 44px;
+  border-radius: 12px;
+  font-size: 14px;
+  padding: 0 12px;
+}
+
+html[data-app="true"] .comment-input {
+  padding: 0 14px;
+  background: var(--app-surface);
+  border: 0;
+}
+
+html[data-app="true"] .comment-btn {
+  padding: 0 20px;
+}
+
+@media (max-width: 767px) {
+  html[data-app="true"] .watch-hero {
+    height: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  html[data-app="true"] .watch-hero {
+    height: auto;
+  }
+}
