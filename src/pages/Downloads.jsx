@@ -2,8 +2,8 @@ import { FiDownload, FiInbox, FiPause, FiPlay, FiTrash2 } from "react-icons/fi";
 import { useState } from "react";
 import SEOHelmet from "../components/seo/SEOHelmet";
 import useDownloads from "../hooks/useDownloads";
-import { pause, resume, cancel, play } from "../lib/downloader";
-import { removeDownload } from "../lib/downloads";
+import { pause, resume, play } from "../lib/downloader";
+import { deleteDownloadWithFile } from "../lib/downloads";
 import { resolveForProvider } from "../lib/resolver";
 import "../styles/downloads.css";
 
@@ -87,8 +87,7 @@ export default function DownloadsPage() {
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this download and its files?")) return;
-    try { await cancel(id); } catch {}
-    removeDownload(id);
+    await deleteDownloadWithFile(id);
   };
 
   const handleRetryExpired = async (download) => {

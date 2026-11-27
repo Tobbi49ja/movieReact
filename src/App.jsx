@@ -32,11 +32,14 @@ const Watchlist = lazy(() => import("./pages/Watchlist"));
 const Downloads = lazy(() => import("./pages/Downloads"));
 const AdminPanel = lazy(() => import("./pages/Admin/AdminPanel"));
 const LiveTV = lazy(() => import("./pages/LiveTV"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Notifications = lazy(() => import("./pages/Notifications"));
 
 // SEO
 import SEOHelmet from "./components/seo/SEOHelmet";
 
 import UpdateMarquee from "./components/UpdateMarquee";
+import AppBackButton from "./components/AppBackButton";
 import BottomNav from './components/BottomNav';
 import AppPageTransition from "./components/AppPageTransition";
 import './styles/sidebar.css';
@@ -62,6 +65,7 @@ function App() {
         <BottomNav />
 
         <main className="app-with-sidebar">
+          <AppBackButton />
           <UpdateMarquee />
           <Suspense fallback={<div style={{minHeight:'60vh',display:'flex',alignItems:'center',justifyContent:'center',color:'#aaa'}}>Loading...</div>}>
 <ErrorBoundary>
@@ -90,6 +94,8 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/watchlist" element={<Watchlist />} />
           <Route path="/downloads" element={<Downloads />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/notifications" element={<Notifications />} />
 
           {/* Admin */}
           <Route path="/admin" element={<AdminPanel />} />

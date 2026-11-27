@@ -161,7 +161,7 @@ html[data-app="true"] {
 }
 
 html[data-app="true"] .carousel-item {
-  flex: 0 0 clamp(120px, calc((100vw - var(--app-gutter) * 2 - var(--app-gap) * 2) / 2.4), 200px);
+  flex: 0 0 clamp(128px, calc((100vw - var(--app-gutter) * 2 - var(--app-gap) * 2) / 2.2), 210px);
 }
 
 html[data-app="true"] .carousel-row {

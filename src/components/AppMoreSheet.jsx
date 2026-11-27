@@ -1,8 +1,10 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { Link, NavLink } from "react-router-dom";
 import {
+  FiBell,
   FiBookmark,
   FiDownload,
+  FiSettings,
   FiUser,
   FiLogOut,
   FiWifi,
@@ -11,11 +13,14 @@ import {
 import { useContentMode } from "../context/ContentModeContext";
 import { useDataSaver } from "../utils/dataSaver";
 import { useAuth } from "../context/AuthContext";
+import useNotifications from "../hooks/useNotifications";
 
 export default function AppMoreSheet({ open, onOpenChange }) {
   const { mode, setMode } = useContentMode();
   const { enabled: dataSaver, toggle: toggleDataSaver } = useDataSaver();
   const { user, logout } = useAuth();
+  const { items } = useNotifications();
+  const unreadCount = items.filter((item) => item.unread).length;
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -35,6 +40,18 @@ export default function AppMoreSheet({ open, onOpenChange }) {
           </Dialog.Title>
 
           <div className="app-sheet__grabber" />
+
+          <NavLink
+            to="/notifications"
+            className="app-sheet__row"
+            onClick={() => onOpenChange(false)}
+          >
+            <FiBell />
+            <span>Notifications</span>
+            {unreadCount > 0 && (
+              <span className="app-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
+            )}
+          </NavLink>
 
           <div className="app-sheet__modes">
             <button
@@ -69,6 +86,15 @@ export default function AppMoreSheet({ open, onOpenChange }) {
           >
             <FiDownload />
             <span>Downloads</span>
+          </NavLink>
+
+          <NavLink
+            to="/settings"
+            className="app-sheet__row"
+            onClick={() => onOpenChange(false)}
+          >
+            <FiSettings />
+            <span>Settings</span>
           </NavLink>
 
           {user?.role === "admin" ? (

@@ -37,6 +37,9 @@ export default function AdminPanel() {
     title:'', year:'', genre:'', posterUrl:'',
     streamUrl:'', downloadUrl:'', tmdbId:'', language:'en'
   });
+  const [notifForm, setNotifForm] = useState({ title:'', body:'', type:'announcement', link:'' });
+  const [notifMsg, setNotifMsg] = useState(null);
+  const [notifications, setNotifications] = useState([]);
 
   const handleAddNollywood = async (e) => {
     e.preventDefault();
@@ -147,6 +150,7 @@ export default function AdminPanel() {
     if (tab === "users") fetchUsers(1);
     if (tab === "comments") fetchComments(1);
     if (tab === "app") fetchAppConfig();
+    if (tab === "notify") fetchNotifications();
     setLoading(false);
   }, [tab]);
 
@@ -189,6 +193,38 @@ export default function AdminPanel() {
       fetchComments(commentPage);
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to delete comment");
+    }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await axios.get(`${BACKEND_URL}/api/notifications?limit=20`);
+      setNotifications(res.data?.items || []);
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to load notifications");
+    }
+  };
+
+  const handleSendNotification = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post(`${BACKEND_URL}/api/notifications`, notifForm, { headers });
+      setNotifMsg({ type: 'ok', text: 'Notification sent' });
+      setNotifForm({ title: '', body: '', type: 'announcement', link: '' });
+      fetchNotifications();
+    } catch (err) {
+      setNotifMsg({ type: 'err', text: err.response?.data?.error || 'Failed to send notification' });
+    }
+  };
+
+  const handleDeleteNotification = async (id) => {
+    if (!window.confirm("Delete this notification?")) return;
+    try {
+      await axios.delete(`${BACKEND_URL}/api/notifications/${id}`, { headers });
+      toast.success("Notification deleted");
+      fetchNotifications();
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to delete notification");
     }
   };
 
@@ -251,6 +287,14 @@ export default function AdminPanel() {
           aria-selected={tab === "nollywood"}
         >
           Nollywood
+        </button>
+        <button
+          className={`admin-tab ${tab === "notify" ? "active" : ""}`}
+          onClick={() => setTab("notify")}
+          role="tab"
+          aria-selected={tab === "notify"}
+        >
+          Notify
         </button>
       </div>
 
@@ -389,6 +433,53 @@ export default function AdminPanel() {
             </select>
             <button type="submit" className="admin-btn">Add Movie</button>
           </form>
+        </section>
+      ) : tab === "notify" ? (
+        <section className="admin-section" aria-label="Notify">
+          <form className="admin-nollywood-form" onSubmit={handleSendNotification}>
+            <input placeholder="Title" maxLength={80} value={notifForm.title}
+              onChange={e => setNotifForm({ ...notifForm, title: e.target.value })} required />
+            <input placeholder="Body" maxLength={280} value={notifForm.body}
+              onChange={e => setNotifForm({ ...notifForm, body: e.target.value })} required />
+            <select value={notifForm.type}
+              onChange={e => setNotifForm({ ...notifForm, type: e.target.value })}>
+              <option value="announcement">Announcement</option>
+              <option value="movie">Movie</option>
+              <option value="update">Update</option>
+            </select>
+            <input placeholder="/watch/123 or https://…, optional" value={notifForm.link}
+              onChange={e => setNotifForm({ ...notifForm, link: e.target.value })} />
+            <button type="submit" className="admin-btn">Send</button>
+          </form>
+          {notifMsg && <p role="status" className={notifMsg.type === 'ok' ? 'admin-msg-ok' : 'admin-msg-err'}>{notifMsg.text}</p>}
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Type</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {notifications.map((n) => (
+                  <tr key={n._id}>
+                    <td data-label="Title">{n.title}</td>
+                    <td data-label="Type">
+                      <span className="role-badge role-comment">{n.type}</span>
+                    </td>
+                    <td data-label="Date">{formatDate(n.createdAt)}</td>
+                    <td data-label="Actions" className="admin-actions">
+                      <button className="admin-btn admin-btn-danger" onClick={() => handleDeleteNotification(n._id)}>
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       ) : (
         <section className="admin-section" aria-label="Comments">

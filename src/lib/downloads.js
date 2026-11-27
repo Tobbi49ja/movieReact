@@ -138,6 +138,16 @@ export function removeDownload(id) {
   return entries;
 }
 
+export async function deleteDownloadWithFile(item) {
+  const id = typeof item === "string" ? item : item?.id;
+  if (!id) return;
+  try {
+    const { cancel } = await import("./downloader");
+    await cancel(id);
+  } catch {}
+  removeDownload(id);
+}
+
 export function subscribe(cb) {
   if (typeof cb !== "function") {
     return () => {};

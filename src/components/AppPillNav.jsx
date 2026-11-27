@@ -9,6 +9,7 @@ import {
   FiMoreHorizontal,
 } from "react-icons/fi";
 import AppMoreSheet from "./AppMoreSheet";
+import useNotifications from "../hooks/useNotifications";
 
 const tabs = [
   { id: "home", label: "Home", path: "/", icon: FiHome },
@@ -20,6 +21,8 @@ const tabs = [
 
 export default function AppPillNav() {
   const [moreOpen, setMoreOpen] = useState(false);
+  const { items } = useNotifications();
+  const unread = items.filter((item) => item.unread).length;
 
   return (
     <>
@@ -44,12 +47,13 @@ export default function AppPillNav() {
           <li>
             <button
               type="button"
-              className="app-pill__tab"
+              className="app-pill__tab app-pill__more"
               aria-expanded={moreOpen}
               onClick={() => setMoreOpen(true)}
             >
               <FiMoreHorizontal />
               <span className="app-pill__label">More</span>
+              {unread > 0 && <span className="app-pill__dot" aria-hidden="true" />}
             </button>
           </li>
         </ul>

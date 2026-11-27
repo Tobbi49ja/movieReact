@@ -1,0 +1,35 @@
+html[data-app="true"] .settings-page {
+  padding: calc(env(safe-area-inset-top, 0px) + 64px) 16px calc(96px + env(safe-area-inset-bottom));
+  min-height: 0;
+}
+
+html[data-app="true"] .settings-card {
+  background: var(--app-surface);
+  border-radius: 16px;
+  padding: 6px 14px 14px;
+  margin: 0 0 14px;
+}
+
+html[data-app="true"] .settings-heading {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-muted);
+  margin: 12px 0 8px;
+}
+
+html[data-app="true"] .settings-card .app-sheet__row,
+html[data-app="true"] .settings-card button,
+html[data-app="true"] .settings-card a {
+  min-height: 48px;
+}
+
+html[data-app="true"] .settings-card .app-sheet__modes {
+  display: flex;
+  gap: 8px;
+}
+
+html[data-app="true"] .settings-danger {
+  color: #ff6b6b;
+}
