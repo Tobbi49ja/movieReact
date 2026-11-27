@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
+import { notifyDownloadDone } from './notify';
 
 const Downloader = registerPlugin('Downloader');
 
@@ -57,7 +58,10 @@ export async function initDownloader() {
     await Downloader.addListener('downloadStarted', ({ id }) => updateDownload(id, { status: 'downloading' })),
     await Downloader.addListener('downloadProgress', (d) => updateDownload(d.id, { status: 'downloading', progress: d.percent ?? 0, speedBps: d.speedBps ?? 0, etaSec: d.etaSec ?? 0 })),
     await Downloader.addListener('downloadPaused', ({ id }) => updateDownload(id, { status: 'paused' })),
-    await Downloader.addListener('downloadComplete', ({ id, path, size }) => updateDownload(id, { status: 'done', progress: 100, path: path || '', size: size ?? '' })),
+    await Downloader.addListener('downloadComplete', ({ id, path, size }) => {
+      updateDownload(id, { status: 'done', progress: 100, path: path || '', size: size ?? '' });
+      notifyDownloadDone(getDownloads().find((d) => d.id === id)?.title || 'Your download');
+    }),
     await Downloader.addListener('downloadError', ({ id, code, message }) => {
       updateDownload(id, { status: 'failed', errorCode: code || '', error: message || '' });
       const failed = getDownloads().find((d) => d.id === id);

@@ -33,3 +33,88 @@ html[data-app="true"] .settings-card .app-sheet__modes {
 html[data-app="true"] .settings-danger {
   color: #ff6b6b;
 }
+
+html[data-app="true"] .settings-page h1,
+html[data-app="true"] .settings-page .section-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 16px;
+  padding: 0;
+}
+
+html[data-app="true"] .settings-card {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 4px 16px 8px;
+}
+
+html[data-app="true"] .settings-heading {
+  padding: 0;
+  margin: 14px 0 6px;
+}
+
+html[data-app="true"] .settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 15px;
+  color: var(--app-text);
+  text-decoration: none;
+  background: none;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  width: 100%;
+  text-align: left;
+}
+
+html[data-app="true"] .settings-card .settings-row:last-child,
+html[data-app="true"] .settings-card .settings-modes:last-child {
+  border-bottom: 0;
+}
+
+html[data-app="true"] .settings-row span:last-child,
+html[data-app="true"] .settings-row a {
+  font-size: 13px;
+  color: var(--app-muted);
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+html[data-app="true"] .settings-text {
+  font-size: 13px;
+  color: var(--app-muted);
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+html[data-app="true"] .settings-card .app-sheet__modes,
+html[data-app="true"] .settings-card .settings-modes {
+  padding: 8px 0 12px;
+}
+
+html[data-app="true"] .settings-card .app-sheet__modes button,
+html[data-app="true"] .settings-card .settings-modes button {
+  min-height: 44px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+html[data-app="true"] .settings-card .app-switch {
+  flex: 0 0 auto;
+}
+
+html[data-app="true"] .settings-row[href="/login"] {
+  min-height: 48px;
+  border-radius: 24px;
+  background: var(--app-accent);
+  color: #fff;
+  border: 0;
+  justify-content: center;
+}
+

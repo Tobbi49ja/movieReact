@@ -9,6 +9,7 @@ import { AuthProvider } from "./context/AuthContext";
 import React, { Suspense, lazy, useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
 import { initDownloader } from "./lib/downloader";
+import { initNotifications } from "./lib/notify";
 
 import useScrollGlow from "./hooks/useScrollGlow";
 
@@ -47,7 +48,10 @@ import './styles/sidebar.css';
 function App() {
     useScrollGlow();
     useEffect(() => {
-      if (Capacitor.isNativePlatform()) initDownloader();
+      if (Capacitor.isNativePlatform()) {
+        initDownloader();
+        initNotifications();
+      }
     }, []);
   return (
     <ContentModeProvider>
